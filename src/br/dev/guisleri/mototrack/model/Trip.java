@@ -1,6 +1,7 @@
 package br.dev.guisleri.mototrack.model;
 
 import br.dev.guisleri.mototrack.exception.InvalidTripDateException;
+import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -8,14 +9,17 @@ import java.time.temporal.ChronoUnit;
 public class Trip {
 
     private final long id;
+    private final String origin;
     private String destination;
     private double distanceKm;
     private TripStatus status;
     private TerrainType terrain;
     private final LocalDate plannedDate;
+    private final Motorcycle motorcycle;
 
-    public Trip(long id, String destination, double distanceKm, TerrainType terrain, LocalDate plannedDate) {
+    public Trip(long id,String origin, String destination, double distanceKm, TerrainType terrain, LocalDate plannedDate, Motorcycle motorcycle) {
         this.id = id;
+        this.origin = origin;
         this.destination = destination;
         this.distanceKm = distanceKm;
         this.status = TripStatus.PLANNED;
@@ -26,6 +30,8 @@ public class Trip {
         }
 
         this.plannedDate = plannedDate;
+
+        this.motorcycle = motorcycle;
     }
 
     public long getDaysUntilPlannedDate() {
@@ -34,6 +40,10 @@ public class Trip {
 
     public long getId() {
         return id;
+    }
+
+    public String getOrigin() {
+        return origin;
     }
 
     public String getDestination() {
@@ -56,9 +66,13 @@ public class Trip {
         return status;
     }
 
-    public void changeStatus(TripStatus status) {
-        this.status = status;
+    public void changeStatus(TripStatus newStatus) {
+        if (!this.status.canTransitionTo(newStatus)) {
+            throw new InvalidTripStatusException("Status inválido!");
+        }
+        this.status = newStatus;
     }
+
 
     public TerrainType getTerrain() {
         return terrain;
@@ -71,4 +85,9 @@ public class Trip {
     public LocalDate getPlannedDate() {
         return plannedDate;
     }
+
+    public Motorcycle getMotorcycle() {
+        return motorcycle;
+    }
+
 }

@@ -1,6 +1,7 @@
 package br.dev.guisleri.mototrack.service;
 
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
+import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -65,6 +66,27 @@ public class TripService {
                 .filter(trip -> trip.getStatus() != TripStatus.COMPLETED)
                 .sorted(Comparator.comparing(Trip::getPlannedDate))
                 .toList();
+    }
+
+    public long getCompletedTripsCount() {
+        return trips.stream()
+                .filter(trip -> trip.getStatus() == TripStatus.COMPLETED)
+                .count();
+    }
+
+    public double getTotalCompletedDistance() {
+        return trips.stream()
+                .filter(trip -> trip.getStatus() == TripStatus.COMPLETED)
+                .mapToDouble(Trip::getDistanceKm)
+                .sum();
+    }
+
+    public Map<Motorcycle, Long> countTripsByMotorcycle() {
+        return trips.stream()
+                .collect(Collectors.groupingBy(
+                        Trip::getMotorcycle,
+                        Collectors.counting()
+                ));
     }
 
 }

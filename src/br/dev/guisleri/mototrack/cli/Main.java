@@ -1,7 +1,9 @@
 package br.dev.guisleri.mototrack.cli;
 
 import br.dev.guisleri.mototrack.exception.InvalidTripDateException;
+import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
+import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -9,6 +11,7 @@ import br.dev.guisleri.mototrack.service.TripService;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class Main {
@@ -17,55 +20,96 @@ public class Main {
         TripService tripService = new TripService();
         LocalDate today = LocalDate.now();
 
+        Motorcycle hondaNx500 = new Motorcycle(
+                1, "Honda", "NX 500", 2025, 471
+        );
+        Motorcycle yamahaTenere700 = new Motorcycle(
+                2, "Yamaha", "Tenere 700", 2024, 689
+        );
+        Motorcycle royalEnfieldHimalayan = new Motorcycle(
+                3, "Royal Enfield", "Himalayan 450", 2025, 452
+        );
+
         // =========================
         // Cadastro das viagens
         // =========================
 
-        tripService.addTrip(
+        List<Trip> trips = List.of(
                 new Trip(
                         1,
+                        "Florianopolis",
                         "Serra do Rio do Rastro",
                         284.5,
                         TerrainType.ASPHALT,
-                        today.plusDays(30)
-                )
-        );
-
-        tripService.addTrip(
+                        today.plusDays(7),
+                        hondaNx500
+                ),
                 new Trip(
                         2,
-                        "Estrada Real",
-                        710.0,
+                        "Belo Horizonte",
+                        "Ouro Preto",
+                        310.0,
                         TerrainType.MIXED,
-                        today.plusDays(90)
-                )
-        );
-
-        tripService.addTrip(
+                        today.plusDays(14),
+                        hondaNx500
+                ),
                 new Trip(
                         3,
-                        "Jalapao",
-                        920.0,
-                        TerrainType.OFF_ROAD,
-                        today.plusDays(1)
-                )
-        );
-
-        tripService.addTrip(
+                        "Sao Paulo",
+                        "Serra Negra",
+                        250.0,
+                        TerrainType.ASPHALT,
+                        today.plusDays(21),
+                        hondaNx500
+                ),
                 new Trip(
                         4,
-                        "Serra Negra",
-                        100.0,
+                        "Curitiba",
+                        "Morretes",
+                        225.5,
+                        TerrainType.MIXED,
+                        today.plusDays(30),
+                        hondaNx500
+                ),
+                new Trip(
+                        5,
+                        "Palmas",
+                        "Jalapao",
+                        320.0,
+                        TerrainType.OFF_ROAD,
+                        today.plusDays(45),
+                        hondaNx500
+                ),
+                new Trip(
+                        6,
+                        "Sao Paulo",
+                        "Campos do Jordao",
+                        252.5,
                         TerrainType.ASPHALT,
-                        today.plusDays(7)
+                        today.plusDays(60),
+                        yamahaTenere700
+                ),
+                new Trip(
+                        7,
+                        "Goiania",
+                        "Pirenopolis",
+                        200.0,
+                        TerrainType.MIXED,
+                        today.plusDays(90),
+                        royalEnfieldHimalayan
                 )
         );
 
+        trips.forEach(tripService::addTrip);
+
+        IO.println("=== Viagens cadastradas ===");
+        printTrips(trips);
+
         // =========================
-        // Busca por ID
+        // Busca e filtros
         // =========================
 
-        IO.println("=== Busca por id ===");
+        IO.println("\n=== Busca por id ===");
 
         tripService.findTripById(2)
                 .ifPresentOrElse(
@@ -73,120 +117,85 @@ public class Main {
                         () -> IO.println("Viagem nao encontrada")
                 );
 
-        IO.println(
-                "Busca pelo id 99 esta vazia: "
-                        + tripService.findTripById(99).isEmpty()
-        );
-
-        // =========================
-        // Alteração de status
-        // =========================
-
-        IO.println("\n=== Alteracao de status ===");
-
-        tripService.changeStatus(2, TripStatus.IN_PROGRESS);
-        tripService.changeStatus(3, TripStatus.COMPLETED);
-
-        tripService.findTripById(2)
-                .ifPresent(this::printTrip);
-
-        tripService.findTripById(3)
-                .ifPresent(this::printTrip);
-
-        // =========================
-        // Busca por terreno
-        // =========================
-
-        IO.println("\n=== Viagens por terreno: ASPHALT ===");
-
-        printTrips(
-                tripService.findTripsByTerrain(TerrainType.ASPHALT)
-        );
-
         IO.println("\n=== Viagens por terreno: OFF_ROAD ===");
-
-        printTrips(
-                tripService.findTripsByTerrain(TerrainType.OFF_ROAD)
-        );
-
-        // =========================
-        // Viagens planejadas
-        // =========================
+        printTrips(tripService.findTripsByTerrain(TerrainType.OFF_ROAD));
 
         IO.println("\n=== Viagens planejadas ===");
+        printTrips(tripService.findPlannedTrips());
 
-        printTrips(
-                tripService.findPlannedTrips()
-        );
-
-        // =========================
-        // Contagem por status
-        // =========================
-
-        IO.println("\n=== Quantidade por status ===");
-
-        printCountByStatus(
-                tripService.countByStatus()
-        );
+        IO.println("\n=== Quantidade por status antes da conclusao ===");
+        printCountByStatus(tripService.countByStatus());
 
         // =========================
-        // Busca por data
+        // Alteracao de status
         // =========================
 
-        LocalDate searchedDate = today.plusDays(7);
+        trips.forEach(trip -> completeTrip(tripService, trip.getId()));
 
-        IO.println(
-                "\n=== Viagens para " + searchedDate + " ==="
-        );
-
-        printTrips(
-                tripService.findTripsByDate(searchedDate)
-        );
+        IO.println("\n=== Quantidade por status depois da conclusao ===");
+        printCountByStatus(tripService.countByStatus());
 
         // =========================
-        // Próximas viagens
-        // =========================
-
-        IO.println("\n=== Proximas viagens ===");
-
-        printTrips(
-                tripService.findUpcomingTrips()
-        );
-
-        // =========================
-        // ID inexistente
+        // Cenarios de erro
         // =========================
 
         IO.println("\n=== Alteracao de status com id inexistente ===");
 
         try {
-            tripService.changeStatus(
-                    99,
-                    TripStatus.COMPLETED
-            );
+            tripService.changeStatus(99, TripStatus.IN_PROGRESS);
         } catch (TripNotFoundException exception) {
             IO.println(exception.getMessage());
         }
-
-        // =========================
-        // Data inválida
-        // =========================
 
         IO.println("\n=== Cadastro com data no passado ===");
 
         try {
             tripService.addTrip(
                     new Trip(
-                            5,
+                            8,
+                            "Sao Paulo",
                             "Viagem no tempo",
                             150.0,
                             TerrainType.ASPHALT,
-                            today.minusDays(1)
+                            today.minusDays(1),
+                            hondaNx500
                     )
             );
         } catch (InvalidTripDateException exception) {
             IO.println(exception.getMessage());
         }
+
+        IO.println("\n=== Transicao de status invalida ===");
+
+        try {
+            Trip invalidTransitionTrip = new Trip(
+                    9,
+                    "Araras",
+                    "Brotas",
+                    150.0,
+                    TerrainType.ASPHALT,
+                    today.plusDays(10),
+                    hondaNx500
+            );
+
+            tripService.addTrip(invalidTransitionTrip);
+
+            tripService.changeStatus(9, TripStatus.COMPLETED);
+
+        } catch (InvalidTripStatusException exception) {
+            IO.println(exception.getMessage());
+        }
+
+        // =========================
+        // Estatisticas e relatorio
+        // =========================
+
+        printReport(tripService, trips);
+    }
+
+    private void completeTrip(TripService tripService, long tripId) {
+        tripService.changeStatus(tripId, TripStatus.IN_PROGRESS);
+        tripService.changeStatus(tripId, TripStatus.COMPLETED);
     }
 
     private void printTrips(List<Trip> trips) {
@@ -194,21 +203,24 @@ public class Main {
     }
 
     private void printTrip(Trip trip) {
+        Motorcycle motorcycle = trip.getMotorcycle();
+
         System.out.printf(
-                "Id: %d | Destino: %s | Distancia: %.1f km | Terreno: %s | Status: %s | Data: %s | Dias restantes: %d%n",
+                "Id: %d | Rota: %s -> %s | Distancia: %.1f km | "
+                        + "Terreno: %s | Status: %s | Data: %s | Moto: %s %s%n",
                 trip.getId(),
+                trip.getOrigin(),
                 trip.getDestination(),
                 trip.getDistanceKm(),
                 trip.getTerrain(),
                 trip.getStatus(),
                 trip.getPlannedDate(),
-                trip.getDaysUntilPlannedDate()
+                motorcycle.getBrand(),
+                motorcycle.getModel()
         );
     }
 
-    private void printCountByStatus(
-            Map<TripStatus, Long> countByStatus
-    ) {
+    private void printCountByStatus(Map<TripStatus, Long> countByStatus) {
         for (TripStatus status : TripStatus.values()) {
             System.out.printf(
                     "%s: %d%n",
@@ -216,5 +228,43 @@ public class Main {
                     countByStatus.getOrDefault(status, 0L)
             );
         }
+    }
+
+    private void printReport(TripService tripService, List<Trip> trips) {
+        Map.Entry<Motorcycle, Long> mostUsedMotorcycle = tripService
+                .countTripsByMotorcycle()
+                .entrySet()
+                .stream()
+                .max(Map.Entry.comparingByValue())
+                .orElseThrow();
+
+        Motorcycle motorcycle = mostUsedMotorcycle.getKey();
+        double motorcycleDistance = trips.stream()
+                .filter(trip -> trip.getStatus() == TripStatus.COMPLETED)
+                .filter(trip -> trip.getMotorcycle() == motorcycle)
+                .mapToDouble(Trip::getDistanceKm)
+                .sum();
+
+        Locale brazilianPortuguese = Locale.forLanguageTag("pt-BR");
+
+        IO.println("\n=== Resumo MotoTrack ===");
+        System.out.printf(
+                brazilianPortuguese,
+                """
+
+                Viagens concluídas: %d
+                Distância percorrida: %,.1f km
+
+                Moto mais utilizada:
+                %s %s
+                %d viagens
+                %,.0f km%n""",
+                tripService.getCompletedTripsCount(),
+                tripService.getTotalCompletedDistance(),
+                motorcycle.getBrand(),
+                motorcycle.getModel(),
+                mostUsedMotorcycle.getValue(),
+                motorcycleDistance
+        );
     }
 }

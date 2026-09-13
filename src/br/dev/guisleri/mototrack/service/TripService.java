@@ -5,6 +5,7 @@ import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -24,14 +25,13 @@ public class TripService {
 
     public void changeStatus(long id, TripStatus status) {
         Trip trip = findTripById(id)
-                .orElseThrow(() ->
-                        new TripNotFoundException(
-                                "Viagem com id %d não encontrada".formatted(id)
-                        )
-                );
+                .orElseThrow(() -> new TripNotFoundException(
+                        "Viagem com id %d não encontrada".formatted(id)
+                ));
 
         trip.changeStatus(status);
     }
+
 
     public List<Trip> findTripsByTerrain(TerrainType terrainType) {
         return trips.stream()
@@ -52,4 +52,19 @@ public class TripService {
                         Collectors.counting()
                 ));
     }
+
+    public List<Trip> findTripsByDate(LocalDate date) {
+        return trips.stream()
+                .filter(trip -> trip.getPlannedDate().isEqual(date))
+                .toList();
+    }
+
+    public List<Trip> findUpcomingTrips() {
+        return trips.stream()
+                .filter(trip -> !trip.getPlannedDate().isBefore(LocalDate.now()))
+                .filter(trip -> trip.getStatus() != TripStatus.COMPLETED)
+                .sorted(Comparator.comparing(Trip::getPlannedDate))
+                .toList();
+    }
+
 }

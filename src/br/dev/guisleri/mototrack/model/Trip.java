@@ -1,5 +1,10 @@
 package br.dev.guisleri.mototrack.model;
 
+import br.dev.guisleri.mototrack.exception.InvalidTripDateException;
+
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+
 public class Trip {
 
     private final long id;
@@ -7,13 +12,24 @@ public class Trip {
     private double distanceKm;
     private TripStatus status;
     private TerrainType terrain;
+    private final LocalDate plannedDate;
 
-    public Trip(long id, String destination, double distanceKm, TerrainType terrain) {
+    public Trip(long id, String destination, double distanceKm, TerrainType terrain, LocalDate plannedDate) {
         this.id = id;
         this.destination = destination;
         this.distanceKm = distanceKm;
         this.status = TripStatus.PLANNED;
         this.terrain = terrain;
+
+        if (plannedDate.isBefore(LocalDate.now())) {
+            throw new InvalidTripDateException("Data planejada inválida!");
+        }
+
+        this.plannedDate = plannedDate;
+    }
+
+    public long getDaysUntilPlannedDate() {
+        return ChronoUnit.DAYS.between(LocalDate.now(), this.plannedDate);
     }
 
     public long getId() {
@@ -50,5 +66,9 @@ public class Trip {
 
     public void setTerrain(TerrainType terrain) {
         this.terrain = terrain;
+    }
+
+    public LocalDate getPlannedDate() {
+        return plannedDate;
     }
 }

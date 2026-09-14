@@ -7,6 +7,8 @@ import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
+import br.dev.guisleri.mototrack.repository.InMemoryTripRepository;
+import br.dev.guisleri.mototrack.repository.TripRepository;
 import br.dev.guisleri.mototrack.service.TripService;
 
 import java.time.LocalDate;
@@ -17,7 +19,8 @@ import java.util.Map;
 public class Main {
 
     void main() {
-        TripService tripService = new TripService();
+        TripRepository repository = new InMemoryTripRepository();
+        TripService tripService = new TripService(repository);
         LocalDate today = LocalDate.now();
 
         Motorcycle hondaNx500 = new Motorcycle(
@@ -34,7 +37,7 @@ public class Main {
         // Cadastro das viagens
         // =========================
 
-        List<Trip> trips = List.of(
+        List<Trip> tripsToRegister = List.of(
                 new Trip(
                         1,
                         "Florianopolis",
@@ -100,10 +103,10 @@ public class Main {
                 )
         );
 
-        trips.forEach(tripService::addTrip);
+        tripsToRegister.forEach(tripService::registerTrip);
 
         IO.println("=== Viagens cadastradas ===");
-        printTrips(trips);
+        printTrips(tripService.findAllTrips());
 
         // =========================
         // Busca e filtros
@@ -123,17 +126,24 @@ public class Main {
         IO.println("\n=== Viagens planejadas ===");
         printTrips(tripService.findPlannedTrips());
 
+        IO.println("\n=== Viagens planejadas para daqui a 14 dias ===");
+        printTrips(tripService.findTripsByDate(today.plusDays(14)));
+
+        IO.println("\n=== Proximas viagens ===");
+        printTrips(tripService.findUpcomingTrips());
+
         IO.println("\n=== Quantidade por status antes da conclusao ===");
-        printCountByStatus(tripService.countByStatus());
+        printCountByStatus(tripService.countTripsByStatus());
 
         // =========================
         // Alteracao de status
         // =========================
 
-        trips.forEach(trip -> completeTrip(tripService, trip.getId()));
+        tripService.findAllTrips()
+                .forEach(trip -> completeTrip(tripService, trip.getId()));
 
         IO.println("\n=== Quantidade por status depois da conclusao ===");
-        printCountByStatus(tripService.countByStatus());
+        printCountByStatus(tripService.countTripsByStatus());
 
         // =========================
         // Cenarios de erro
@@ -142,7 +152,7 @@ public class Main {
         IO.println("\n=== Alteracao de status com id inexistente ===");
 
         try {
-            tripService.changeStatus(99, TripStatus.IN_PROGRESS);
+            tripService.changeTripStatus(99, TripStatus.IN_PROGRESS);
         } catch (TripNotFoundException exception) {
             IO.println(exception.getMessage());
         }
@@ -150,7 +160,7 @@ public class Main {
         IO.println("\n=== Cadastro com data no passado ===");
 
         try {
-            tripService.addTrip(
+            tripService.registerTrip(
                     new Trip(
                             8,
                             "Sao Paulo",
@@ -178,9 +188,7 @@ public class Main {
                     hondaNx500
             );
 
-            tripService.addTrip(invalidTransitionTrip);
-
-            tripService.changeStatus(9, TripStatus.COMPLETED);
+            invalidTransitionTrip.changeStatus(TripStatus.COMPLETED);
 
         } catch (InvalidTripStatusException exception) {
             IO.println(exception.getMessage());
@@ -190,12 +198,12 @@ public class Main {
         // Estatisticas e relatorio
         // =========================
 
-        printReport(tripService, trips);
+        printReport(tripService);
     }
 
     private void completeTrip(TripService tripService, long tripId) {
-        tripService.changeStatus(tripId, TripStatus.IN_PROGRESS);
-        tripService.changeStatus(tripId, TripStatus.COMPLETED);
+        tripService.changeTripStatus(tripId, TripStatus.IN_PROGRESS);
+        tripService.changeTripStatus(tripId, TripStatus.COMPLETED);
     }
 
     private void printTrips(List<Trip> trips) {
@@ -230,7 +238,7 @@ public class Main {
         }
     }
 
-    private void printReport(TripService tripService, List<Trip> trips) {
+    private void printReport(TripService tripService) {
         Map.Entry<Motorcycle, Long> mostUsedMotorcycle = tripService
                 .countTripsByMotorcycle()
                 .entrySet()
@@ -239,11 +247,8 @@ public class Main {
                 .orElseThrow();
 
         Motorcycle motorcycle = mostUsedMotorcycle.getKey();
-        double motorcycleDistance = trips.stream()
-                .filter(trip -> trip.getStatus() == TripStatus.COMPLETED)
-                .filter(trip -> trip.getMotorcycle() == motorcycle)
-                .mapToDouble(Trip::getDistanceKm)
-                .sum();
+        double motorcycleDistance = tripService
+                .calculateCompletedDistanceByMotorcycle(motorcycle);
 
         Locale brazilianPortuguese = Locale.forLanguageTag("pt-BR");
 
@@ -259,8 +264,8 @@ public class Main {
                 %s %s
                 %d viagens
                 %,.0f km%n""",
-                tripService.getCompletedTripsCount(),
-                tripService.getTotalCompletedDistance(),
+                tripService.countCompletedTrips(),
+                tripService.calculateTotalCompletedDistance(),
                 motorcycle.getBrand(),
                 motorcycle.getModel(),
                 mostUsedMotorcycle.getValue(),

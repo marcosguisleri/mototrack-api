@@ -5,88 +5,83 @@ import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
+import br.dev.guisleri.mototrack.repository.TripRepository;
 
 import java.time.LocalDate;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 public class TripService {
 
-    private final List<Trip> trips = new ArrayList<>();
+    private final TripRepository repository;
 
-    public void addTrip(Trip trip) {
-        trips.add(trip);
+    public TripService(TripRepository repository) {
+        this.repository = repository;
+    }
+
+    public void registerTrip(Trip trip) {
+        repository.save(trip);
     }
 
     public Optional<Trip> findTripById(long id) {
-        return trips.stream()
-                .filter(trip -> trip.getId() == id)
-                .findFirst();
+        return repository.findById(id);
     }
 
-    public void changeStatus(long id, TripStatus status) {
-        Trip trip = findTripById(id)
+    public List<Trip> findAllTrips() {
+        return repository.findAll();
+    }
+
+    public void changeTripStatus(long id, TripStatus newStatus) {
+        Trip trip = repository.findById(id)
                 .orElseThrow(() -> new TripNotFoundException(
                         "Viagem com id %d não encontrada".formatted(id)
                 ));
 
-        trip.changeStatus(status);
+        trip.changeStatus(newStatus);
+        repository.save(trip);
     }
 
-
     public List<Trip> findTripsByTerrain(TerrainType terrainType) {
-        return trips.stream()
-                .filter(trip -> trip.getTerrain() == terrainType)
-                .toList();
+        return repository.findByTerrain(terrainType);
     }
 
     public List<Trip> findPlannedTrips() {
-        return trips.stream()
-                .filter(trip -> trip.getStatus() == TripStatus.PLANNED)
-                .toList();
+        return repository.findByStatus(TripStatus.PLANNED);
     }
 
-    public Map<TripStatus, Long> countByStatus() {
-        return trips.stream()
-                .collect(Collectors.groupingBy(
-                        Trip::getStatus,
-                        Collectors.counting()
-                ));
+    public Map<TripStatus, Long> countTripsByStatus() {
+        return repository.countByStatus();
     }
 
     public List<Trip> findTripsByDate(LocalDate date) {
-        return trips.stream()
-                .filter(trip -> trip.getPlannedDate().isEqual(date))
-                .toList();
+        return repository.findByPlannedDate(date);
     }
 
     public List<Trip> findUpcomingTrips() {
-        return trips.stream()
-                .filter(trip -> !trip.getPlannedDate().isBefore(LocalDate.now()))
-                .filter(trip -> trip.getStatus() != TripStatus.COMPLETED)
-                .sorted(Comparator.comparing(Trip::getPlannedDate))
-                .toList();
+        return repository.findUpcomingFrom(LocalDate.now());
     }
 
-    public long getCompletedTripsCount() {
-        return trips.stream()
-                .filter(trip -> trip.getStatus() == TripStatus.COMPLETED)
-                .count();
+    public long countCompletedTrips() {
+        return repository.countByStatus()
+                .getOrDefault(TripStatus.COMPLETED, 0L);
     }
 
-    public double getTotalCompletedDistance() {
-        return trips.stream()
-                .filter(trip -> trip.getStatus() == TripStatus.COMPLETED)
-                .mapToDouble(Trip::getDistanceKm)
-                .sum();
+    public double calculateTotalCompletedDistance() {
+        return repository.sumDistanceByStatus(TripStatus.COMPLETED);
     }
 
     public Map<Motorcycle, Long> countTripsByMotorcycle() {
-        return trips.stream()
-                .collect(Collectors.groupingBy(
-                        Trip::getMotorcycle,
-                        Collectors.counting()
-                ));
+        return repository.countByMotorcycle();
+    }
+
+    public double calculateCompletedDistanceByMotorcycle(
+            Motorcycle motorcycle
+    ) {
+        return repository.sumDistanceByMotorcycleAndStatus(
+                motorcycle,
+                TripStatus.COMPLETED
+        );
     }
 
 }

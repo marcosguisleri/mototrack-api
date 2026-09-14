@@ -1,23 +1,26 @@
 package br.dev.guisleri.mototrack.service;
 
+import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
-import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
 import br.dev.guisleri.mototrack.repository.TripRepository;
 
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 public class TripService {
 
     private final TripRepository repository;
+    private final Clock clock;
 
-    public TripService(TripRepository repository) {
+    public TripService(TripRepository repository, Clock clock) {
         this.repository = repository;
+        this.clock = clock;
     }
 
     public void registerTrip(Trip trip) {
@@ -38,7 +41,8 @@ public class TripService {
                         "Viagem com id %d não encontrada".formatted(id)
                 ));
 
-        trip.changeStatus(newStatus);
+        trip.changeStatus(newStatus,
+                LocalDate.now(clock));
         repository.save(trip);
     }
 
@@ -50,37 +54,29 @@ public class TripService {
         return repository.findByStatus(TripStatus.PLANNED);
     }
 
-    public Map<TripStatus, Long> countTripsByStatus() {
-        return repository.countByStatus();
-    }
-
     public List<Trip> findTripsByDate(LocalDate date) {
-        return repository.findByPlannedDate(date);
+        return repository.findByTripDate(date);
     }
 
     public List<Trip> findUpcomingTrips() {
-        return repository.findUpcomingFrom(LocalDate.now());
+        return repository.findUpcomingFrom(LocalDate.now(clock));
     }
 
-    public long countCompletedTrips() {
-        return repository.countByStatus()
-                .getOrDefault(TripStatus.COMPLETED, 0L);
-    }
+    public long calculateDaysUntilTrip(long id) {
+        Trip trip = repository.findById(id)
+                .orElseThrow(() -> new TripNotFoundException(
+                        "Viagem com id %d não encontrada".formatted(id)
+                ));
 
-    public double calculateTotalCompletedDistance() {
-        return repository.sumDistanceByStatus(TripStatus.COMPLETED);
-    }
+        if (trip.getStatus() != TripStatus.PLANNED) {
+            throw new InvalidTripStatusException(
+                    "Só é possível calcular os dias restantes de uma viagem planejada."
+            );
+        }
 
-    public Map<Motorcycle, Long> countTripsByMotorcycle() {
-        return repository.countByMotorcycle();
-    }
-
-    public double calculateCompletedDistanceByMotorcycle(
-            Motorcycle motorcycle
-    ) {
-        return repository.sumDistanceByMotorcycleAndStatus(
-                motorcycle,
-                TripStatus.COMPLETED
+        return ChronoUnit.DAYS.between(
+                LocalDate.now(clock),
+                trip.getTripDate()
         );
     }
 

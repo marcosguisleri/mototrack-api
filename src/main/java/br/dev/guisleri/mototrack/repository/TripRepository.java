@@ -24,7 +24,7 @@ public interface TripRepository {
 
     Map<TripStatus, Long> countByStatus();
 
-    List<Trip> findByPlannedDate(LocalDate date);
+    List<Trip> findByTripDate(LocalDate date);
 
     List<Trip> findUpcomingFrom(LocalDate date);
 
@@ -36,5 +36,7 @@ public interface TripRepository {
             Motorcycle motorcycle,
             TripStatus status
     );
+
+    Optional<Motorcycle> findMostUsedMotorcycle();
 
 }

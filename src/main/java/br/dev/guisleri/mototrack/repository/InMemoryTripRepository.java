@@ -61,18 +61,18 @@ public class InMemoryTripRepository implements TripRepository {
     }
 
     @Override
-    public List<Trip> findByPlannedDate(LocalDate date) {
+    public List<Trip> findByTripDate(LocalDate date) {
         return trips.stream()
-                .filter(trip -> trip.getPlannedDate().isEqual(date))
+                .filter(trip -> trip.getTripDate().isEqual(date))
                 .toList();
     }
 
     @Override
     public List<Trip> findUpcomingFrom(LocalDate date) {
         return trips.stream()
-                .filter(trip -> !trip.getPlannedDate().isBefore(date))
-                .filter(trip -> trip.getStatus() != TripStatus.COMPLETED)
-                .sorted(Comparator.comparing(Trip::getPlannedDate))
+                .filter(trip -> !trip.getTripDate().isBefore(date))
+                .filter(trip -> trip.getStatus() == TripStatus.PLANNED)
+                .sorted(Comparator.comparing(Trip::getTripDate))
                 .toList();
     }
 
@@ -99,9 +99,24 @@ public class InMemoryTripRepository implements TripRepository {
             TripStatus status
     ) {
         return trips.stream()
-                .filter(trip -> trip.getMotorcycle() == motorcycle)
+                .filter(trip -> Objects.equals(trip.getMotorcycle(), motorcycle))
                 .filter(trip -> trip.getStatus() == status)
                 .mapToDouble(Trip::getDistanceKm)
                 .sum();
     }
+
+    @Override
+    public Optional<Motorcycle> findMostUsedMotorcycle() {
+        return findAll().stream()
+                .filter(trip -> trip.getStatus() == TripStatus.COMPLETED)
+                .collect(Collectors.groupingBy(
+                        Trip::getMotorcycle,
+                        Collectors.counting()
+                ))
+                .entrySet()
+                .stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey);
+    }
+
 }

@@ -3,10 +3,10 @@ package br.dev.guisleri.mototrack.model;
 public class Motorcycle {
 
     private final long id;
-    private String brand;
-    private String model;
-    private int year;
-    private int engineCapacity;
+    private final String brand;
+    private final String model;
+    private final int year;
+    private final int engineCapacity;
 
     public Motorcycle(long id, String brand, String model, int year, int engineCapacity) {
         this.id = id;
@@ -14,6 +14,26 @@ public class Motorcycle {
         this.model = model;
         this.year = year;
         this.engineCapacity = engineCapacity;
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        if (this == object) {
+            return true;
+        }
+
+        if (object == null || getClass() != object.getClass()) {
+            return false;
+        }
+
+        Motorcycle motorcycle = (Motorcycle) object;
+
+        return id == motorcycle.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Long.hashCode(id);
     }
 
     public long getId() {
@@ -35,4 +55,5 @@ public class Motorcycle {
     public int getEngineCapacity() {
         return engineCapacity;
     }
+
 }

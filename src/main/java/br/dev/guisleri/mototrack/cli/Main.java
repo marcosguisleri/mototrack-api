@@ -7,13 +7,15 @@ import br.dev.guisleri.mototrack.repository.InMemoryTripRepository;
 import br.dev.guisleri.mototrack.repository.TripRepository;
 import br.dev.guisleri.mototrack.service.TripService;
 
+import java.time.Clock;
 import java.time.LocalDate;
 
 public class Main {
 
-    void main() {
+    public static void main(String[] args) {
         TripRepository repository = new InMemoryTripRepository();
-        TripService tripService = new TripService(repository);
+        Clock clock = Clock.systemDefaultZone();
+        TripService tripService = new TripService(repository, clock);
 
         Motorcycle motorcycle = new Motorcycle(
                 1,
@@ -23,23 +25,24 @@ public class Main {
                 471
         );
 
-        Trip trip = new Trip(
+        Trip trip = Trip.schedule(
                 1,
                 "Florianopolis",
                 "Serra do Rio do Rastro",
                 284.5,
                 TerrainType.ASPHALT,
-                LocalDate.now().plusDays(7),
-                motorcycle
+                LocalDate.now(clock).plusDays(7),
+                motorcycle,
+                clock
         );
 
         tripService.registerTrip(trip);
 
         IO.println("=== Viagens cadastradas ===");
-        tripService.findAllTrips().forEach(this::printTrip);
+        tripService.findAllTrips().forEach(Main::printTrip);
     }
 
-    private void printTrip(Trip trip) {
+    private static void printTrip(Trip trip) {
         Motorcycle motorcycle = trip.getMotorcycle();
 
         System.out.printf(
@@ -51,7 +54,7 @@ public class Main {
                 trip.getDistanceKm(),
                 trip.getTerrain(),
                 trip.getStatus(),
-                trip.getPlannedDate(),
+                trip.getTripDate(),
                 motorcycle.getBrand(),
                 motorcycle.getModel()
         );

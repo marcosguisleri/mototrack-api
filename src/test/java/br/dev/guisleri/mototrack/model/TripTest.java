@@ -5,7 +5,10 @@ import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -16,31 +19,39 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 public class TripTest {
 
     private Motorcycle motorcycle;
+    private Clock fixedClock;
+    private LocalDate today;
 
     @BeforeEach
     void setUp() {
         motorcycle = new Motorcycle(1, "Honda", "NX 500", 2025, 471);
+        fixedClock = Clock.fixed(
+                Instant.parse("2026-09-14T12:00:00Z"),
+                ZoneId.of("America/Sao_Paulo")
+        );
+        today = LocalDate.now(fixedClock);
     }
 
     @Test
     void shouldCreateTripWithPlannedStatus() {
-        Trip trip = createTrip(LocalDate.now().plusDays(1));
+        Trip trip = createTrip(today.plusDays(1));
 
         assertEquals(TripStatus.PLANNED, trip.getStatus());
     }
 
     @Test
     void shouldCreateTripWithProvidedData() {
-        LocalDate plannedDate = LocalDate.now().plusDays(10);
+        LocalDate plannedDate = today.plusDays(10);
 
-        Trip trip = new Trip(
+        Trip trip = Trip.schedule(
                 10,
                 "Florianopolis",
                 "Serra do Rio do Rastro",
                 284.5,
                 TerrainType.ASPHALT,
                 plannedDate,
-                motorcycle
+                motorcycle,
+                fixedClock
         );
 
         assertAll(
@@ -49,23 +60,21 @@ public class TripTest {
                 () -> assertEquals("Serra do Rio do Rastro", trip.getDestination()),
                 () -> assertEquals(284.5, trip.getDistanceKm()),
                 () -> assertEquals(TerrainType.ASPHALT, trip.getTerrain()),
-                () -> assertEquals(plannedDate, trip.getPlannedDate()),
+                () -> assertEquals(plannedDate, trip.getTripDate()),
                 () -> assertSame(motorcycle, trip.getMotorcycle())
         );
     }
 
     @Test
     void shouldAllowTripPlannedForToday() {
-        LocalDate today = LocalDate.now();
-
         Trip trip = assertDoesNotThrow(() -> createTrip(today));
 
-        assertEquals(today, trip.getPlannedDate());
+        assertEquals(today, trip.getTripDate());
     }
 
     @Test
     void shouldRejectTripWithPastDate() {
-        LocalDate yesterday = LocalDate.now().minusDays(1);
+        LocalDate yesterday = today.minusDays(1);
 
         assertThrows(
                 InvalidTripDateException.class,
@@ -74,38 +83,62 @@ public class TripTest {
     }
 
     @Test
-    void shouldCalculateDaysUntilPlannedDate() {
-        Trip trip = createTrip(LocalDate.now().plusDays(12));
+    void shouldRegisterCompletedTripForPastDate() {
+        LocalDate yesterday = today.minusDays(1);
 
-        assertEquals(12, trip.getDaysUntilPlannedDate());
+        Trip trip = assertDoesNotThrow(
+                () -> createCompletedTrip(yesterday)
+        );
+
+        assertAll(
+                () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
+                () -> assertEquals(yesterday, trip.getTripDate())
+        );
+    }
+
+    @Test
+    void shouldAllowCompletedTripForToday() {
+        Trip trip = assertDoesNotThrow(
+                () -> createCompletedTrip(today)
+        );
+
+        assertEquals(TripStatus.COMPLETED, trip.getStatus());
+    }
+
+    @Test
+    void shouldRejectCompletedTripWithFutureDate() {
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> createCompletedTrip(today.plusDays(1))
+        );
     }
 
     @Test
     void shouldChangeStatusFromPlannedToInProgress() {
-        Trip trip = createTrip(LocalDate.now().plusDays(1));
+        Trip trip = createTrip(today.plusDays(1));
 
-        trip.changeStatus(TripStatus.IN_PROGRESS);
+        trip.changeStatus(TripStatus.IN_PROGRESS, today);
 
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
     }
 
     @Test
     void shouldChangeStatusFromInProgressToCompleted() {
-        Trip trip = createTrip(LocalDate.now().plusDays(1));
-        trip.changeStatus(TripStatus.IN_PROGRESS);
+        Trip trip = createTrip(today);
+        trip.changeStatus(TripStatus.IN_PROGRESS, today);
 
-        trip.changeStatus(TripStatus.COMPLETED);
+        trip.changeStatus(TripStatus.COMPLETED, today);
 
         assertEquals(TripStatus.COMPLETED, trip.getStatus());
     }
 
     @Test
     void shouldRejectTransitionFromPlannedToCompleted() {
-        Trip trip = createTrip(LocalDate.now().plusDays(1));
+        Trip trip = createTrip(today.plusDays(1));
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> trip.changeStatus(TripStatus.COMPLETED)
+                () -> trip.changeStatus(TripStatus.COMPLETED, today)
         );
     }
 
@@ -115,7 +148,7 @@ public class TripTest {
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> trip.changeStatus(TripStatus.IN_PROGRESS)
+                () -> trip.changeStatus(TripStatus.IN_PROGRESS, today)
         );
     }
 
@@ -125,26 +158,37 @@ public class TripTest {
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> trip.changeStatus(TripStatus.PLANNED)
+                () -> trip.changeStatus(TripStatus.PLANNED, today)
         );
     }
 
     private Trip createTrip(LocalDate plannedDate) {
-        return new Trip(
+        return Trip.schedule(
                 1,
                 "Florianopolis",
                 "Serra do Rio do Rastro",
                 284.5,
                 TerrainType.ASPHALT,
                 plannedDate,
-                motorcycle
+                motorcycle,
+                fixedClock
         );
     }
 
     private Trip createCompletedTrip() {
-        Trip trip = createTrip(LocalDate.now().plusDays(1));
-        trip.changeStatus(TripStatus.IN_PROGRESS);
-        trip.changeStatus(TripStatus.COMPLETED);
-        return trip;
+        return createCompletedTrip(today.minusDays(1));
+    }
+
+    private Trip createCompletedTrip(LocalDate tripDate) {
+        return Trip.registerCompleted(
+                1,
+                "Florianopolis",
+                "Serra do Rio do Rastro",
+                284.5,
+                TerrainType.ASPHALT,
+                tripDate,
+                motorcycle,
+                fixedClock
+        );
     }
 }

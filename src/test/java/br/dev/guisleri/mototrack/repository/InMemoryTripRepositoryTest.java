@@ -7,7 +7,10 @@ import br.dev.guisleri.mototrack.model.TripStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -21,12 +24,19 @@ class InMemoryTripRepositoryTest {
     private InMemoryTripRepository repository;
     private Motorcycle honda;
     private Motorcycle yamaha;
+    private Clock fixedClock;
+    private LocalDate today;
 
     @BeforeEach
     void setUp() {
         repository = new InMemoryTripRepository();
         honda = new Motorcycle(1, "Honda", "NX 500", 2025, 471);
         yamaha = new Motorcycle(2, "Yamaha", "Tenere 700", 2024, 689);
+        fixedClock = Clock.fixed(
+                Instant.parse("2026-09-14T12:00:00Z"),
+                ZoneId.of("America/Sao_Paulo")
+        );
+        today = LocalDate.now(fixedClock);
     }
 
     @Test
@@ -94,7 +104,7 @@ class InMemoryTripRepositoryTest {
     void shouldFindTripsByStatus() {
         Trip plannedTrip = createTrip(1, 100, TerrainType.ASPHALT, 1, honda);
         Trip inProgressTrip = createTrip(2, 200, TerrainType.MIXED, 2, yamaha);
-        inProgressTrip.changeStatus(TripStatus.IN_PROGRESS);
+        inProgressTrip.changeStatus(TripStatus.IN_PROGRESS, today);
         repository.save(plannedTrip);
         repository.save(inProgressTrip);
 
@@ -108,9 +118,10 @@ class InMemoryTripRepositoryTest {
     void shouldCountTripsByStatus() {
         Trip plannedTrip = createTrip(1, 100, TerrainType.ASPHALT, 1, honda);
         Trip inProgressTrip = createTrip(2, 200, TerrainType.MIXED, 2, yamaha);
-        Trip completedTrip = createTrip(3, 300, TerrainType.OFF_ROAD, 3, honda);
-        inProgressTrip.changeStatus(TripStatus.IN_PROGRESS);
-        complete(completedTrip);
+        Trip completedTrip = createCompletedTrip(
+                3, 300, TerrainType.OFF_ROAD, -3, honda
+        );
+        inProgressTrip.changeStatus(TripStatus.IN_PROGRESS, today);
         repository.save(plannedTrip);
         repository.save(inProgressTrip);
         repository.save(completedTrip);
@@ -123,14 +134,14 @@ class InMemoryTripRepositoryTest {
     }
 
     @Test
-    void shouldFindTripsByPlannedDate() {
-        LocalDate searchedDate = LocalDate.now().plusDays(5);
+    void shouldFindTripsByTripDate() {
+        LocalDate searchedDate = today.plusDays(5);
         Trip tripOnDate = createTrip(1, 100, TerrainType.ASPHALT, searchedDate, honda);
         Trip tripOnOtherDate = createTrip(2, 200, TerrainType.MIXED, searchedDate.plusDays(1), yamaha);
         repository.save(tripOnDate);
         repository.save(tripOnOtherDate);
 
-        List<Trip> result = repository.findByPlannedDate(searchedDate);
+        List<Trip> result = repository.findByTripDate(searchedDate);
 
         assertEquals(1, result.size());
         assertSame(tripOnDate, result.getFirst());
@@ -138,7 +149,7 @@ class InMemoryTripRepositoryTest {
 
     @Test
     void shouldFindUpcomingTrips() {
-        LocalDate referenceDate = LocalDate.now().plusDays(5);
+        LocalDate referenceDate = today.plusDays(5);
         Trip earlierTrip = createTrip(1, 100, TerrainType.ASPHALT, referenceDate.minusDays(1), honda);
         Trip tripOnReferenceDate = createTrip(2, 200, TerrainType.MIXED, referenceDate, yamaha);
         Trip futureTrip = createTrip(3, 300, TerrainType.OFF_ROAD, referenceDate.plusDays(1), honda);
@@ -152,11 +163,45 @@ class InMemoryTripRepositoryTest {
     }
 
     @Test
+    void shouldIncludePlannedTripForReferenceDate() {
+        Trip tripForToday = createTrip(
+                1,
+                100,
+                TerrainType.ASPHALT,
+                today,
+                honda
+        );
+        repository.save(tripForToday);
+
+        List<Trip> result = repository.findUpcomingFrom(today);
+
+        assertEquals(1, result.size());
+        assertSame(tripForToday, result.getFirst());
+    }
+
+    @Test
+    void shouldNotIncludeInProgressTripAsUpcoming() {
+        Trip trip = createTrip(
+                1,
+                100,
+                TerrainType.ASPHALT,
+                today.plusDays(1),
+                honda
+        );
+        trip.changeStatus(TripStatus.IN_PROGRESS, today);
+        repository.save(trip);
+
+        List<Trip> result = repository.findUpcomingFrom(today);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
     void shouldIgnoreCompletedTripsWhenFindingUpcomingTrips() {
-        LocalDate today = LocalDate.now();
-        Trip completedTrip = createTrip(1, 100, TerrainType.ASPHALT, today, honda);
+        Trip completedTrip = createCompletedTrip(
+                1, 100, TerrainType.ASPHALT, 0, honda
+        );
         Trip plannedTrip = createTrip(2, 200, TerrainType.MIXED, today.plusDays(1), yamaha);
-        complete(completedTrip);
         repository.save(completedTrip);
         repository.save(plannedTrip);
 
@@ -169,7 +214,6 @@ class InMemoryTripRepositoryTest {
 
     @Test
     void shouldSortUpcomingTripsByDate() {
-        LocalDate today = LocalDate.now();
         Trip laterTrip = createTrip(1, 100, TerrainType.ASPHALT, today.plusDays(10), honda);
         Trip closestTrip = createTrip(2, 200, TerrainType.MIXED, today.plusDays(2), yamaha);
         Trip middleTrip = createTrip(3, 300, TerrainType.OFF_ROAD, today.plusDays(5), honda);
@@ -185,11 +229,13 @@ class InMemoryTripRepositoryTest {
 
     @Test
     void shouldSumDistanceByStatus() {
-        Trip firstCompletedTrip = createTrip(1, 100.5, TerrainType.ASPHALT, 1, honda);
-        Trip secondCompletedTrip = createTrip(2, 149.5, TerrainType.MIXED, 2, yamaha);
+        Trip firstCompletedTrip = createCompletedTrip(
+                1, 100.5, TerrainType.ASPHALT, -1, honda
+        );
+        Trip secondCompletedTrip = createCompletedTrip(
+                2, 149.5, TerrainType.MIXED, -2, yamaha
+        );
         Trip plannedTrip = createTrip(3, 500, TerrainType.OFF_ROAD, 3, honda);
-        complete(firstCompletedTrip);
-        complete(secondCompletedTrip);
         repository.save(firstCompletedTrip);
         repository.save(secondCompletedTrip);
         repository.save(plannedTrip);
@@ -212,12 +258,43 @@ class InMemoryTripRepositoryTest {
     }
 
     @Test
+    void shouldGroupDifferentInstancesOfSameMotorcycleId() {
+        Motorcycle firstHonda = new Motorcycle(
+                1,
+                "Honda",
+                "NX 500",
+                2025,
+                471
+        );
+        Motorcycle sameHonda = new Motorcycle(
+                1,
+                "Honda",
+                "NX 500",
+                2025,
+                471
+        );
+        repository.save(
+                createTrip(1, 100, TerrainType.ASPHALT, 1, firstHonda)
+        );
+        repository.save(
+                createTrip(2, 200, TerrainType.MIXED, 2, sameHonda)
+        );
+
+        Map<Motorcycle, Long> result = repository.countByMotorcycle();
+
+        assertEquals(1, result.size());
+        assertEquals(2L, result.get(firstHonda));
+    }
+
+    @Test
     void shouldSumDistanceByMotorcycleAndStatus() {
-        Trip completedHondaTrip = createTrip(1, 100, TerrainType.ASPHALT, 1, honda);
+        Trip completedHondaTrip = createCompletedTrip(
+                1, 100, TerrainType.ASPHALT, -1, honda
+        );
         Trip plannedHondaTrip = createTrip(2, 200, TerrainType.MIXED, 2, honda);
-        Trip completedYamahaTrip = createTrip(3, 300, TerrainType.OFF_ROAD, 3, yamaha);
-        complete(completedHondaTrip);
-        complete(completedYamahaTrip);
+        Trip completedYamahaTrip = createCompletedTrip(
+                3, 300, TerrainType.OFF_ROAD, -3, yamaha
+        );
         repository.save(completedHondaTrip);
         repository.save(plannedHondaTrip);
         repository.save(completedYamahaTrip);
@@ -241,7 +318,7 @@ class InMemoryTripRepositoryTest {
                 id,
                 distance,
                 terrain,
-                LocalDate.now().plusDays(daysFromToday),
+                today.plusDays(daysFromToday),
                 motorcycle
         );
     }
@@ -253,19 +330,34 @@ class InMemoryTripRepositoryTest {
             LocalDate plannedDate,
             Motorcycle motorcycle
     ) {
-        return new Trip(
+        return Trip.schedule(
                 id,
                 "Origem " + id,
                 "Destino " + id,
                 distance,
                 terrain,
                 plannedDate,
-                motorcycle
+                motorcycle,
+                fixedClock
         );
     }
 
-    private void complete(Trip trip) {
-        trip.changeStatus(TripStatus.IN_PROGRESS);
-        trip.changeStatus(TripStatus.COMPLETED);
+    private Trip createCompletedTrip(
+            long id,
+            double distance,
+            TerrainType terrain,
+            int daysFromToday,
+            Motorcycle motorcycle
+    ) {
+        return Trip.registerCompleted(
+                id,
+                "Origem " + id,
+                "Destino " + id,
+                distance,
+                terrain,
+                today.plusDays(daysFromToday),
+                motorcycle,
+                fixedClock
+        );
     }
 }

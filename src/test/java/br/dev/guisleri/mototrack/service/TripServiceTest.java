@@ -44,33 +44,37 @@ class TripServiceTest {
     }
 
     @Test
-    void shouldRegisterTrip() {
-        Trip trip = createTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
+    void shouldScheduleTrip() {
+        Trip trip = scheduleTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
 
-        service.registerTrip(trip);
-
-        assertSame(trip, service.findTripById(1).orElseThrow());
+        assertSame(trip, service.findTripById(1));
     }
 
     @Test
     void shouldFindTripById() {
-        Trip trip = createTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
-        service.registerTrip(trip);
+        Trip trip = scheduleTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
 
-        Trip result = service.findTripById(1).orElseThrow();
+        Trip result = service.findTripById(1);
 
         assertSame(trip, result);
     }
 
     @Test
+    void shouldThrowWhenFindingUnknownTrip() {
+        assertThrows(
+                TripNotFoundException.class,
+                () -> service.findTripById(99)
+        );
+    }
+
+    @Test
     void shouldChangeTripStatus() {
-        Trip trip = createTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
-        service.registerTrip(trip);
+        Trip trip = scheduleTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
 
         service.changeTripStatus(1, TripStatus.IN_PROGRESS);
 
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
-        assertSame(trip, service.findTripById(1).orElseThrow());
+        assertSame(trip, service.findTripById(1));
     }
 
     @Test
@@ -83,10 +87,8 @@ class TripServiceTest {
 
     @Test
     void shouldFindTripsByTerrain() {
-        Trip asphaltTrip = createTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
-        Trip offRoadTrip = createTrip(2, TerrainType.OFF_ROAD, today.plusDays(2), yamaha);
-        service.registerTrip(asphaltTrip);
-        service.registerTrip(offRoadTrip);
+        Trip asphaltTrip = scheduleTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
+        Trip offRoadTrip = scheduleTrip(2, TerrainType.OFF_ROAD, today.plusDays(2), yamaha);
 
         List<Trip> result = service.findTripsByTerrain(TerrainType.OFF_ROAD);
 
@@ -95,14 +97,12 @@ class TripServiceTest {
     }
 
     @Test
-    void shouldFindPlannedTrips() {
-        Trip plannedTrip = createTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
-        Trip inProgressTrip = createTrip(2, TerrainType.MIXED, today.plusDays(2), yamaha);
-        inProgressTrip.changeStatus(TripStatus.IN_PROGRESS, today);
-        service.registerTrip(plannedTrip);
-        service.registerTrip(inProgressTrip);
+    void shouldFindTripsByStatus() {
+        Trip plannedTrip = scheduleTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
+        scheduleTrip(2, TerrainType.MIXED, today.plusDays(2), yamaha);
+        service.changeTripStatus(2, TripStatus.IN_PROGRESS);
 
-        List<Trip> result = service.findPlannedTrips();
+        List<Trip> result = service.findTripsByStatus(TripStatus.PLANNED);
 
         assertEquals(1, result.size());
         assertSame(plannedTrip, result.getFirst());
@@ -111,10 +111,8 @@ class TripServiceTest {
     @Test
     void shouldFindTripsByDate() {
         LocalDate searchedDate = today.plusDays(5);
-        Trip tripOnDate = createTrip(1, TerrainType.ASPHALT, searchedDate, honda);
-        Trip tripOnOtherDate = createTrip(2, TerrainType.MIXED, searchedDate.plusDays(1), yamaha);
-        service.registerTrip(tripOnDate);
-        service.registerTrip(tripOnOtherDate);
+        Trip tripOnDate = scheduleTrip(1, TerrainType.ASPHALT, searchedDate, honda);
+        scheduleTrip(2, TerrainType.MIXED, searchedDate.plusDays(1), yamaha);
 
         List<Trip> result = service.findTripsByDate(searchedDate);
 
@@ -124,10 +122,8 @@ class TripServiceTest {
 
     @Test
     void shouldFindUpcomingTrips() {
-        Trip tripForToday = createTrip(1, TerrainType.ASPHALT, today, honda);
-        Trip futureTrip = createTrip(2, TerrainType.MIXED, today.plusDays(2), yamaha);
-        service.registerTrip(futureTrip);
-        service.registerTrip(tripForToday);
+        Trip futureTrip = scheduleTrip(2, TerrainType.MIXED, today.plusDays(2), yamaha);
+        Trip tripForToday = scheduleTrip(1, TerrainType.ASPHALT, today, honda);
 
         List<Trip> result = service.findUpcomingTrips();
 
@@ -137,13 +133,12 @@ class TripServiceTest {
 
     @Test
     void shouldCalculateDaysUntilPlannedTrip() {
-        Trip plannedTrip = createTrip(
+        scheduleTrip(
                 1,
                 TerrainType.ASPHALT,
                 today.plusDays(12),
                 honda
         );
-        service.registerTrip(plannedTrip);
 
         long result = service.calculateDaysUntilTrip(1);
 
@@ -152,17 +147,15 @@ class TripServiceTest {
 
     @Test
     void shouldThrowWhenCalculatingDaysUntilCompletedTrip() {
-        Trip completedTrip = Trip.registerCompleted(
+        service.registerCompletedTrip(
                 1,
                 "Florianopolis",
                 "Serra do Rio do Rastro",
                 284.5,
                 TerrainType.ASPHALT,
                 today.minusDays(1),
-                honda,
-                fixedClock
+                honda
         );
-        service.registerTrip(completedTrip);
 
         assertThrows(
                 InvalidTripStatusException.class,
@@ -172,13 +165,12 @@ class TripServiceTest {
 
     @Test
     void shouldRejectCompletingFutureTrip() {
-        Trip trip = createTrip(
+        Trip trip = scheduleTrip(
                 1,
                 TerrainType.ASPHALT,
                 today.plusDays(10),
                 honda
         );
-        service.registerTrip(trip);
 
         service.changeTripStatus(1, TripStatus.IN_PROGRESS);
 
@@ -189,21 +181,20 @@ class TripServiceTest {
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
     }
 
-    private Trip createTrip(
+    private Trip scheduleTrip(
             long id,
             TerrainType terrain,
             LocalDate plannedDate,
             Motorcycle motorcycle
     ) {
-        return Trip.schedule(
+        return service.scheduleTrip(
                 id,
                 "Origem " + id,
                 "Destino " + id,
                 100 * id,
                 terrain,
                 plannedDate,
-                motorcycle,
-                fixedClock
+                motorcycle
         );
     }
 }

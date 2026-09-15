@@ -3,10 +3,12 @@ package br.dev.guisleri.mototrack.service;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TripStatus;
 import br.dev.guisleri.mototrack.repository.TripRepository;
+import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.Optional;
 
+@Service
 public class TripStatisticsService {
 
     private final TripRepository repository;

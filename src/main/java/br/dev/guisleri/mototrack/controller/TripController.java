@@ -7,9 +7,17 @@ import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
 import br.dev.guisleri.mototrack.service.TripService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -26,10 +34,9 @@ public class TripController {
 
     @PostMapping
     public ResponseEntity<TripResponseDTO> scheduleTrip(
-            @RequestBody CreateTripRequestDTO request
+            @Valid @RequestBody CreateTripRequestDTO request
     ) {
         Trip trip = tripService.scheduleTrip(
-                request.id(),
                 request.origin(),
                 request.destination(),
                 request.distanceKm(),
@@ -45,10 +52,9 @@ public class TripController {
 
     @PostMapping("/completed")
     public ResponseEntity<TripResponseDTO> registerCompletedTrip(
-            @RequestBody CreateTripRequestDTO request
+            @Valid @RequestBody CreateTripRequestDTO request
     ) {
         Trip completedTrip = tripService.registerCompletedTrip(
-                request.id(),
                 request.origin(),
                 request.destination(),
                 request.distanceKm(),
@@ -65,7 +71,7 @@ public class TripController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> changeStatus(
             @PathVariable long id,
-            @RequestBody ChangeTripStatusRequestDTO request
+            @Valid @RequestBody ChangeTripStatusRequestDTO request
     ) {
         tripService.changeTripStatus(
                 id,

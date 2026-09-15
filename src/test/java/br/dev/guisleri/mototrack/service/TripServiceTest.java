@@ -19,7 +19,6 @@ import java.time.ZoneId;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TripServiceTest {
@@ -47,7 +46,7 @@ class TripServiceTest {
     void shouldScheduleTrip() {
         Trip trip = scheduleTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
 
-        assertSame(trip, service.findTripById(1));
+        assertEquals(trip.getId(), service.findTripById(1).getId());
     }
 
     @Test
@@ -56,7 +55,7 @@ class TripServiceTest {
 
         Trip result = service.findTripById(1);
 
-        assertSame(trip, result);
+        assertEquals(trip.getId(), result.getId());
     }
 
     @Test
@@ -74,7 +73,7 @@ class TripServiceTest {
         service.changeTripStatus(1, TripStatus.IN_PROGRESS);
 
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
-        assertSame(trip, service.findTripById(1));
+        assertEquals(trip.getId(), service.findTripById(1).getId());
     }
 
     @Test
@@ -93,7 +92,7 @@ class TripServiceTest {
         List<Trip> result = service.findTripsByTerrain(TerrainType.OFF_ROAD);
 
         assertEquals(1, result.size());
-        assertSame(offRoadTrip, result.getFirst());
+        assertEquals(offRoadTrip.getId(), result.getFirst().getId());
     }
 
     @Test
@@ -105,7 +104,7 @@ class TripServiceTest {
         List<Trip> result = service.findTripsByStatus(TripStatus.PLANNED);
 
         assertEquals(1, result.size());
-        assertSame(plannedTrip, result.getFirst());
+        assertEquals(plannedTrip.getId(), result.getFirst().getId());
     }
 
     @Test
@@ -117,7 +116,7 @@ class TripServiceTest {
         List<Trip> result = service.findTripsByDate(searchedDate);
 
         assertEquals(1, result.size());
-        assertSame(tripOnDate, result.getFirst());
+        assertEquals(tripOnDate.getId(), result.getFirst().getId());
     }
 
     @Test
@@ -128,7 +127,7 @@ class TripServiceTest {
         List<Trip> result = service.findUpcomingTrips();
 
         assertEquals(List.of(tripForToday, futureTrip), result);
-        assertSame(tripForToday, result.getFirst());
+        assertEquals(tripForToday.getId(), result.getFirst().getId());
     }
 
     @Test
@@ -148,7 +147,6 @@ class TripServiceTest {
     @Test
     void shouldThrowWhenCalculatingDaysUntilCompletedTrip() {
         service.registerCompletedTrip(
-                1,
                 "Florianopolis",
                 "Serra do Rio do Rastro",
                 284.5,
@@ -188,7 +186,6 @@ class TripServiceTest {
             Motorcycle motorcycle
     ) {
         return service.scheduleTrip(
-                id,
                 "Origem " + id,
                 "Destino " + id,
                 100 * id,

@@ -15,14 +15,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -34,10 +32,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(TripController.class)
 class TripControllerTest {
 
-    private static final Clock FIXED_CLOCK = Clock.fixed(
-            Instant.parse("2026-09-14T12:00:00Z"),
-            ZoneId.of("America/Sao_Paulo")
-    );
     private static final Motorcycle MOTORCYCLE = new Motorcycle(
             1,
             "Honda",
@@ -57,7 +51,6 @@ class TripControllerTest {
         LocalDate tripDate = LocalDate.of(2026, 9, 20);
         Trip trip = plannedTrip(1, tripDate);
         when(tripService.scheduleTrip(
-                1,
                 "Florianopolis",
                 "Urubici",
                 175.5,
@@ -68,7 +61,7 @@ class TripControllerTest {
 
         mockMvc.perform(post("/trips")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createTripJson(1, "2026-09-20")))
+                        .content(createTripJson("2026-09-20")))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
@@ -81,7 +74,6 @@ class TripControllerTest {
                 .andExpect(jsonPath("$.motorcycle.id").value(1));
 
         verify(tripService).scheduleTrip(
-                1,
                 "Florianopolis",
                 "Urubici",
                 175.5,
@@ -96,7 +88,6 @@ class TripControllerTest {
         LocalDate tripDate = LocalDate.of(2026, 9, 10);
         Trip trip = completedTrip(2, tripDate);
         when(tripService.registerCompletedTrip(
-                2,
                 "Florianopolis",
                 "Urubici",
                 175.5,
@@ -107,13 +98,12 @@ class TripControllerTest {
 
         mockMvc.perform(post("/trips/completed")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createTripJson(2, "2026-09-10")))
+                        .content(createTripJson("2026-09-10")))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(2))
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
 
         verify(tripService).registerCompletedTrip(
-                2,
                 "Florianopolis",
                 "Urubici",
                 175.5,
@@ -229,7 +219,6 @@ class TripControllerTest {
     void shouldReturnBadRequestWhenTripDateIsInvalid() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 10);
         when(tripService.scheduleTrip(
-                3,
                 "Florianopolis",
                 "Urubici",
                 175.5,
@@ -242,11 +231,30 @@ class TripControllerTest {
 
         mockMvc.perform(post("/trips")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createTripJson(3, "2026-09-10")))
+                        .content(createTripJson("2026-09-10")))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(
                         "Não é possível planejar uma viagem para uma data passada."
                 ));
+    }
+
+    @Test
+    void shouldRejectInvalidCreateTripRequestBeforeCallingService() throws Exception {
+        mockMvc.perform(post("/trips")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "origin": " ",
+                                  "destination": "",
+                                  "distanceKm": 0,
+                                  "terrain": null,
+                                  "tripDate": null,
+                                  "motorcycle": null
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(tripService);
     }
 
     @Test
@@ -267,6 +275,20 @@ class TripControllerTest {
     }
 
     @Test
+    void shouldRejectNullStatusBeforeCallingService() throws Exception {
+        mockMvc.perform(patch("/trips/1/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": null
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(tripService);
+    }
+
+    @Test
     void shouldChangeTripStatus() throws Exception {
         mockMvc.perform(patch("/trips/1/status")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -282,7 +304,7 @@ class TripControllerTest {
     }
 
     private Trip plannedTrip(long id, LocalDate tripDate) {
-        return Trip.schedule(
+        return Trip.restore(
                 id,
                 "Florianopolis",
                 "Urubici",
@@ -290,12 +312,12 @@ class TripControllerTest {
                 TerrainType.MIXED,
                 tripDate,
                 MOTORCYCLE,
-                FIXED_CLOCK
+                TripStatus.PLANNED
         );
     }
 
     private Trip completedTrip(long id, LocalDate tripDate) {
-        return Trip.registerCompleted(
+        return Trip.restore(
                 id,
                 "Florianopolis",
                 "Urubici",
@@ -303,14 +325,13 @@ class TripControllerTest {
                 TerrainType.MIXED,
                 tripDate,
                 MOTORCYCLE,
-                FIXED_CLOCK
+                TripStatus.COMPLETED
         );
     }
 
-    private String createTripJson(long id, String tripDate) {
+    private String createTripJson(String tripDate) {
         return """
                 {
-                  "id": %d,
                   "origin": "Florianopolis",
                   "destination": "Urubici",
                   "distanceKm": 175.5,
@@ -324,6 +345,6 @@ class TripControllerTest {
                     "engineCapacity": 471
                   }
                 }
-                """.formatted(id, tripDate);
+                """.formatted(tripDate);
     }
 }

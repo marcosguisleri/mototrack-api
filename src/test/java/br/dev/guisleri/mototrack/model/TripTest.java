@@ -13,6 +13,7 @@ import java.time.ZoneId;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -44,7 +45,6 @@ public class TripTest {
         LocalDate plannedDate = today.plusDays(10);
 
         Trip trip = Trip.schedule(
-                10,
                 "Florianopolis",
                 "Serra do Rio do Rastro",
                 284.5,
@@ -55,7 +55,7 @@ public class TripTest {
         );
 
         assertAll(
-                () -> assertEquals(10, trip.getId()),
+                () -> assertNull(trip.getId()),
                 () -> assertEquals("Florianopolis", trip.getOrigin()),
                 () -> assertEquals("Serra do Rio do Rastro", trip.getDestination()),
                 () -> assertEquals(284.5, trip.getDistanceKm()),
@@ -164,7 +164,6 @@ public class TripTest {
 
     private Trip createTrip(LocalDate plannedDate) {
         return Trip.schedule(
-                1,
                 "Florianopolis",
                 "Serra do Rio do Rastro",
                 284.5,
@@ -181,7 +180,6 @@ public class TripTest {
 
     private Trip createCompletedTrip(LocalDate tripDate) {
         return Trip.registerCompleted(
-                1,
                 "Florianopolis",
                 "Serra do Rio do Rastro",
                 284.5,

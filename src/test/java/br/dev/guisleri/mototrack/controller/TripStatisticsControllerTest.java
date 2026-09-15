@@ -43,7 +43,7 @@ class TripStatisticsControllerTest {
         );
         when(tripStatisticsService.countCompletedTrips()).thenReturn(3L);
         when(tripStatisticsService.calculateTotalCompletedDistance()).thenReturn(244.5);
-        when(tripStatisticsService.getMostUsedMotorcycle())
+        when(tripStatisticsService.getMostUsedMotorcycleInCompletedTrips())
                 .thenReturn(Optional.of(motorcycle));
         when(tripStatisticsService.countTripsByStatus()).thenReturn(tripsByStatus);
 
@@ -60,7 +60,7 @@ class TripStatisticsControllerTest {
 
         verify(tripStatisticsService).countCompletedTrips();
         verify(tripStatisticsService).calculateTotalCompletedDistance();
-        verify(tripStatisticsService).getMostUsedMotorcycle();
+        verify(tripStatisticsService).getMostUsedMotorcycleInCompletedTrips();
         verify(tripStatisticsService).countTripsByStatus();
     }
 
@@ -68,7 +68,8 @@ class TripStatisticsControllerTest {
     void shouldReturnNullWhenThereIsNoMostUsedMotorcycle() throws Exception {
         when(tripStatisticsService.countCompletedTrips()).thenReturn(0L);
         when(tripStatisticsService.calculateTotalCompletedDistance()).thenReturn(0.0);
-        when(tripStatisticsService.getMostUsedMotorcycle()).thenReturn(Optional.empty());
+        when(tripStatisticsService.getMostUsedMotorcycleInCompletedTrips())
+                .thenReturn(Optional.empty());
         when(tripStatisticsService.countTripsByStatus()).thenReturn(Map.of());
 
         mockMvc.perform(get("/statistics"))
@@ -78,6 +79,19 @@ class TripStatisticsControllerTest {
                 .andExpect(jsonPath("$.mostUsedMotorcycle").value((Object) null))
                 .andExpect(jsonPath("$.tripsByStatus").isEmpty());
 
-        verify(tripStatisticsService).getMostUsedMotorcycle();
+        verify(tripStatisticsService).getMostUsedMotorcycleInCompletedTrips();
+    }
+
+    @Test
+    void shouldRoundTotalDistanceToOneDecimalPlace() throws Exception {
+        when(tripStatisticsService.calculateTotalCompletedDistance())
+                .thenReturn(111.10000000000001);
+        when(tripStatisticsService.getMostUsedMotorcycleInCompletedTrips())
+                .thenReturn(Optional.empty());
+        when(tripStatisticsService.countTripsByStatus()).thenReturn(Map.of());
+
+        mockMvc.perform(get("/statistics"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCompletedDistance").value(111.1));
     }
 }

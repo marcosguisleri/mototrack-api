@@ -43,8 +43,8 @@ public class TripStatisticsService {
         );
     }
 
-    public Optional<Motorcycle> getMostUsedMotorcycle() {
-        return repository.findMostUsedMotorcycle();
+    public Optional<Motorcycle> getMostUsedMotorcycleInCompletedTrips() {
+        return repository.findMostUsedMotorcycleInCompletedTrips();
     }
 
 }

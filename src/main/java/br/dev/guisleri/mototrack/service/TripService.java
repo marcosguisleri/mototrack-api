@@ -13,7 +13,6 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class TripService {
@@ -27,7 +26,6 @@ public class TripService {
     }
 
     public Trip scheduleTrip(
-            long id,
             String origin,
             String destination,
             double distanceKm,
@@ -36,7 +34,6 @@ public class TripService {
             Motorcycle motorcycle
     ) {
         Trip trip = Trip.schedule(
-                id,
                 origin,
                 destination,
                 distanceKm,
@@ -46,13 +43,10 @@ public class TripService {
                 clock
         );
 
-        repository.save(trip);
-
-        return trip;
+        return repository.save(trip);
     }
 
     public Trip registerCompletedTrip(
-            long id,
             String origin,
             String destination,
             double distanceKm,
@@ -61,7 +55,6 @@ public class TripService {
             Motorcycle motorcycle
     ) {
         Trip trip = Trip.registerCompleted(
-                id,
                 origin,
                 destination,
                 distanceKm,
@@ -71,9 +64,7 @@ public class TripService {
                 clock
         );
 
-        repository.save(trip);
-
-        return trip;
+        return repository.save(trip);
     }
 
     public void changeTripStatus(long id, TripStatus newStatus) {

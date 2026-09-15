@@ -120,7 +120,8 @@ class TripStatisticsServiceTest {
         repository.save(completedYamahaTrip);
         repository.save(plannedYamahaTrip);
 
-        Optional<Motorcycle> result = statisticsService.getMostUsedMotorcycle();
+        Optional<Motorcycle> result =
+                statisticsService.getMostUsedMotorcycleInCompletedTrips();
 
         assertEquals(Optional.of(honda), result);
     }
@@ -133,14 +134,14 @@ class TripStatisticsServiceTest {
         repository.save(plannedTrip);
         repository.save(inProgressTrip);
 
-        Optional<Motorcycle> result = statisticsService.getMostUsedMotorcycle();
+        Optional<Motorcycle> result =
+                statisticsService.getMostUsedMotorcycleInCompletedTrips();
 
         assertTrue(result.isEmpty());
     }
 
     private Trip createTrip(long id, double distance, Motorcycle motorcycle) {
         return Trip.schedule(
-                id,
                 "Origem " + id,
                 "Destino " + id,
                 distance,
@@ -158,7 +159,6 @@ class TripStatisticsServiceTest {
             int daysFromToday
     ) {
         return Trip.registerCompleted(
-                id,
                 "Origem " + id,
                 "Destino " + id,
                 distance,

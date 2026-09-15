@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: mototrack-postgres
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-mototrack}
+      POSTGRES_USER: ${POSTGRES_USER:-mototrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mototrack123}
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - mototrack-postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mototrack} -d ${POSTGRES_DB:-mototrack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+    restart: unless-stopped
+
+volumes:
+  mototrack-postgres-data:

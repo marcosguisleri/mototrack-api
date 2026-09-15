@@ -22,19 +22,25 @@ public class TripStatisticsController {
     public ResponseEntity<TripStatisticsResponseDTO> getStatistics() {
 
         MotorcycleResponseDTO mostUsedMotorcycle =
-                tripStatisticsService.getMostUsedMotorcycle()
+                tripStatisticsService.getMostUsedMotorcycleInCompletedTrips()
                         .map(MotorcycleResponseDTO::from)
                         .orElse(null);
 
         TripStatisticsResponseDTO responseDTO =
                 new TripStatisticsResponseDTO(
                         tripStatisticsService.countCompletedTrips(),
-                        tripStatisticsService.calculateTotalCompletedDistance(),
+                        roundToOneDecimal(
+                                tripStatisticsService.calculateTotalCompletedDistance()
+                        ),
                         mostUsedMotorcycle,
                         tripStatisticsService.countTripsByStatus()
                 );
 
         return ResponseEntity.ok(responseDTO);
+    }
+
+    private double roundToOneDecimal(double distance) {
+        return Math.round(distance * 10.0) / 10.0;
     }
 
 }

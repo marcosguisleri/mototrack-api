@@ -8,7 +8,7 @@ import java.time.LocalDate;
 
 public class Trip {
 
-    private final long id;
+    private final Long id;
     private final String origin;
     private final String destination;
     private final double distanceKm;
@@ -18,7 +18,7 @@ public class Trip {
     private final Motorcycle motorcycle;
 
     private Trip(
-            long id,
+            Long id,
             String origin,
             String destination,
             double distanceKm,
@@ -38,7 +38,6 @@ public class Trip {
     }
 
     public static Trip schedule(
-            long id,
             String origin,
             String destination,
             double distanceKm,
@@ -56,7 +55,7 @@ public class Trip {
         }
 
         return new Trip(
-                id,
+                null,
                 origin,
                 destination,
                 distanceKm,
@@ -68,7 +67,6 @@ public class Trip {
     }
 
     public static Trip registerCompleted(
-            long id,
             String origin,
             String destination,
             double distanceKm,
@@ -86,7 +84,7 @@ public class Trip {
         }
 
         return new Trip(
-                id,
+                null,
                 origin,
                 destination,
                 distanceKm,
@@ -97,7 +95,29 @@ public class Trip {
         );
     }
 
-    public long getId() {
+    public static Trip restore(
+            Long id,
+            String origin,
+            String destination,
+            double distanceKm,
+            TerrainType terrain,
+            LocalDate tripDate,
+            Motorcycle motorcycle,
+            TripStatus status
+    ) {
+        return new Trip(
+                id,
+                origin,
+                destination,
+                distanceKm,
+                terrain,
+                tripDate,
+                motorcycle,
+                status
+        );
+    }
+
+    public Long getId() {
         return id;
     }
 

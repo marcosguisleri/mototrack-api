@@ -7,16 +7,12 @@ import br.dev.guisleri.mototrack.model.TripStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryTripRepositoryTest {
@@ -24,7 +20,6 @@ class InMemoryTripRepositoryTest {
     private InMemoryTripRepository repository;
     private Motorcycle honda;
     private Motorcycle yamaha;
-    private Clock fixedClock;
     private LocalDate today;
 
     @BeforeEach
@@ -32,11 +27,7 @@ class InMemoryTripRepositoryTest {
         repository = new InMemoryTripRepository();
         honda = new Motorcycle(1, "Honda", "NX 500", 2025, 471);
         yamaha = new Motorcycle(2, "Yamaha", "Tenere 700", 2024, 689);
-        fixedClock = Clock.fixed(
-                Instant.parse("2026-09-14T12:00:00Z"),
-                ZoneId.of("America/Sao_Paulo")
-        );
-        today = LocalDate.now(fixedClock);
+        today = LocalDate.of(2026, 9, 14);
     }
 
     @Test
@@ -45,7 +36,7 @@ class InMemoryTripRepositoryTest {
 
         repository.save(trip);
 
-        assertSame(trip, repository.findById(1).orElseThrow());
+        assertEquals(trip.getId(), repository.findById(1).orElseThrow().getId());
     }
 
     @Test
@@ -55,7 +46,7 @@ class InMemoryTripRepositoryTest {
 
         Trip result = repository.findById(1).orElseThrow();
 
-        assertSame(trip, result);
+        assertEquals(trip.getId(), result.getId());
     }
 
     @Test
@@ -72,7 +63,10 @@ class InMemoryTripRepositoryTest {
         repository.save(updated);
 
         assertEquals(1, repository.findAll().size());
-        assertSame(updated, repository.findById(1).orElseThrow());
+        assertEquals(
+                updated.getDistanceKm(),
+                repository.findById(1).orElseThrow().getDistanceKm()
+        );
     }
 
     @Test
@@ -97,7 +91,7 @@ class InMemoryTripRepositoryTest {
         List<Trip> result = repository.findByTerrain(TerrainType.OFF_ROAD);
 
         assertEquals(1, result.size());
-        assertSame(offRoadTrip, result.getFirst());
+        assertEquals(offRoadTrip.getId(), result.getFirst().getId());
     }
 
     @Test
@@ -111,7 +105,7 @@ class InMemoryTripRepositoryTest {
         List<Trip> result = repository.findByStatus(TripStatus.IN_PROGRESS);
 
         assertEquals(1, result.size());
-        assertSame(inProgressTrip, result.getFirst());
+        assertEquals(inProgressTrip.getId(), result.getFirst().getId());
     }
 
     @Test
@@ -144,7 +138,7 @@ class InMemoryTripRepositoryTest {
         List<Trip> result = repository.findByTripDate(searchedDate);
 
         assertEquals(1, result.size());
-        assertSame(tripOnDate, result.getFirst());
+        assertEquals(tripOnDate.getId(), result.getFirst().getId());
     }
 
     @Test
@@ -176,7 +170,7 @@ class InMemoryTripRepositoryTest {
         List<Trip> result = repository.findUpcomingFrom(today);
 
         assertEquals(1, result.size());
-        assertSame(tripForToday, result.getFirst());
+        assertEquals(tripForToday.getId(), result.getFirst().getId());
     }
 
     @Test
@@ -208,7 +202,7 @@ class InMemoryTripRepositoryTest {
         List<Trip> result = repository.findUpcomingFrom(today);
 
         assertEquals(1, result.size());
-        assertSame(plannedTrip, result.getFirst());
+        assertEquals(plannedTrip.getId(), result.getFirst().getId());
         assertFalse(result.contains(completedTrip));
     }
 
@@ -224,7 +218,7 @@ class InMemoryTripRepositoryTest {
         List<Trip> result = repository.findUpcomingFrom(today);
 
         assertEquals(List.of(closestTrip, middleTrip, laterTrip), result);
-        assertSame(closestTrip, result.getFirst());
+        assertEquals(closestTrip.getId(), result.getFirst().getId());
     }
 
     @Test
@@ -330,7 +324,7 @@ class InMemoryTripRepositoryTest {
             LocalDate plannedDate,
             Motorcycle motorcycle
     ) {
-        return Trip.schedule(
+        return Trip.restore(
                 id,
                 "Origem " + id,
                 "Destino " + id,
@@ -338,7 +332,7 @@ class InMemoryTripRepositoryTest {
                 terrain,
                 plannedDate,
                 motorcycle,
-                fixedClock
+                TripStatus.PLANNED
         );
     }
 
@@ -349,7 +343,7 @@ class InMemoryTripRepositoryTest {
             int daysFromToday,
             Motorcycle motorcycle
     ) {
-        return Trip.registerCompleted(
+        return Trip.restore(
                 id,
                 "Origem " + id,
                 "Destino " + id,
@@ -357,7 +351,7 @@ class InMemoryTripRepositoryTest {
                 terrain,
                 today.plusDays(daysFromToday),
                 motorcycle,
-                fixedClock
+                TripStatus.COMPLETED
         );
     }
 }

@@ -12,7 +12,7 @@ import java.util.Optional;
 
 public interface TripRepository {
 
-    void save(Trip trip);
+    Trip save(Trip trip);
 
     Optional<Trip> findById(long id);
 
@@ -37,6 +37,6 @@ public interface TripRepository {
             TripStatus status
     );
 
-    Optional<Motorcycle> findMostUsedMotorcycle();
+    Optional<Motorcycle> findMostUsedMotorcycleInCompletedTrips();
 
 }

@@ -4,33 +4,59 @@ import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
-import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Repository
+/**
+ * Implementação simples do contrato de persistência para testes unitários de service.
+ */
 public class InMemoryTripRepository implements TripRepository {
 
     private final List<Trip> trips = new ArrayList<>();
+    private long nextId = 1;
 
     @Override
-    public void save(Trip trip) {
+    public Trip save(Trip trip) {
+        Trip tripToSave = trip;
+
+        if (trip.getId() == null) {
+            tripToSave = Trip.restore(
+                    nextId++,
+                    trip.getOrigin(),
+                    trip.getDestination(),
+                    trip.getDistanceKm(),
+                    trip.getTerrain(),
+                    trip.getTripDate(),
+                    trip.getMotorcycle(),
+                    trip.getStatus()
+            );
+        } else {
+            nextId = Math.max(nextId, trip.getId() + 1);
+        }
+
         for (int index = 0; index < trips.size(); index++) {
-            if (trips.get(index).getId() == trip.getId()) {
-                trips.set(index, trip);
-                return;
+            if (Objects.equals(trips.get(index).getId(), tripToSave.getId())) {
+                trips.set(index, tripToSave);
+                return tripToSave;
             }
         }
 
-        trips.add(trip);
+        trips.add(tripToSave);
+        return tripToSave;
     }
 
     @Override
     public Optional<Trip> findById(long id) {
         return trips.stream()
-                .filter(trip -> trip.getId() == id)
+                .filter(trip -> Objects.equals(trip.getId(), id))
                 .findFirst();
     }
 
@@ -55,11 +81,18 @@ public class InMemoryTripRepository implements TripRepository {
 
     @Override
     public Map<TripStatus, Long> countByStatus() {
-        return trips.stream()
-                .collect(Collectors.groupingBy(
-                        Trip::getStatus,
-                        Collectors.counting()
-                ));
+        Map<TripStatus, Long> counts = new EnumMap<>(TripStatus.class);
+
+        for (TripStatus status : TripStatus.values()) {
+            counts.put(status, 0L);
+        }
+
+        trips.forEach(trip -> counts.compute(
+                trip.getStatus(),
+                (status, count) -> count + 1
+        ));
+
+        return counts;
     }
 
     @Override
@@ -108,8 +141,8 @@ public class InMemoryTripRepository implements TripRepository {
     }
 
     @Override
-    public Optional<Motorcycle> findMostUsedMotorcycle() {
-        return findAll().stream()
+    public Optional<Motorcycle> findMostUsedMotorcycleInCompletedTrips() {
+        return trips.stream()
                 .filter(trip -> trip.getStatus() == TripStatus.COMPLETED)
                 .collect(Collectors.groupingBy(
                         Trip::getMotorcycle,
@@ -120,5 +153,4 @@ public class InMemoryTripRepository implements TripRepository {
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey);
     }
-
 }

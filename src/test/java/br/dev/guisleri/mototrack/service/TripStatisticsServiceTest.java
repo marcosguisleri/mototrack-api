@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TripStatisticsServiceTest {
 
-    private TripRepository repository;
+    private TripRepository tripRepository;
     private TripStatisticsService statisticsService;
     private Motorcycle honda;
     private Motorcycle yamaha;
@@ -30,10 +30,10 @@ class TripStatisticsServiceTest {
 
     @BeforeEach
     void setUp() {
-        repository = new InMemoryTripRepository();
-        statisticsService = new TripStatisticsService(repository);
-        honda = new Motorcycle(1, "Honda", "NX 500", 2025, 471);
-        yamaha = new Motorcycle(2, "Yamaha", "Tenere 700", 2024, 689);
+        tripRepository = new InMemoryTripRepository();
+        statisticsService = new TripStatisticsService(tripRepository);
+        honda = Motorcycle.register("Honda", "NX 500", "Black", 2025, 471);
+        yamaha = Motorcycle.register("Yamaha", "Tenere 700", "Blue", 2024, 689);
         fixedClock = Clock.fixed(
                 Instant.parse("2026-09-14T12:00:00Z"),
                 ZoneId.of("America/Sao_Paulo")
@@ -47,9 +47,9 @@ class TripStatisticsServiceTest {
         Trip inProgressTrip = createTrip(2, 200, yamaha);
         Trip completedTrip = createCompletedTrip(3, 300, honda, -3);
         inProgressTrip.changeStatus(TripStatus.IN_PROGRESS, today);
-        repository.save(plannedTrip);
-        repository.save(inProgressTrip);
-        repository.save(completedTrip);
+        tripRepository.save(plannedTrip);
+        tripRepository.save(inProgressTrip);
+        tripRepository.save(completedTrip);
 
         Map<TripStatus, Long> result = statisticsService.countTripsByStatus();
 
@@ -62,31 +62,31 @@ class TripStatisticsServiceTest {
     void shouldCountCompletedTrips() {
         Trip completedTrip = createCompletedTrip(1, 100, honda, -1);
         Trip plannedTrip = createTrip(2, 200, yamaha);
-        repository.save(completedTrip);
-        repository.save(plannedTrip);
+        tripRepository.save(completedTrip);
+        tripRepository.save(plannedTrip);
 
         assertEquals(1, statisticsService.countCompletedTrips());
     }
 
     @Test
-    void shouldCalculateTotalCompletedDistance() {
+    void shouldCalculateTotalCompletedDistanceKm() {
         Trip firstCompletedTrip = createCompletedTrip(1, 100.5, honda, -1);
         Trip secondCompletedTrip = createCompletedTrip(2, 149.5, yamaha, -2);
         Trip plannedTrip = createTrip(3, 500, honda);
-        repository.save(firstCompletedTrip);
-        repository.save(secondCompletedTrip);
-        repository.save(plannedTrip);
+        tripRepository.save(firstCompletedTrip);
+        tripRepository.save(secondCompletedTrip);
+        tripRepository.save(plannedTrip);
 
-        double result = statisticsService.calculateTotalCompletedDistance();
+        double result = statisticsService.calculateTotalCompletedDistanceKm();
 
         assertEquals(250, result, 0.001);
     }
 
     @Test
     void shouldCountTripsByMotorcycle() {
-        repository.save(createTrip(1, 100, honda));
-        repository.save(createTrip(2, 200, honda));
-        repository.save(createTrip(3, 300, yamaha));
+        tripRepository.save(createTrip(1, 100, honda));
+        tripRepository.save(createTrip(2, 200, honda));
+        tripRepository.save(createTrip(3, 300, yamaha));
 
         Map<Motorcycle, Long> result = statisticsService.countTripsByMotorcycle();
 
@@ -95,16 +95,16 @@ class TripStatisticsServiceTest {
     }
 
     @Test
-    void shouldCalculateCompletedDistanceByMotorcycle() {
+    void shouldCalculateCompletedDistanceKmByMotorcycle() {
         Trip completedHondaTrip = createCompletedTrip(1, 100, honda, -1);
         Trip plannedHondaTrip = createTrip(2, 200, honda);
         Trip completedYamahaTrip = createCompletedTrip(3, 300, yamaha, -3);
-        repository.save(completedHondaTrip);
-        repository.save(plannedHondaTrip);
-        repository.save(completedYamahaTrip);
+        tripRepository.save(completedHondaTrip);
+        tripRepository.save(plannedHondaTrip);
+        tripRepository.save(completedYamahaTrip);
 
         double result = statisticsService
-                .calculateCompletedDistanceByMotorcycle(honda);
+                .calculateCompletedDistanceKmByMotorcycle(honda);
 
         assertEquals(100, result, 0.001);
     }
@@ -115,13 +115,13 @@ class TripStatisticsServiceTest {
         Trip secondCompletedHondaTrip = createCompletedTrip(2, 200, honda, -2);
         Trip completedYamahaTrip = createCompletedTrip(3, 300, yamaha, -3);
         Trip plannedYamahaTrip = createTrip(4, 400, yamaha);
-        repository.save(firstCompletedHondaTrip);
-        repository.save(secondCompletedHondaTrip);
-        repository.save(completedYamahaTrip);
-        repository.save(plannedYamahaTrip);
+        tripRepository.save(firstCompletedHondaTrip);
+        tripRepository.save(secondCompletedHondaTrip);
+        tripRepository.save(completedYamahaTrip);
+        tripRepository.save(plannedYamahaTrip);
 
         Optional<Motorcycle> result =
-                statisticsService.getMostUsedMotorcycleInCompletedTrips();
+                statisticsService.findMostUsedMotorcycleInCompletedTrips();
 
         assertEquals(Optional.of(honda), result);
     }
@@ -131,37 +131,41 @@ class TripStatisticsServiceTest {
         Trip plannedTrip = createTrip(1, 100, honda);
         Trip inProgressTrip = createTrip(2, 200, yamaha);
         inProgressTrip.changeStatus(TripStatus.IN_PROGRESS, today);
-        repository.save(plannedTrip);
-        repository.save(inProgressTrip);
+        tripRepository.save(plannedTrip);
+        tripRepository.save(inProgressTrip);
 
         Optional<Motorcycle> result =
-                statisticsService.getMostUsedMotorcycleInCompletedTrips();
+                statisticsService.findMostUsedMotorcycleInCompletedTrips();
 
         assertTrue(result.isEmpty());
     }
 
-    private Trip createTrip(long id, double distance, Motorcycle motorcycle) {
+    private Trip createTrip(
+            long tripNumber,
+            double distanceKm,
+            Motorcycle motorcycle
+    ) {
         return Trip.schedule(
-                "Origem " + id,
-                "Destino " + id,
-                distance,
+                "Origem " + tripNumber,
+                "Destino " + tripNumber,
+                distanceKm,
                 TerrainType.ASPHALT,
-                today.plusDays(id),
+                today.plusDays(tripNumber),
                 motorcycle,
                 fixedClock
         );
     }
 
     private Trip createCompletedTrip(
-            long id,
-            double distance,
+            long tripNumber,
+            double distanceKm,
             Motorcycle motorcycle,
             int daysFromToday
     ) {
         return Trip.registerCompleted(
-                "Origem " + id,
-                "Destino " + id,
-                distance,
+                "Origem " + tripNumber,
+                "Destino " + tripNumber,
+                distanceKm,
                 TerrainType.ASPHALT,
                 today.plusDays(daysFromToday),
                 motorcycle,

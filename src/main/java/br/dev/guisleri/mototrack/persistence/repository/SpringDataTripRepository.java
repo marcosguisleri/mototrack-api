@@ -14,19 +14,19 @@ import java.util.List;
 
 public interface SpringDataTripRepository extends JpaRepository<TripEntity, Long> {
 
-    List<TripEntity> findByTerrain(TerrainType terrain);
+    List<TripEntity> findByTerrain(TerrainType terrainType);
 
     List<TripEntity> findByStatus(TripStatus status);
 
-    List<TripEntity> findByTripDate(LocalDate date);
+    List<TripEntity> findByTripDate(LocalDate tripDate);
 
     List<TripEntity> findByTripDateGreaterThanEqualAndStatusOrderByTripDateAsc(
-            LocalDate date,
+            LocalDate startDate,
             TripStatus status
     );
 
     @Query("""
-        SELECT t.status AS status, COUNT(t) AS count
+        SELECT t.status AS status, COUNT(t) AS tripCount
         FROM TripEntity t
         GROUP BY t.status
         """)
@@ -37,7 +37,7 @@ public interface SpringDataTripRepository extends JpaRepository<TripEntity, Long
         FROM TripEntity t
         WHERE t.status = :status
         """)
-    double sumDistanceByStatus(
+    double sumDistanceKmByStatus(
             @Param("status") TripStatus status
     );
 
@@ -47,13 +47,13 @@ public interface SpringDataTripRepository extends JpaRepository<TripEntity, Long
         WHERE t.motorcycle.id = :motorcycleId
         AND t.status = :status
         """)
-    double sumDistanceByMotorcycleIdAndStatus(
+    double sumDistanceKmByMotorcycleIdAndStatus(
             @Param("motorcycleId") long motorcycleId,
             @Param("status") TripStatus status
     );
 
     @Query("""
-        SELECT t.motorcycle AS motorcycle, COUNT(t) AS count
+        SELECT t.motorcycle AS motorcycle, COUNT(t) AS tripCount
         FROM TripEntity t
         WHERE t.status = :status
         GROUP BY t.motorcycle
@@ -63,10 +63,12 @@ public interface SpringDataTripRepository extends JpaRepository<TripEntity, Long
     );
 
     @Query("""
-        SELECT t.motorcycle AS motorcycle, COUNT(t) AS count
+        SELECT t.motorcycle AS motorcycle, COUNT(t) AS tripCount
         FROM TripEntity t
         GROUP BY t.motorcycle
         """)
     List<MotorcycleTripCountProjection> countTripsGroupedByMotorcycle();
+
+    boolean existsByMotorcycleId(Long motorcycleId);
 
 }

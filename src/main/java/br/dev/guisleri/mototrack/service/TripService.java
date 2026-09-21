@@ -17,11 +17,11 @@ import java.util.List;
 @Service
 public class TripService {
 
-    private final TripRepository repository;
+    private final TripRepository tripRepository;
     private final Clock clock;
 
-    public TripService(TripRepository repository, Clock clock) {
-        this.repository = repository;
+    public TripService(TripRepository tripRepository, Clock clock) {
+        this.tripRepository = tripRepository;
         this.clock = clock;
     }
 
@@ -29,7 +29,7 @@ public class TripService {
             String origin,
             String destination,
             double distanceKm,
-            TerrainType terrain,
+            TerrainType terrainType,
             LocalDate tripDate,
             Motorcycle motorcycle
     ) {
@@ -37,20 +37,20 @@ public class TripService {
                 origin,
                 destination,
                 distanceKm,
-                terrain,
+                terrainType,
                 tripDate,
                 motorcycle,
                 clock
         );
 
-        return repository.save(trip);
+        return tripRepository.save(trip);
     }
 
     public Trip registerCompletedTrip(
             String origin,
             String destination,
             double distanceKm,
-            TerrainType terrain,
+            TerrainType terrainType,
             LocalDate tripDate,
             Motorcycle motorcycle
     ) {
@@ -58,57 +58,57 @@ public class TripService {
                 origin,
                 destination,
                 distanceKm,
-                terrain,
+                terrainType,
                 tripDate,
                 motorcycle,
                 clock
         );
 
-        return repository.save(trip);
+        return tripRepository.save(trip);
     }
 
-    public void changeTripStatus(long id, TripStatus newStatus) {
-        Trip trip = repository.findById(id)
+    public void changeTripStatus(long tripId, TripStatus newStatus) {
+        Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new TripNotFoundException(
-                        "Viagem com id %d não encontrada".formatted(id)
+                        "Viagem com id %d não encontrada".formatted(tripId)
                 ));
 
         trip.changeStatus(newStatus,
                 LocalDate.now(clock));
-        repository.save(trip);
+        tripRepository.save(trip);
     }
 
-    public Trip findTripById(long id) {
-        return repository.findById(id)
+    public Trip findTripById(long tripId) {
+        return tripRepository.findById(tripId)
                 .orElseThrow(() -> new TripNotFoundException(
-                        "Viagem com id %d não encontrada".formatted(id)
+                        "Viagem com id %d não encontrada".formatted(tripId)
                 ));
     }
 
     public List<Trip> findAllTrips() {
-        return repository.findAll();
+        return tripRepository.findAll();
     }
 
     public List<Trip> findTripsByTerrain(TerrainType terrainType) {
-        return repository.findByTerrain(terrainType);
+        return tripRepository.findByTerrain(terrainType);
     }
 
     public List<Trip> findTripsByStatus(TripStatus status) {
-        return repository.findByStatus(status);
+        return tripRepository.findByStatus(status);
     }
 
-    public List<Trip> findTripsByDate(LocalDate date) {
-        return repository.findByTripDate(date);
+    public List<Trip> findTripsByDate(LocalDate tripDate) {
+        return tripRepository.findByTripDate(tripDate);
     }
 
     public List<Trip> findUpcomingTrips() {
-        return repository.findUpcomingFrom(LocalDate.now(clock));
+        return tripRepository.findUpcomingFrom(LocalDate.now(clock));
     }
 
-    public long calculateDaysUntilTrip(long id) {
-        Trip trip = repository.findById(id)
+    public long calculateDaysUntilTrip(long tripId) {
+        Trip trip = tripRepository.findById(tripId)
                 .orElseThrow(() -> new TripNotFoundException(
-                        "Viagem com id %d não encontrada".formatted(id)
+                        "Viagem com id %d não encontrada".formatted(tripId)
                 ));
 
         if (trip.getStatus() != TripStatus.PLANNED) {
@@ -121,6 +121,11 @@ public class TripService {
                 LocalDate.now(clock),
                 trip.getTripDate()
         );
+    }
+
+    public void deleteTripById(Long tripId) {
+        findTripById(tripId);
+        tripRepository.deleteById(tripId);
     }
 
 }

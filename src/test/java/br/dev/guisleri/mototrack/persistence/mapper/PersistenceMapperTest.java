@@ -30,11 +30,13 @@ class PersistenceMapperTest {
                 () -> assertEquals(motorcycle.getId(), entity.getId()),
                 () -> assertEquals(motorcycle.getBrand(), entity.getBrand()),
                 () -> assertEquals(motorcycle.getModel(), entity.getModel()),
+                () -> assertEquals(motorcycle.getColor(), entity.getColor()),
                 () -> assertEquals(motorcycle.getYear(), entity.getYear()),
                 () -> assertEquals(motorcycle.getEngineCapacity(), entity.getEngineCapacity()),
                 () -> assertEquals(motorcycle.getId(), restoredMotorcycle.getId()),
                 () -> assertEquals(motorcycle.getBrand(), restoredMotorcycle.getBrand()),
                 () -> assertEquals(motorcycle.getModel(), restoredMotorcycle.getModel()),
+                () -> assertEquals(motorcycle.getColor(), restoredMotorcycle.getColor()),
                 () -> assertEquals(motorcycle.getYear(), restoredMotorcycle.getYear()),
                 () -> assertEquals(
                         motorcycle.getEngineCapacity(),
@@ -101,6 +103,6 @@ class PersistenceMapperTest {
     }
 
     private Motorcycle motorcycle() {
-        return new Motorcycle(1, "Honda", "NX 500", 2025, 471);
+        return Motorcycle.restore(1L, "Honda", "NX 500", "Black", 2025, 471);
     }
 }

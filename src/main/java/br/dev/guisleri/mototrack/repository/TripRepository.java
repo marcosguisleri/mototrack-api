@@ -14,7 +14,7 @@ public interface TripRepository {
 
     Trip save(Trip trip);
 
-    Optional<Trip> findById(long id);
+    Optional<Trip> findById(long tripId);
 
     List<Trip> findAll();
 
@@ -24,19 +24,23 @@ public interface TripRepository {
 
     Map<TripStatus, Long> countByStatus();
 
-    List<Trip> findByTripDate(LocalDate date);
+    List<Trip> findByTripDate(LocalDate tripDate);
 
-    List<Trip> findUpcomingFrom(LocalDate date);
+    List<Trip> findUpcomingFrom(LocalDate referenceDate);
 
-    double sumDistanceByStatus(TripStatus status);
+    double sumDistanceKmByStatus(TripStatus status);
 
     Map<Motorcycle, Long> countByMotorcycle();
 
-    double sumDistanceByMotorcycleAndStatus(
+    double sumDistanceKmByMotorcycleAndStatus(
             Motorcycle motorcycle,
             TripStatus status
     );
 
     Optional<Motorcycle> findMostUsedMotorcycleInCompletedTrips();
+
+    boolean existsByMotorcycleId(Long motorcycleId);
+
+    void deleteById(Long tripId);
 
 }

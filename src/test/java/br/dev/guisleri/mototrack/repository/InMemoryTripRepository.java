@@ -54,9 +54,9 @@ public class InMemoryTripRepository implements TripRepository {
     }
 
     @Override
-    public Optional<Trip> findById(long id) {
+    public Optional<Trip> findById(long tripId) {
         return trips.stream()
-                .filter(trip -> Objects.equals(trip.getId(), id))
+                .filter(trip -> Objects.equals(trip.getId(), tripId))
                 .findFirst();
     }
 
@@ -96,23 +96,23 @@ public class InMemoryTripRepository implements TripRepository {
     }
 
     @Override
-    public List<Trip> findByTripDate(LocalDate date) {
+    public List<Trip> findByTripDate(LocalDate tripDate) {
         return trips.stream()
-                .filter(trip -> trip.getTripDate().isEqual(date))
+                .filter(trip -> trip.getTripDate().isEqual(tripDate))
                 .toList();
     }
 
     @Override
-    public List<Trip> findUpcomingFrom(LocalDate date) {
+    public List<Trip> findUpcomingFrom(LocalDate referenceDate) {
         return trips.stream()
-                .filter(trip -> !trip.getTripDate().isBefore(date))
+                .filter(trip -> !trip.getTripDate().isBefore(referenceDate))
                 .filter(trip -> trip.getStatus() == TripStatus.PLANNED)
                 .sorted(Comparator.comparing(Trip::getTripDate))
                 .toList();
     }
 
     @Override
-    public double sumDistanceByStatus(TripStatus status) {
+    public double sumDistanceKmByStatus(TripStatus status) {
         return trips.stream()
                 .filter(trip -> trip.getStatus() == status)
                 .mapToDouble(Trip::getDistanceKm)
@@ -129,7 +129,7 @@ public class InMemoryTripRepository implements TripRepository {
     }
 
     @Override
-    public double sumDistanceByMotorcycleAndStatus(
+    public double sumDistanceKmByMotorcycleAndStatus(
             Motorcycle motorcycle,
             TripStatus status
     ) {
@@ -152,5 +152,18 @@ public class InMemoryTripRepository implements TripRepository {
                 .stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey);
+    }
+
+    @Override
+    public boolean existsByMotorcycleId(Long motorcycleId) {
+        return trips.stream()
+                .map(Trip::getMotorcycle)
+                .map(Motorcycle::getId)
+                .anyMatch(id -> Objects.equals(id, motorcycleId));
+    }
+
+    @Override
+    public void deleteById(Long tripId) {
+        trips.removeIf(trip -> Objects.equals(trip.getId(), tripId));
     }
 }

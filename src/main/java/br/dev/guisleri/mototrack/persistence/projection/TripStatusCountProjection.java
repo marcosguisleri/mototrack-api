@@ -6,6 +6,6 @@ public interface TripStatusCountProjection {
 
     TripStatus getStatus();
 
-    Long getCount();
+    Long getTripCount();
 
 }

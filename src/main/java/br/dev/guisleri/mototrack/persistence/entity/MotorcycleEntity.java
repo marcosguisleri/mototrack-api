@@ -1,22 +1,23 @@
 package br.dev.guisleri.mototrack.persistence.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name = "motorcycles")
 public class MotorcycleEntity {
 
     @Id
-    private long id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false)
     private String brand;
 
     @Column(nullable = false)
     private String model;
+
+    @Column(nullable = false)
+    private String color;
 
     @Column(name = "manufacture_year", nullable = false)
     private int year;
@@ -28,20 +29,22 @@ public class MotorcycleEntity {
     }
 
     public MotorcycleEntity(
-            long id,
+            Long id,
             String brand,
             String model,
+            String color,
             int year,
             int engineCapacity
     ) {
         this.id = id;
         this.brand = brand;
         this.model = model;
+        this.color = color;
         this.year = year;
         this.engineCapacity = engineCapacity;
     }
 
-    public long getId() {
+    public Long getId() {
         return id;
     }
 
@@ -51,6 +54,10 @@ public class MotorcycleEntity {
 
     public String getModel() {
         return model;
+    }
+
+    public String getColor() {
+        return color;
     }
 
     public int getYear() {

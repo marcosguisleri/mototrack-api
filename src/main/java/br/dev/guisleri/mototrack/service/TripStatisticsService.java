@@ -11,40 +11,40 @@ import java.util.Optional;
 @Service
 public class TripStatisticsService {
 
-    private final TripRepository repository;
+    private final TripRepository tripRepository;
 
-    public TripStatisticsService(TripRepository repository) {
-        this.repository = repository;
+    public TripStatisticsService(TripRepository tripRepository) {
+        this.tripRepository = tripRepository;
     }
 
     public Map<TripStatus, Long> countTripsByStatus() {
-        return repository.countByStatus();
+        return tripRepository.countByStatus();
     }
 
     public long countCompletedTrips() {
-        return repository.countByStatus()
+        return tripRepository.countByStatus()
                 .getOrDefault(TripStatus.COMPLETED, 0L);
     }
 
-    public double calculateTotalCompletedDistance() {
-        return repository.sumDistanceByStatus(TripStatus.COMPLETED);
+    public double calculateTotalCompletedDistanceKm() {
+        return tripRepository.sumDistanceKmByStatus(TripStatus.COMPLETED);
     }
 
     public Map<Motorcycle, Long> countTripsByMotorcycle() {
-        return repository.countByMotorcycle();
+        return tripRepository.countByMotorcycle();
     }
 
-    public double calculateCompletedDistanceByMotorcycle(
+    public double calculateCompletedDistanceKmByMotorcycle(
             Motorcycle motorcycle
     ) {
-        return repository.sumDistanceByMotorcycleAndStatus(
+        return tripRepository.sumDistanceKmByMotorcycleAndStatus(
                 motorcycle,
                 TripStatus.COMPLETED
         );
     }
 
-    public Optional<Motorcycle> getMostUsedMotorcycleInCompletedTrips() {
-        return repository.findMostUsedMotorcycleInCompletedTrips();
+    public Optional<Motorcycle> findMostUsedMotorcycleInCompletedTrips() {
+        return tripRepository.findMostUsedMotorcycleInCompletedTrips();
     }
 
 }

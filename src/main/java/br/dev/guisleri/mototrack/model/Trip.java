@@ -46,9 +46,9 @@ public class Trip {
             Motorcycle motorcycle,
             Clock clock
     ) {
-        LocalDate today = LocalDate.now(clock);
+        LocalDate currentDate = LocalDate.now(clock);
 
-        if (tripDate.isBefore(today)) {
+        if (tripDate.isBefore(currentDate)) {
             throw new InvalidTripDateException(
                     "Não é possível planejar uma viagem para uma data passada."
             );
@@ -75,9 +75,9 @@ public class Trip {
             Motorcycle motorcycle,
             Clock clock
     ) {
-        LocalDate today = LocalDate.now(clock);
+        LocalDate currentDate = LocalDate.now(clock);
 
-        if (tripDate.isAfter(today)) {
+        if (tripDate.isAfter(currentDate)) {
             throw new InvalidTripDateException(
                     "Uma viagem concluída não pode ter data futura."
             );

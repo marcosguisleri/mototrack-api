@@ -19,28 +19,28 @@ public class TripStatisticsController {
     }
 
     @GetMapping
-    public ResponseEntity<TripStatisticsResponseDTO> getStatistics() {
+    public ResponseEntity<TripStatisticsResponseDTO> getTripStatistics() {
 
-        MotorcycleResponseDTO mostUsedMotorcycle =
-                tripStatisticsService.getMostUsedMotorcycleInCompletedTrips()
+        MotorcycleResponseDTO mostUsedMotorcycleResponse =
+                tripStatisticsService.findMostUsedMotorcycleInCompletedTrips()
                         .map(MotorcycleResponseDTO::from)
                         .orElse(null);
 
-        TripStatisticsResponseDTO responseDTO =
+        TripStatisticsResponseDTO statisticsResponse =
                 new TripStatisticsResponseDTO(
                         tripStatisticsService.countCompletedTrips(),
                         roundToOneDecimal(
-                                tripStatisticsService.calculateTotalCompletedDistance()
+                                tripStatisticsService.calculateTotalCompletedDistanceKm()
                         ),
-                        mostUsedMotorcycle,
+                        mostUsedMotorcycleResponse,
                         tripStatisticsService.countTripsByStatus()
                 );
 
-        return ResponseEntity.ok(responseDTO);
+        return ResponseEntity.ok(statisticsResponse);
     }
 
-    private double roundToOneDecimal(double distance) {
-        return Math.round(distance * 10.0) / 10.0;
+    private double roundToOneDecimal(double distanceKm) {
+        return Math.round(distanceKm * 10.0) / 10.0;
     }
 
 }

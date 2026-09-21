@@ -25,19 +25,19 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class JpaTripRepositoryAdapter implements TripRepository {
 
-    private final SpringDataTripRepository tripRepository;
-    private final SpringDataMotorcycleRepository motorcycleRepository;
+    private final SpringDataTripRepository springDataTripRepository;
+    private final SpringDataMotorcycleRepository springDataMotorcycleRepository;
     private final TripMapper tripMapper;
     private final MotorcycleMapper motorcycleMapper;
 
     public JpaTripRepositoryAdapter(
-            SpringDataTripRepository tripRepository,
-            SpringDataMotorcycleRepository motorcycleRepository,
+            SpringDataTripRepository springDataTripRepository,
+            SpringDataMotorcycleRepository springDataMotorcycleRepository,
             TripMapper tripMapper,
             MotorcycleMapper motorcycleMapper
     ) {
-        this.tripRepository = tripRepository;
-        this.motorcycleRepository = motorcycleRepository;
+        this.springDataTripRepository = springDataTripRepository;
+        this.springDataMotorcycleRepository = springDataMotorcycleRepository;
         this.tripMapper = tripMapper;
         this.motorcycleMapper = motorcycleMapper;
     }
@@ -47,11 +47,10 @@ public class JpaTripRepositoryAdapter implements TripRepository {
     public Trip save(Trip trip) {
 
         MotorcycleEntity motorcycleEntity =
-                motorcycleRepository.save(
-                        motorcycleMapper.toEntity(
-                                trip.getMotorcycle()
+                springDataMotorcycleRepository.findById(
+                                trip.getMotorcycle().getId()
                         )
-                );
+                        .orElseThrow();
 
         TripEntity tripEntity =
                 tripMapper.toEntity(
@@ -59,22 +58,22 @@ public class JpaTripRepositoryAdapter implements TripRepository {
                         motorcycleEntity
                 );
 
-        TripEntity savedEntity =
-                tripRepository.save(tripEntity);
+        TripEntity savedTripEntity =
+                springDataTripRepository.save(tripEntity);
 
-        return tripMapper.toDomain(savedEntity);
+        return tripMapper.toDomain(savedTripEntity);
 
     }
 
     @Override
-    public Optional<Trip> findById(long id) {
-        return tripRepository.findById(id)
+    public Optional<Trip> findById(long tripId) {
+        return springDataTripRepository.findById(tripId)
                 .map(tripMapper::toDomain);
     }
 
     @Override
     public List<Trip> findAll() {
-        return tripRepository.findAll()
+        return springDataTripRepository.findAll()
                 .stream()
                 .map(tripMapper::toDomain)
                 .toList();
@@ -82,7 +81,7 @@ public class JpaTripRepositoryAdapter implements TripRepository {
 
     @Override
     public List<Trip> findByTerrain(TerrainType terrainType) {
-        return tripRepository.findByTerrain(terrainType)
+        return springDataTripRepository.findByTerrain(terrainType)
                 .stream()
                 .map(tripMapper::toDomain)
                 .toList();
@@ -90,7 +89,7 @@ public class JpaTripRepositoryAdapter implements TripRepository {
 
     @Override
     public List<Trip> findByStatus(TripStatus status) {
-        return tripRepository.findByStatus(status)
+        return springDataTripRepository.findByStatus(status)
                 .stream()
                 .map(tripMapper::toDomain)
                 .toList();
@@ -98,48 +97,48 @@ public class JpaTripRepositoryAdapter implements TripRepository {
 
     @Override
     public Map<TripStatus, Long> countByStatus() {
-        Map<TripStatus, Long> counts = new EnumMap<>(TripStatus.class);
+        Map<TripStatus, Long> tripCountsByStatus = new EnumMap<>(TripStatus.class);
 
         for (TripStatus status : TripStatus.values()) {
-            counts.put(status, 0L);
+            tripCountsByStatus.put(status, 0L);
         }
 
-        tripRepository.countTripsGroupedByStatus()
-                .forEach(projection ->
-                        counts.put(
-                                projection.getStatus(),
-                                projection.getCount()
+        springDataTripRepository.countTripsGroupedByStatus()
+                .forEach(statusCount ->
+                        tripCountsByStatus.put(
+                                statusCount.getStatus(),
+                                statusCount.getTripCount()
                         )
                 );
 
-        return counts;
+        return tripCountsByStatus;
     }
 
     @Override
     public Map<Motorcycle, Long> countByMotorcycle() {
-        return tripRepository.countTripsGroupedByMotorcycle()
+        return springDataTripRepository.countTripsGroupedByMotorcycle()
                 .stream()
                 .collect(Collectors.toMap(
-                        projection -> motorcycleMapper.toDomain(
-                                projection.getMotorcycle()
+                        motorcycleCount -> motorcycleMapper.toDomain(
+                                motorcycleCount.getMotorcycle()
                         ),
-                        MotorcycleTripCountProjection::getCount
+                        MotorcycleTripCountProjection::getTripCount
                 ));
     }
 
     @Override
-    public List<Trip> findByTripDate(LocalDate date) {
-        return tripRepository.findByTripDate(date)
+    public List<Trip> findByTripDate(LocalDate tripDate) {
+        return springDataTripRepository.findByTripDate(tripDate)
                 .stream()
                 .map(tripMapper::toDomain)
                 .toList();
     }
 
     @Override
-    public List<Trip> findUpcomingFrom(LocalDate date) {
-        return tripRepository
+    public List<Trip> findUpcomingFrom(LocalDate referenceDate) {
+        return springDataTripRepository
                 .findByTripDateGreaterThanEqualAndStatusOrderByTripDateAsc(
-                        date,
+                        referenceDate,
                         TripStatus.PLANNED
                 )
                 .stream()
@@ -148,16 +147,16 @@ public class JpaTripRepositoryAdapter implements TripRepository {
     }
 
     @Override
-    public double sumDistanceByStatus(TripStatus status) {
-        return tripRepository.sumDistanceByStatus(status);
+    public double sumDistanceKmByStatus(TripStatus status) {
+        return springDataTripRepository.sumDistanceKmByStatus(status);
     }
 
     @Override
-    public double sumDistanceByMotorcycleAndStatus(
+    public double sumDistanceKmByMotorcycleAndStatus(
             Motorcycle motorcycle,
             TripStatus status
     ) {
-        return tripRepository.sumDistanceByMotorcycleIdAndStatus(
+        return springDataTripRepository.sumDistanceKmByMotorcycleIdAndStatus(
                 motorcycle.getId(),
                 status
         );
@@ -165,15 +164,26 @@ public class JpaTripRepositoryAdapter implements TripRepository {
 
     @Override
     public Optional<Motorcycle> findMostUsedMotorcycleInCompletedTrips() {
-        return tripRepository.countTripsGroupedByMotorcycleAndStatus(
+        return springDataTripRepository.countTripsGroupedByMotorcycleAndStatus(
                         TripStatus.COMPLETED
                 )
                 .stream()
                 .max(Comparator.comparing(
-                        MotorcycleTripCountProjection::getCount
+                        MotorcycleTripCountProjection::getTripCount
                 ))
                 .map(MotorcycleTripCountProjection::getMotorcycle)
                 .map(motorcycleMapper::toDomain);
+    }
+
+    @Override
+    public boolean existsByMotorcycleId(Long motorcycleId) {
+        return springDataTripRepository.existsByMotorcycleId(motorcycleId);
+    }
+
+    @Override
+    @Transactional
+    public void deleteById(Long tripId) {
+        springDataTripRepository.deleteById(tripId);
     }
 
 }

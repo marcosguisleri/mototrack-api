@@ -1,6 +1,5 @@
 package br.dev.guisleri.mototrack.dto;
 
-import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -27,6 +26,7 @@ public record CreateTripRequestDTO(
         LocalDate tripDate,
 
         @NotNull
-        Motorcycle motorcycle
+        @Positive
+        Long motorcycleId
 ) {
 }

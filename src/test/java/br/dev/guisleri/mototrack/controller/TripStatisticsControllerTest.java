@@ -29,10 +29,11 @@ class TripStatisticsControllerTest {
 
     @Test
     void shouldReturnTripStatistics() throws Exception {
-        Motorcycle motorcycle = new Motorcycle(
-                1,
+        Motorcycle motorcycle = Motorcycle.restore(
+                1L,
                 "Honda",
                 "CB 500X",
+                "Red",
                 2023,
                 471
         );
@@ -42,8 +43,8 @@ class TripStatisticsControllerTest {
                 TripStatus.COMPLETED, 3L
         );
         when(tripStatisticsService.countCompletedTrips()).thenReturn(3L);
-        when(tripStatisticsService.calculateTotalCompletedDistance()).thenReturn(244.5);
-        when(tripStatisticsService.getMostUsedMotorcycleInCompletedTrips())
+        when(tripStatisticsService.calculateTotalCompletedDistanceKm()).thenReturn(244.5);
+        when(tripStatisticsService.findMostUsedMotorcycleInCompletedTrips())
                 .thenReturn(Optional.of(motorcycle));
         when(tripStatisticsService.countTripsByStatus()).thenReturn(tripsByStatus);
 
@@ -54,21 +55,22 @@ class TripStatisticsControllerTest {
                 .andExpect(jsonPath("$.mostUsedMotorcycle.id").value(1))
                 .andExpect(jsonPath("$.mostUsedMotorcycle.brand").value("Honda"))
                 .andExpect(jsonPath("$.mostUsedMotorcycle.model").value("CB 500X"))
+                .andExpect(jsonPath("$.mostUsedMotorcycle.color").value("Red"))
                 .andExpect(jsonPath("$.tripsByStatus.PLANNED").value(1))
                 .andExpect(jsonPath("$.tripsByStatus.IN_PROGRESS").value(2))
                 .andExpect(jsonPath("$.tripsByStatus.COMPLETED").value(3));
 
         verify(tripStatisticsService).countCompletedTrips();
-        verify(tripStatisticsService).calculateTotalCompletedDistance();
-        verify(tripStatisticsService).getMostUsedMotorcycleInCompletedTrips();
+        verify(tripStatisticsService).calculateTotalCompletedDistanceKm();
+        verify(tripStatisticsService).findMostUsedMotorcycleInCompletedTrips();
         verify(tripStatisticsService).countTripsByStatus();
     }
 
     @Test
     void shouldReturnNullWhenThereIsNoMostUsedMotorcycle() throws Exception {
         when(tripStatisticsService.countCompletedTrips()).thenReturn(0L);
-        when(tripStatisticsService.calculateTotalCompletedDistance()).thenReturn(0.0);
-        when(tripStatisticsService.getMostUsedMotorcycleInCompletedTrips())
+        when(tripStatisticsService.calculateTotalCompletedDistanceKm()).thenReturn(0.0);
+        when(tripStatisticsService.findMostUsedMotorcycleInCompletedTrips())
                 .thenReturn(Optional.empty());
         when(tripStatisticsService.countTripsByStatus()).thenReturn(Map.of());
 
@@ -79,14 +81,14 @@ class TripStatisticsControllerTest {
                 .andExpect(jsonPath("$.mostUsedMotorcycle").value((Object) null))
                 .andExpect(jsonPath("$.tripsByStatus").isEmpty());
 
-        verify(tripStatisticsService).getMostUsedMotorcycleInCompletedTrips();
+        verify(tripStatisticsService).findMostUsedMotorcycleInCompletedTrips();
     }
 
     @Test
-    void shouldRoundTotalDistanceToOneDecimalPlace() throws Exception {
-        when(tripStatisticsService.calculateTotalCompletedDistance())
+    void shouldRoundTotalDistanceKmToOneDecimalPlace() throws Exception {
+        when(tripStatisticsService.calculateTotalCompletedDistanceKm())
                 .thenReturn(111.10000000000001);
-        when(tripStatisticsService.getMostUsedMotorcycleInCompletedTrips())
+        when(tripStatisticsService.findMostUsedMotorcycleInCompletedTrips())
                 .thenReturn(Optional.empty());
         when(tripStatisticsService.countTripsByStatus()).thenReturn(Map.of());
 

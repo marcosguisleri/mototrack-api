@@ -39,57 +39,64 @@ class JpaTripRepositoryAdapterTest {
             ZoneId.of("America/Sao_Paulo")
     );
     private static final LocalDate TODAY = LocalDate.now(FIXED_CLOCK);
-    private static final Motorcycle HONDA = new Motorcycle(
-            1,
+    private static final Motorcycle HONDA = Motorcycle.register(
             "Honda",
             "NX 500",
+            "Black",
             2025,
             471
     );
-    private static final Motorcycle YAMAHA = new Motorcycle(
-            2,
+    private static final Motorcycle YAMAHA = Motorcycle.register(
             "Yamaha",
             "Tenere 700",
+            "Blue",
             2024,
             689
     );
 
     @Autowired
-    private JpaTripRepositoryAdapter repository;
+    private JpaTripRepositoryAdapter tripRepositoryAdapter;
 
     @Autowired
-    private SpringDataTripRepository tripRepository;
+    private SpringDataTripRepository springDataTripRepository;
 
     @Autowired
-    private SpringDataMotorcycleRepository motorcycleRepository;
+    private SpringDataMotorcycleRepository springDataMotorcycleRepository;
+
+    @Autowired
+    private MotorcycleMapper motorcycleMapper;
 
     @PersistenceContext
     private EntityManager entityManager;
 
     @Test
-    void shouldPersistNewTripAndItsMotorcycleRelationship() {
+    void shouldPersistNewTripWithExistingMotorcycleRelationship() {
         Trip newTrip = plannedTrip(175.5, TerrainType.MIXED, TODAY.plusDays(5), HONDA);
 
         assertNull(newTrip.getId());
+        assertNotNull(newTrip.getMotorcycle().getId());
 
-        Trip savedTrip = repository.save(newTrip);
-        tripRepository.flush();
+        Trip savedTrip = tripRepositoryAdapter.save(newTrip);
+        springDataTripRepository.flush();
         entityManager.clear();
 
-        MotorcycleEntity savedMotorcycle = motorcycleRepository.findById(HONDA.getId())
+        Long savedMotorcycleId = savedTrip.getMotorcycle().getId();
+        MotorcycleEntity savedMotorcycle = springDataMotorcycleRepository.findById(savedMotorcycleId)
                 .orElseThrow();
-        TripEntity savedEntity = tripRepository.findById(savedTrip.getId())
+        TripEntity savedTripEntity = springDataTripRepository.findById(savedTrip.getId())
                 .orElseThrow();
 
         assertAll(
                 () -> assertNotNull(savedTrip.getId()),
-                () -> assertEquals(HONDA.getId(), savedMotorcycle.getId()),
+                () -> assertNotNull(savedMotorcycleId),
+                () -> assertEquals(savedMotorcycleId, savedMotorcycle.getId()),
                 () -> assertEquals("Honda", savedMotorcycle.getBrand()),
+                () -> assertEquals("Black", savedMotorcycle.getColor()),
                 () -> assertEquals(
                         savedMotorcycle.getId(),
-                        savedEntity.getMotorcycle().getId()
+                        savedTripEntity.getMotorcycle().getId()
                 ),
-                () -> assertEquals(savedTrip.getMotorcycle(), HONDA)
+                () -> assertEquals(savedMotorcycleId, savedTrip.getMotorcycle().getId())
         );
     }
 
@@ -102,18 +109,18 @@ class JpaTripRepositoryAdapterTest {
                 HONDA
         ));
 
-        Trip result = repository.findById(savedTrip.getId()).orElseThrow();
+        Trip result = tripRepositoryAdapter.findById(savedTrip.getId()).orElseThrow();
 
         assertAll(
                 () -> assertEquals(savedTrip.getId(), result.getId()),
                 () -> assertEquals(TripStatus.PLANNED, result.getStatus()),
-                () -> assertEquals(HONDA, result.getMotorcycle())
+                () -> assertEquals(savedTrip.getMotorcycle(), result.getMotorcycle())
         );
     }
 
     @Test
     void shouldReturnEmptyWhenTripDoesNotExist() {
-        assertTrue(repository.findById(999).isEmpty());
+        assertTrue(tripRepositoryAdapter.findById(999).isEmpty());
     }
 
     @Test
@@ -131,7 +138,7 @@ class JpaTripRepositoryAdapterTest {
                 YAMAHA
         ));
 
-        List<Trip> result = repository.findAll();
+        List<Trip> result = tripRepositoryAdapter.findAll();
 
         assertEquals(2, result.size());
         assertTrue(result.stream().map(Trip::getId).toList()
@@ -149,7 +156,7 @@ class JpaTripRepositoryAdapterTest {
         );
         Trip savedInProgressTrip = save(inProgressTrip);
 
-        List<Trip> result = repository.findByStatus(TripStatus.IN_PROGRESS);
+        List<Trip> result = tripRepositoryAdapter.findByStatus(TripStatus.IN_PROGRESS);
 
         assertEquals(1, result.size());
         assertEquals(savedInProgressTrip.getId(), result.getFirst().getId());
@@ -165,7 +172,7 @@ class JpaTripRepositoryAdapterTest {
                 YAMAHA
         ));
 
-        List<Trip> result = repository.findByTerrain(TerrainType.OFF_ROAD);
+        List<Trip> result = tripRepositoryAdapter.findByTerrain(TerrainType.OFF_ROAD);
 
         assertEquals(1, result.size());
         assertEquals(offRoadTrip.getId(), result.getFirst().getId());
@@ -182,7 +189,7 @@ class JpaTripRepositoryAdapterTest {
         ));
         save(plannedTrip(200, TerrainType.MIXED, searchedDate.plusDays(1), YAMAHA));
 
-        List<Trip> result = repository.findByTripDate(searchedDate);
+        List<Trip> result = tripRepositoryAdapter.findByTripDate(searchedDate);
 
         assertEquals(1, result.size());
         assertEquals(tripOnDate.getId(), result.getFirst().getId());
@@ -211,7 +218,7 @@ class JpaTripRepositoryAdapterTest {
                 YAMAHA
         ));
 
-        List<Trip> result = repository.findUpcomingFrom(referenceDate);
+        List<Trip> result = tripRepositoryAdapter.findUpcomingFrom(referenceDate);
 
         assertEquals(
                 List.of(closestTrip.getId(), laterTrip.getId()),
@@ -227,21 +234,26 @@ class JpaTripRepositoryAdapterTest {
 
     @Test
     void shouldCalculateDistanceStatistics() {
-        save(completedTrip(100.5, TerrainType.ASPHALT, TODAY.minusDays(1), HONDA));
-        save(completedTrip(144.0, TerrainType.MIXED, TODAY.minusDays(2), HONDA));
+        Motorcycle savedHonda = save(completedTrip(
+                100.5,
+                TerrainType.ASPHALT,
+                TODAY.minusDays(1),
+                HONDA
+        )).getMotorcycle();
+        save(completedTrip(144.0, TerrainType.MIXED, TODAY.minusDays(2), savedHonda));
         save(completedTrip(300, TerrainType.OFF_ROAD, TODAY.minusDays(3), YAMAHA));
-        save(plannedTrip(500, TerrainType.ASPHALT, TODAY.plusDays(1), HONDA));
+        save(plannedTrip(500, TerrainType.ASPHALT, TODAY.plusDays(1), savedHonda));
 
         assertAll(
                 () -> assertEquals(
                         544.5,
-                        repository.sumDistanceByStatus(TripStatus.COMPLETED),
+                        tripRepositoryAdapter.sumDistanceKmByStatus(TripStatus.COMPLETED),
                         0.001
                 ),
                 () -> assertEquals(
                         244.5,
-                        repository.sumDistanceByMotorcycleAndStatus(
-                                HONDA,
+                        tripRepositoryAdapter.sumDistanceKmByMotorcycleAndStatus(
+                                savedHonda,
                                 TripStatus.COMPLETED
                         ),
                         0.001
@@ -253,7 +265,7 @@ class JpaTripRepositoryAdapterTest {
     void shouldCountTripsByStatusIncludingStatusesWithZeroTrips() {
         save(plannedTrip(100, TerrainType.ASPHALT, TODAY.plusDays(1), HONDA));
 
-        Map<TripStatus, Long> result = repository.countByStatus();
+        Map<TripStatus, Long> result = tripRepositoryAdapter.countByStatus();
 
         assertAll(
                 () -> assertEquals(1L, result.get(TripStatus.PLANNED)),
@@ -264,85 +276,149 @@ class JpaTripRepositoryAdapterTest {
 
     @Test
     void shouldCountTripsByMotorcycle() {
-        save(plannedTrip(100, TerrainType.ASPHALT, TODAY.plusDays(1), HONDA));
-        save(completedTrip(200, TerrainType.MIXED, TODAY.minusDays(1), HONDA));
-        save(plannedTrip(300, TerrainType.OFF_ROAD, TODAY.plusDays(2), YAMAHA));
+        Motorcycle savedHonda = save(plannedTrip(
+                100,
+                TerrainType.ASPHALT,
+                TODAY.plusDays(1),
+                HONDA
+        )).getMotorcycle();
+        save(completedTrip(200, TerrainType.MIXED, TODAY.minusDays(1), savedHonda));
+        Motorcycle savedYamaha = save(plannedTrip(
+                300,
+                TerrainType.OFF_ROAD,
+                TODAY.plusDays(2),
+                YAMAHA
+        )).getMotorcycle();
 
-        Map<Motorcycle, Long> result = repository.countByMotorcycle();
+        Map<Motorcycle, Long> result = tripRepositoryAdapter.countByMotorcycle();
 
         assertAll(
-                () -> assertEquals(2L, result.get(HONDA)),
-                () -> assertEquals(1L, result.get(YAMAHA))
+                () -> assertEquals(2L, result.get(savedHonda)),
+                () -> assertEquals(1L, result.get(savedYamaha))
         );
     }
 
     @Test
     void shouldFindMostUsedMotorcycleAmongCompletedTrips() {
-        save(completedTrip(100, TerrainType.ASPHALT, TODAY.minusDays(1), HONDA));
-        save(completedTrip(200, TerrainType.MIXED, TODAY.minusDays(2), HONDA));
-        save(completedTrip(300, TerrainType.OFF_ROAD, TODAY.minusDays(3), YAMAHA));
-        save(plannedTrip(400, TerrainType.ASPHALT, TODAY.plusDays(1), YAMAHA));
-        save(plannedTrip(500, TerrainType.MIXED, TODAY.plusDays(2), YAMAHA));
+        Motorcycle savedHonda = save(completedTrip(
+                100,
+                TerrainType.ASPHALT,
+                TODAY.minusDays(1),
+                HONDA
+        )).getMotorcycle();
+        save(completedTrip(200, TerrainType.MIXED, TODAY.minusDays(2), savedHonda));
+        Motorcycle savedYamaha = save(completedTrip(
+                300,
+                TerrainType.OFF_ROAD,
+                TODAY.minusDays(3),
+                YAMAHA
+        )).getMotorcycle();
+        save(plannedTrip(400, TerrainType.ASPHALT, TODAY.plusDays(1), savedYamaha));
+        save(plannedTrip(500, TerrainType.MIXED, TODAY.plusDays(2), savedYamaha));
 
-        Motorcycle result = repository.findMostUsedMotorcycleInCompletedTrips()
+        Motorcycle result = tripRepositoryAdapter.findMostUsedMotorcycleInCompletedTrips()
                 .orElseThrow();
 
-        assertEquals(HONDA, result);
+        assertEquals(savedHonda, result);
     }
 
     @Test
     void shouldReturnEmptyMostUsedMotorcycleWhenDatabaseIsEmpty() {
-        assertTrue(repository.findMostUsedMotorcycleInCompletedTrips().isEmpty());
+        assertTrue(tripRepositoryAdapter.findMostUsedMotorcycleInCompletedTrips().isEmpty());
+    }
+
+    @Test
+    void shouldCheckWhetherMotorcycleHasTrips() {
+        Trip savedTrip = save(plannedTrip(
+                100,
+                TerrainType.ASPHALT,
+                TODAY.plusDays(1),
+                HONDA
+        ));
+
+        assertTrue(tripRepositoryAdapter.existsByMotorcycleId(
+                savedTrip.getMotorcycle().getId()
+        ));
+    }
+
+    @Test
+    void shouldDeleteTripById() {
+        Trip savedTrip = save(plannedTrip(
+                100,
+                TerrainType.ASPHALT,
+                TODAY.plusDays(1),
+                HONDA
+        ));
+
+        tripRepositoryAdapter.deleteById(savedTrip.getId());
+        springDataTripRepository.flush();
+
+        assertTrue(tripRepositoryAdapter.findById(savedTrip.getId()).isEmpty());
     }
 
     private Trip save(Trip trip) {
-        Trip savedTrip = repository.save(trip);
-        tripRepository.flush();
+        Trip savedTrip = tripRepositoryAdapter.save(trip);
+        springDataTripRepository.flush();
         return savedTrip;
     }
 
     private Trip plannedTrip(
-            double distance,
-            TerrainType terrain,
-            LocalDate date,
+            double distanceKm,
+            TerrainType terrainType,
+            LocalDate tripDate,
             Motorcycle motorcycle
     ) {
+        Motorcycle persistedMotorcycle = persistMotorcycleIfNecessary(motorcycle);
+
         return Trip.schedule(
                 "Origem",
                 "Destino",
-                distance,
-                terrain,
-                date,
-                motorcycle,
+                distanceKm,
+                terrainType,
+                tripDate,
+                persistedMotorcycle,
                 FIXED_CLOCK
         );
     }
 
     private Trip inProgressTrip(
-            double distance,
-            TerrainType terrain,
-            LocalDate date,
+            double distanceKm,
+            TerrainType terrainType,
+            LocalDate tripDate,
             Motorcycle motorcycle
     ) {
-        Trip trip = plannedTrip(distance, terrain, date, motorcycle);
+        Trip trip = plannedTrip(distanceKm, terrainType, tripDate, motorcycle);
         trip.changeStatus(TripStatus.IN_PROGRESS, TODAY);
         return trip;
     }
 
     private Trip completedTrip(
-            double distance,
-            TerrainType terrain,
-            LocalDate date,
+            double distanceKm,
+            TerrainType terrainType,
+            LocalDate tripDate,
             Motorcycle motorcycle
     ) {
+        Motorcycle persistedMotorcycle = persistMotorcycleIfNecessary(motorcycle);
+
         return Trip.registerCompleted(
                 "Origem",
                 "Destino",
-                distance,
-                terrain,
-                date,
-                motorcycle,
+                distanceKm,
+                terrainType,
+                tripDate,
+                persistedMotorcycle,
                 FIXED_CLOCK
         );
+    }
+
+    private Motorcycle persistMotorcycleIfNecessary(Motorcycle motorcycle) {
+        if (motorcycle.getId() != null) {
+            return motorcycle;
+        }
+
+        MotorcycleEntity savedMotorcycleEntity = springDataMotorcycleRepository.saveAndFlush(
+                motorcycleMapper.toEntity(motorcycle)
+        );
+        return motorcycleMapper.toDomain(savedMotorcycleEntity);
     }
 }

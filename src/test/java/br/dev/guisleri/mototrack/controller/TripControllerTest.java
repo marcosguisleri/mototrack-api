@@ -7,6 +7,7 @@ import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
+import br.dev.guisleri.mototrack.service.MotorcycleService;
 import br.dev.guisleri.mototrack.service.TripService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +19,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,10 +35,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(TripController.class)
 class TripControllerTest {
 
-    private static final Motorcycle MOTORCYCLE = new Motorcycle(
-            1,
+    private static final Motorcycle PERSISTED_MOTORCYCLE = Motorcycle.restore(
+            1L,
             "Honda",
             "NX 500",
+            "Black",
             2025,
             471
     );
@@ -46,17 +50,22 @@ class TripControllerTest {
     @MockitoBean
     private TripService tripService;
 
+    @MockitoBean
+    private MotorcycleService motorcycleService;
+
     @Test
     void shouldScheduleTrip() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 20);
         Trip trip = plannedTrip(1, tripDate);
+        when(motorcycleService.findMotorcycleById(1L))
+                .thenReturn(PERSISTED_MOTORCYCLE);
         when(tripService.scheduleTrip(
-                "Florianopolis",
-                "Urubici",
-                175.5,
-                TerrainType.MIXED,
-                tripDate,
-                MOTORCYCLE
+                eq("Florianopolis"),
+                eq("Urubici"),
+                eq(175.5),
+                eq(TerrainType.MIXED),
+                eq(tripDate),
+                eq(PERSISTED_MOTORCYCLE)
         )).thenReturn(trip);
 
         mockMvc.perform(post("/trips")
@@ -71,29 +80,33 @@ class TripControllerTest {
                 .andExpect(jsonPath("$.status").value("PLANNED"))
                 .andExpect(jsonPath("$.terrain").value("MIXED"))
                 .andExpect(jsonPath("$.tripDate").value("2026-09-20"))
-                .andExpect(jsonPath("$.motorcycle.id").value(1));
+                .andExpect(jsonPath("$.motorcycle.id").value(1))
+                .andExpect(jsonPath("$.motorcycle.color").value("Black"));
 
         verify(tripService).scheduleTrip(
-                "Florianopolis",
-                "Urubici",
-                175.5,
-                TerrainType.MIXED,
-                tripDate,
-                MOTORCYCLE
+                eq("Florianopolis"),
+                eq("Urubici"),
+                eq(175.5),
+                eq(TerrainType.MIXED),
+                eq(tripDate),
+                eq(PERSISTED_MOTORCYCLE)
         );
+        verify(motorcycleService).findMotorcycleById(1L);
     }
 
     @Test
     void shouldRegisterCompletedTrip() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 10);
         Trip trip = completedTrip(2, tripDate);
+        when(motorcycleService.findMotorcycleById(1L))
+                .thenReturn(PERSISTED_MOTORCYCLE);
         when(tripService.registerCompletedTrip(
-                "Florianopolis",
-                "Urubici",
-                175.5,
-                TerrainType.MIXED,
-                tripDate,
-                MOTORCYCLE
+                eq("Florianopolis"),
+                eq("Urubici"),
+                eq(175.5),
+                eq(TerrainType.MIXED),
+                eq(tripDate),
+                eq(PERSISTED_MOTORCYCLE)
         )).thenReturn(trip);
 
         mockMvc.perform(post("/trips/completed")
@@ -104,13 +117,14 @@ class TripControllerTest {
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
 
         verify(tripService).registerCompletedTrip(
-                "Florianopolis",
-                "Urubici",
-                175.5,
-                TerrainType.MIXED,
-                tripDate,
-                MOTORCYCLE
+                eq("Florianopolis"),
+                eq("Urubici"),
+                eq(175.5),
+                eq(TerrainType.MIXED),
+                eq(tripDate),
+                eq(PERSISTED_MOTORCYCLE)
         );
+        verify(motorcycleService).findMotorcycleById(1L);
     }
 
     @Test
@@ -218,13 +232,15 @@ class TripControllerTest {
     @Test
     void shouldReturnBadRequestWhenTripDateIsInvalid() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 10);
+        when(motorcycleService.findMotorcycleById(1L))
+                .thenReturn(PERSISTED_MOTORCYCLE);
         when(tripService.scheduleTrip(
-                "Florianopolis",
-                "Urubici",
-                175.5,
-                TerrainType.MIXED,
-                tripDate,
-                MOTORCYCLE
+                eq("Florianopolis"),
+                eq("Urubici"),
+                eq(175.5),
+                eq(TerrainType.MIXED),
+                eq(tripDate),
+                eq(PERSISTED_MOTORCYCLE)
         )).thenThrow(new InvalidTripDateException(
                 "Não é possível planejar uma viagem para uma data passada."
         ));
@@ -249,9 +265,19 @@ class TripControllerTest {
                                   "distanceKm": 0,
                                   "terrain": null,
                                   "tripDate": null,
-                                  "motorcycle": null
+                                  "motorcycleId": null
                                 }
                                 """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(tripService);
+    }
+
+    @Test
+    void shouldRejectNonPositiveMotorcycleIdBeforeCallingService() throws Exception {
+        mockMvc.perform(post("/trips")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createTripJson("2026-09-20", 0)))
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(tripService);
@@ -303,33 +329,45 @@ class TripControllerTest {
         verify(tripService).changeTripStatus(1, TripStatus.IN_PROGRESS);
     }
 
-    private Trip plannedTrip(long id, LocalDate tripDate) {
+    @Test
+    void shouldDeleteTripById() throws Exception {
+        mockMvc.perform(delete("/trips/1"))
+                .andExpect(status().isNoContent());
+
+        verify(tripService).deleteTripById(1L);
+    }
+
+    private Trip plannedTrip(long tripId, LocalDate tripDate) {
         return Trip.restore(
-                id,
+                tripId,
                 "Florianopolis",
                 "Urubici",
                 175.5,
                 TerrainType.MIXED,
                 tripDate,
-                MOTORCYCLE,
+                PERSISTED_MOTORCYCLE,
                 TripStatus.PLANNED
         );
     }
 
-    private Trip completedTrip(long id, LocalDate tripDate) {
+    private Trip completedTrip(long tripId, LocalDate tripDate) {
         return Trip.restore(
-                id,
+                tripId,
                 "Florianopolis",
                 "Urubici",
                 175.5,
                 TerrainType.MIXED,
                 tripDate,
-                MOTORCYCLE,
+                PERSISTED_MOTORCYCLE,
                 TripStatus.COMPLETED
         );
     }
 
     private String createTripJson(String tripDate) {
+        return createTripJson(tripDate, 1);
+    }
+
+    private String createTripJson(String tripDate, long motorcycleId) {
         return """
                 {
                   "origin": "Florianopolis",
@@ -337,14 +375,8 @@ class TripControllerTest {
                   "distanceKm": 175.5,
                   "terrain": "MIXED",
                   "tripDate": "%s",
-                  "motorcycle": {
-                    "id": 1,
-                    "brand": "Honda",
-                    "model": "NX 500",
-                    "year": 2025,
-                    "engineCapacity": 471
-                  }
+                  "motorcycleId": %d
                 }
-                """.formatted(tripDate);
+                """.formatted(tripDate, motorcycleId);
     }
 }

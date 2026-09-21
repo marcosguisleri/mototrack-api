@@ -12,18 +12,20 @@ public class MotorcycleMapper {
                 motorcycle.getId(),
                 motorcycle.getBrand(),
                 motorcycle.getModel(),
+                motorcycle.getColor(),
                 motorcycle.getYear(),
                 motorcycle.getEngineCapacity()
         );
     }
 
-    public Motorcycle toDomain(MotorcycleEntity entity) {
-        return new Motorcycle(
-                entity.getId(),
-                entity.getBrand(),
-                entity.getModel(),
-                entity.getYear(),
-                entity.getEngineCapacity()
+    public Motorcycle toDomain(MotorcycleEntity motorcycleEntity) {
+        return Motorcycle.restore(
+                motorcycleEntity.getId(),
+                motorcycleEntity.getBrand(),
+                motorcycleEntity.getModel(),
+                motorcycleEntity.getColor(),
+                motorcycleEntity.getYear(),
+                motorcycleEntity.getEngineCapacity()
         );
     }
 }

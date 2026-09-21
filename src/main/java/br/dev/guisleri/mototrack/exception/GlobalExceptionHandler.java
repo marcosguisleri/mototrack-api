@@ -35,4 +35,22 @@ public class GlobalExceptionHandler {
                 .body(exception.getMessage());
     }
 
+    @ExceptionHandler(MotorcycleNotFoundException.class)
+    public ResponseEntity<String> handleMotorcycleNotFound(
+            MotorcycleNotFoundException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(exception.getMessage());
+    }
+
+    @ExceptionHandler(MotorcycleInUseException.class)
+    public ResponseEntity<String> handleMotorcycleInUse(
+            MotorcycleInUseException exception
+    ) {
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(exception.getMessage());
+    }
+
 }

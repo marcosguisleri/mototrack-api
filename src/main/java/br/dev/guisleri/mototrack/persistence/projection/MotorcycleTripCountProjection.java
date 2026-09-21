@@ -6,6 +6,6 @@ public interface MotorcycleTripCountProjection {
 
     MotorcycleEntity getMotorcycle();
 
-    Long getCount();
+    Long getTripCount();
 
 }

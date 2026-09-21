@@ -31,15 +31,15 @@ class TripServiceTest {
 
     @BeforeEach
     void setUp() {
-        TripRepository repository = new InMemoryTripRepository();
+        TripRepository tripRepository = new InMemoryTripRepository();
         fixedClock = Clock.fixed(
                 Instant.parse("2026-09-14T12:00:00Z"),
                 ZoneId.of("America/Sao_Paulo")
         );
         today = LocalDate.now(fixedClock);
-        service = new TripService(repository, fixedClock);
-        honda = new Motorcycle(1, "Honda", "NX 500", 2025, 471);
-        yamaha = new Motorcycle(2, "Yamaha", "Tenere 700", 2024, 689);
+        service = new TripService(tripRepository, fixedClock);
+        honda = Motorcycle.register("Honda", "NX 500", "Black", 2025, 471);
+        yamaha = Motorcycle.register("Yamaha", "Tenere 700", "Blue", 2024, 689);
     }
 
     @Test
@@ -179,17 +179,34 @@ class TripServiceTest {
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
     }
 
+    @Test
+    void shouldDeleteTripById() {
+        scheduleTrip(1, TerrainType.ASPHALT, today.plusDays(1), honda);
+
+        service.deleteTripById(1L);
+
+        assertThrows(TripNotFoundException.class, () -> service.findTripById(1));
+    }
+
+    @Test
+    void shouldThrowWhenDeletingUnknownTrip() {
+        assertThrows(
+                TripNotFoundException.class,
+                () -> service.deleteTripById(99L)
+        );
+    }
+
     private Trip scheduleTrip(
-            long id,
-            TerrainType terrain,
+            long tripNumber,
+            TerrainType terrainType,
             LocalDate plannedDate,
             Motorcycle motorcycle
     ) {
         return service.scheduleTrip(
-                "Origem " + id,
-                "Destino " + id,
-                100 * id,
-                terrain,
+                "Origem " + tripNumber,
+                "Destino " + tripNumber,
+                100 * tripNumber,
+                terrainType,
                 plannedDate,
                 motorcycle
         );

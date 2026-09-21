@@ -30,16 +30,16 @@ public class TripMapper {
         );
     }
 
-    public Trip toDomain(TripEntity entity) {
+    public Trip toDomain(TripEntity tripEntity) {
         return Trip.restore(
-                entity.getId(),
-                entity.getOrigin(),
-                entity.getDestination(),
-                entity.getDistanceKm(),
-                entity.getTerrain(),
-                entity.getTripDate(),
-                motorcycleMapper.toDomain(entity.getMotorcycle()),
-                entity.getStatus()
+                tripEntity.getId(),
+                tripEntity.getOrigin(),
+                tripEntity.getDestination(),
+                tripEntity.getDistanceKm(),
+                tripEntity.getTerrain(),
+                tripEntity.getTripDate(),
+                motorcycleMapper.toDomain(tripEntity.getMotorcycle()),
+                tripEntity.getStatus()
         );
     }
 

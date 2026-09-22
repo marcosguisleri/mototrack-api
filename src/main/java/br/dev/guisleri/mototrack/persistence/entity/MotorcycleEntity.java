@@ -25,6 +25,10 @@ public class MotorcycleEntity {
     @Column(name = "engine_capacity", nullable = false)
     private int engineCapacity;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private UserEntity owner;
+
     protected MotorcycleEntity() {
     }
 
@@ -34,7 +38,8 @@ public class MotorcycleEntity {
             String model,
             String color,
             int year,
-            int engineCapacity
+            int engineCapacity,
+            UserEntity owner
     ) {
         this.id = id;
         this.brand = brand;
@@ -42,6 +47,7 @@ public class MotorcycleEntity {
         this.color = color;
         this.year = year;
         this.engineCapacity = engineCapacity;
+        this.owner = owner;
     }
 
     public Long getId() {
@@ -66,5 +72,9 @@ public class MotorcycleEntity {
 
     public int getEngineCapacity() {
         return engineCapacity;
+    }
+
+    public UserEntity getOwner() {
+        return owner;
     }
 }

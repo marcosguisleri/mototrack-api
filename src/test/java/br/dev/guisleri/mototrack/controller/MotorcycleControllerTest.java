@@ -2,7 +2,9 @@ package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.exception.MotorcycleInUseException;
 import br.dev.guisleri.mototrack.exception.MotorcycleNotFoundException;
+import br.dev.guisleri.mototrack.exception.UserNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.service.MotorcycleService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(MotorcycleController.class)
 class MotorcycleControllerTest {
 
+    private static final User OWNER = User.restore(
+            1L,
+            "Marcos",
+            "marcos@example.com"
+    );
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -34,21 +42,23 @@ class MotorcycleControllerTest {
     private MotorcycleService motorcycleService;
 
     @Test
-    void shouldCreateMotorcycleWithColor() throws Exception {
+    void shouldCreateMotorcycleForOwner() throws Exception {
         Motorcycle savedMotorcycle = Motorcycle.restore(
                 1L,
                 "Honda",
                 "NX 500",
                 "Black",
                 2025,
-                471
+                471,
+                OWNER
         );
         when(motorcycleService.registerMotorcycle(
                 "Honda",
                 "NX 500",
                 "Black",
                 2025,
-                471
+                471,
+                1L
         )).thenReturn(savedMotorcycle);
 
         mockMvc.perform(post("/motorcycles")
@@ -59,7 +69,8 @@ class MotorcycleControllerTest {
                                   "model": "NX 500",
                                   "color": "Black",
                                   "year": 2025,
-                                  "engineCapacity": 471
+                                  "engineCapacity": 471,
+                                  "ownerId": 1
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -68,15 +79,47 @@ class MotorcycleControllerTest {
                 .andExpect(jsonPath("$.model").value("NX 500"))
                 .andExpect(jsonPath("$.color").value("Black"))
                 .andExpect(jsonPath("$.year").value(2025))
-                .andExpect(jsonPath("$.engineCapacity").value(471));
+                .andExpect(jsonPath("$.engineCapacity").value(471))
+                .andExpect(jsonPath("$.owner.id").value(1))
+                .andExpect(jsonPath("$.owner.name").value("Marcos"))
+                .andExpect(jsonPath("$.owner.email").value("marcos@example.com"));
 
         verify(motorcycleService).registerMotorcycle(
                 "Honda",
                 "NX 500",
                 "Black",
                 2025,
-                471
+                471,
+                1L
         );
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenCreatingMotorcycleForUnknownOwner() throws Exception {
+        String message = "Usuário com id 999 não encontrado";
+        when(motorcycleService.registerMotorcycle(
+                "Honda",
+                "NX 500",
+                "Black",
+                2025,
+                471,
+                999L
+        )).thenThrow(new UserNotFoundException(message));
+
+        mockMvc.perform(post("/motorcycles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "brand": "Honda",
+                                  "model": "NX 500",
+                                  "color": "Black",
+                                  "year": 2025,
+                                  "engineCapacity": 471,
+                                  "ownerId": 999
+                                }
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string(message));
     }
 
     @Test
@@ -89,7 +132,45 @@ class MotorcycleControllerTest {
                                   "model": "NX 500",
                                   "color": " ",
                                   "year": 2025,
+                                  "engineCapacity": 471,
+                                  "ownerId": 1
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(motorcycleService);
+    }
+
+    @Test
+    void shouldRejectMissingOwnerId() throws Exception {
+        mockMvc.perform(post("/motorcycles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "brand": "Honda",
+                                  "model": "NX 500",
+                                  "color": "Black",
+                                  "year": 2025,
                                   "engineCapacity": 471
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(motorcycleService);
+    }
+
+    @Test
+    void shouldRejectNegativeOwnerId() throws Exception {
+        mockMvc.perform(post("/motorcycles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "brand": "Honda",
+                                  "model": "NX 500",
+                                  "color": "Black",
+                                  "year": 2025,
+                                  "engineCapacity": 471,
+                                  "ownerId": -1
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
@@ -105,7 +186,8 @@ class MotorcycleControllerTest {
                 "NX 500",
                 "Black",
                 2025,
-                471
+                471,
+                OWNER
         );
         Motorcycle yamaha = Motorcycle.restore(
                 2L,
@@ -113,7 +195,8 @@ class MotorcycleControllerTest {
                 "Tenere 700",
                 "Blue",
                 2024,
-                689
+                689,
+                OWNER
         );
         when(motorcycleService.findAllMotorcycles())
                 .thenReturn(List.of(honda, yamaha));
@@ -128,8 +211,11 @@ class MotorcycleControllerTest {
                 .andExpect(jsonPath("$[0].color").value("Black"))
                 .andExpect(jsonPath("$[0].year").value(2025))
                 .andExpect(jsonPath("$[0].engineCapacity").value(471))
+                .andExpect(jsonPath("$[0].owner.id").value(1))
+                .andExpect(jsonPath("$[0].owner.email").value("marcos@example.com"))
                 .andExpect(jsonPath("$[1].id").value(2))
-                .andExpect(jsonPath("$[1].brand").value("Yamaha"));
+                .andExpect(jsonPath("$[1].brand").value("Yamaha"))
+                .andExpect(jsonPath("$[1].owner.id").value(1));
 
         verify(motorcycleService).findAllMotorcycles();
     }
@@ -142,7 +228,8 @@ class MotorcycleControllerTest {
                 "NX 500",
                 "Black",
                 2025,
-                471
+                471,
+                OWNER
         );
         when(motorcycleService.findMotorcycleById(1L)).thenReturn(motorcycle);
 
@@ -154,7 +241,10 @@ class MotorcycleControllerTest {
                 .andExpect(jsonPath("$.model").value("NX 500"))
                 .andExpect(jsonPath("$.color").value("Black"))
                 .andExpect(jsonPath("$.year").value(2025))
-                .andExpect(jsonPath("$.engineCapacity").value(471));
+                .andExpect(jsonPath("$.engineCapacity").value(471))
+                .andExpect(jsonPath("$.owner.id").value(1))
+                .andExpect(jsonPath("$.owner.name").value("Marcos"))
+                .andExpect(jsonPath("$.owner.email").value("marcos@example.com"));
 
         verify(motorcycleService).findMotorcycleById(1L);
     }

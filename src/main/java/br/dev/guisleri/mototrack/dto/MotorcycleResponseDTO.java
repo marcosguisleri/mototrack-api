@@ -1,6 +1,7 @@
 package br.dev.guisleri.mototrack.dto;
 
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.User;
 
 public record MotorcycleResponseDTO(
         Long id,
@@ -8,7 +9,8 @@ public record MotorcycleResponseDTO(
         String model,
         String color,
         int year,
-        int engineCapacity
+        int engineCapacity,
+        UserResponseDTO owner
 ) {
 
     public static MotorcycleResponseDTO from(Motorcycle motorcycle) {
@@ -18,7 +20,8 @@ public record MotorcycleResponseDTO(
                 motorcycle.getModel(),
                 motorcycle.getColor(),
                 motorcycle.getYear(),
-                motorcycle.getEngineCapacity()
+                motorcycle.getEngineCapacity(),
+                UserResponseDTO.from(motorcycle.getOwner())
         );
     }
 }

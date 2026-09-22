@@ -25,7 +25,15 @@ public class TripTest {
 
     @BeforeEach
     void setUp() {
-        motorcycle = Motorcycle.register("Honda", "NX 500", "Black", 2025, 471);
+        User owner = User.restore(1L, "Marcos", "marcos@example.com");
+        motorcycle = Motorcycle.register(
+                "Honda",
+                "NX 500",
+                "Black",
+                2025,
+                471,
+                owner
+        );
         fixedClock = Clock.fixed(
                 Instant.parse("2026-09-14T12:00:00Z"),
                 ZoneId.of("America/Sao_Paulo")

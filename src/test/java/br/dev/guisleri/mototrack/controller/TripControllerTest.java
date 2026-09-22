@@ -7,6 +7,7 @@ import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
+import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.service.MotorcycleService;
 import br.dev.guisleri.mototrack.service.TripService;
 import org.junit.jupiter.api.Test;
@@ -41,7 +42,8 @@ class TripControllerTest {
             "NX 500",
             "Black",
             2025,
-            471
+            471,
+            User.restore(1L, "Marcos", "marcos@example.com")
     );
 
     @Autowired
@@ -81,7 +83,11 @@ class TripControllerTest {
                 .andExpect(jsonPath("$.terrain").value("MIXED"))
                 .andExpect(jsonPath("$.tripDate").value("2026-09-20"))
                 .andExpect(jsonPath("$.motorcycle.id").value(1))
-                .andExpect(jsonPath("$.motorcycle.color").value("Black"));
+                .andExpect(jsonPath("$.motorcycle.color").value("Black"))
+                .andExpect(jsonPath("$.motorcycle.owner.id").value(1))
+                .andExpect(jsonPath("$.motorcycle.owner.name").value("Marcos"))
+                .andExpect(jsonPath("$.motorcycle.owner.email")
+                        .value("marcos@example.com"));
 
         verify(tripService).scheduleTrip(
                 eq("Florianopolis"),

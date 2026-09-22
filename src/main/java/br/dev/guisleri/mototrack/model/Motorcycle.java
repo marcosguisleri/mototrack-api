@@ -1,28 +1,14 @@
 package br.dev.guisleri.mototrack.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Positive;
-
 public class Motorcycle {
 
     private final Long id;
-
-    @NotBlank
     private final String brand;
-
-    @NotBlank
     private final String model;
-
-    @NotBlank
     private final String color;
-
-    @Min(1900)
     private final int year;
-
-    @Positive
     private final int engineCapacity;
+    private final User owner;
 
     private Motorcycle(
             Long id,
@@ -30,7 +16,8 @@ public class Motorcycle {
             String model,
             String color,
             int year,
-            int engineCapacity
+            int engineCapacity,
+            User owner
     ) {
         this.id = id;
         this.brand = brand;
@@ -38,6 +25,7 @@ public class Motorcycle {
         this.color = color;
         this.year = year;
         this.engineCapacity = engineCapacity;
+        this.owner = owner;
     }
 
     public static Motorcycle register(
@@ -45,7 +33,8 @@ public class Motorcycle {
             String model,
             String color,
             int year,
-            int engineCapacity
+            int engineCapacity,
+            User owner
     ) {
         return new Motorcycle(
                 null,
@@ -53,7 +42,8 @@ public class Motorcycle {
                 model,
                 color,
                 year,
-                engineCapacity
+                engineCapacity,
+                owner
         );
     }
 
@@ -63,7 +53,8 @@ public class Motorcycle {
             String model,
             String color,
             int year,
-            int engineCapacity
+            int engineCapacity,
+            User owner
     ) {
         return new Motorcycle(
                 id,
@@ -71,7 +62,8 @@ public class Motorcycle {
                 model,
                 color,
                 year,
-                engineCapacity
+                engineCapacity,
+                owner
         );
     }
 
@@ -119,4 +111,7 @@ public class Motorcycle {
         return engineCapacity;
     }
 
+    public User getOwner() {
+        return owner;
+    }
 }

@@ -2,9 +2,12 @@ package br.dev.guisleri.mototrack.service;
 
 import br.dev.guisleri.mototrack.exception.MotorcycleInUseException;
 import br.dev.guisleri.mototrack.exception.MotorcycleNotFoundException;
+import br.dev.guisleri.mototrack.exception.UserNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.repository.MotorcycleRepository;
 import br.dev.guisleri.mototrack.repository.TripRepository;
+import br.dev.guisleri.mototrack.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,18 +37,27 @@ class MotorcycleServiceTest {
     @Mock
     private TripRepository tripRepository;
 
+    @Mock
+    private UserRepository userRepository;
+
     private MotorcycleService service;
 
     @BeforeEach
     void setUp() {
-        service = new MotorcycleService(motorcycleRepository, tripRepository);
+        service = new MotorcycleService(
+                motorcycleRepository,
+                tripRepository,
+                userRepository
+        );
     }
 
     @Test
-    void shouldRegisterNewMotorcycleAndReturnPersistedMotorcycle() {
+    void shouldRegisterMotorcycleForExistingUser() {
+        User owner = owner();
         Motorcycle persistedMotorcycle = motorcycle(1L, "Honda", "NX 500");
         ArgumentCaptor<Motorcycle> motorcycleCaptor =
                 ArgumentCaptor.forClass(Motorcycle.class);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
         when(motorcycleRepository.save(any(Motorcycle.class)))
                 .thenReturn(persistedMotorcycle);
 
@@ -54,9 +66,11 @@ class MotorcycleServiceTest {
                 "NX 500",
                 "Black",
                 2025,
-                471
+                471,
+                1L
         );
 
+        verify(userRepository).findById(1L);
         verify(motorcycleRepository).save(motorcycleCaptor.capture());
         Motorcycle motorcycleSentToRepository = motorcycleCaptor.getValue();
         assertNull(motorcycleSentToRepository.getId());
@@ -65,7 +79,29 @@ class MotorcycleServiceTest {
         assertEquals("Black", motorcycleSentToRepository.getColor());
         assertEquals(2025, motorcycleSentToRepository.getYear());
         assertEquals(471, motorcycleSentToRepository.getEngineCapacity());
+        assertSame(owner, motorcycleSentToRepository.getOwner());
         assertSame(persistedMotorcycle, result);
+    }
+
+    @Test
+    void shouldRejectRegisteringMotorcycleForUnknownUser() {
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        UserNotFoundException exception = assertThrows(
+                UserNotFoundException.class,
+                () -> service.registerMotorcycle(
+                        "Honda",
+                        "NX 500",
+                        "Black",
+                        2025,
+                        471,
+                        999L
+                )
+        );
+
+        assertEquals("Usuário com id 999 não encontrado", exception.getMessage());
+        verify(userRepository).findById(999L);
+        verifyNoInteractions(motorcycleRepository);
     }
 
     @Test
@@ -105,6 +141,48 @@ class MotorcycleServiceTest {
 
         assertSame(motorcycles, result);
         verify(motorcycleRepository).findAll();
+    }
+
+    @Test
+    void shouldFindMotorcyclesByOwnerId() {
+        User owner = owner();
+        List<Motorcycle> motorcycles = List.of(
+                motorcycle(1L, "Honda", "NX 500"),
+                motorcycle(2L, "Yamaha", "Tenere 700")
+        );
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(motorcycleRepository.findByOwnerId(1L)).thenReturn(motorcycles);
+
+        List<Motorcycle> result = service.findMotorcyclesByOwnerId(1L);
+
+        assertSame(motorcycles, result);
+        verify(userRepository).findById(1L);
+        verify(motorcycleRepository).findByOwnerId(1L);
+    }
+
+    @Test
+    void shouldReturnEmptyGarageForUserWithoutMotorcycles() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner()));
+        when(motorcycleRepository.findByOwnerId(1L)).thenReturn(List.of());
+
+        List<Motorcycle> result = service.findMotorcyclesByOwnerId(1L);
+
+        assertEquals(List.of(), result);
+        verify(motorcycleRepository).findByOwnerId(1L);
+    }
+
+    @Test
+    void shouldRejectFindingMotorcyclesForUnknownUser() {
+        when(userRepository.findById(999L)).thenReturn(Optional.empty());
+
+        UserNotFoundException exception = assertThrows(
+                UserNotFoundException.class,
+                () -> service.findMotorcyclesByOwnerId(999L)
+        );
+
+        assertEquals("Usuário com id 999 não encontrado", exception.getMessage());
+        verify(userRepository).findById(999L);
+        verify(motorcycleRepository, never()).findByOwnerId(999L);
     }
 
     @Test
@@ -155,6 +233,18 @@ class MotorcycleServiceTest {
     }
 
     private Motorcycle motorcycle(Long id, String brand, String model) {
-        return Motorcycle.restore(id, brand, model, "Black", 2025, 471);
+        return Motorcycle.restore(
+                id,
+                brand,
+                model,
+                "Black",
+                2025,
+                471,
+                owner()
+        );
+    }
+
+    private User owner() {
+        return User.restore(1L, "Marcos", "marcos@example.com");
     }
 }

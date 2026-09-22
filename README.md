@@ -4,13 +4,13 @@
 
 **Planeje, acompanhe e meça suas viagens de moto.**
 
-API REST construída com domínio isolado de framework, persistência plugável e 98 testes automatizados.
+API REST construída com domínio isolado de framework, persistência plugável e 134 testes automatizados.
 
 [![Java](https://img.shields.io/badge/Java-25-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-[![Tests](https://img.shields.io/badge/tests-98%20passing-success?style=for-the-badge&logo=junit5&logoColor=white)](#-testes)
+[![Tests](https://img.shields.io/badge/tests-134%20passing-success?style=for-the-badge&logo=junit5&logoColor=white)](#-testes)
 [![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow?style=for-the-badge)](#-roadmap)
 
 </div>
@@ -37,7 +37,7 @@ O resultado é uma API que evoluiu de um app de console para uma aplicação com
 | ⏰ **`Clock` injetável** | Nenhuma chamada a `LocalDate.now()` sem `Clock`. Regras que dependem de tempo são testadas com relógio fixo e resultado determinístico. |
 | 🏭 **Factory methods nomeados** | `Trip.schedule(...)`, `Trip.registerCompleted(...)` e `Trip.restore(...)` — cada um com suas próprias invariantes. Construtor privado. |
 | 📊 **Agregações no banco** | Contagens e somatórios usam JPQL com *projections*. Nada de carregar tudo em memória para fazer `stream().count()`. |
-| 🧪 **Testes por camada** | Unitário puro no domínio, fake in-memory nos services, `@WebMvcTest` nos controllers, `@DataJpaTest` + H2 nos adapters. |
+| 🧪 **Testes por camada** | Unitário puro no domínio, Mockito nos services, `@WebMvcTest` nos controllers, `@DataJpaTest` + H2 nos adapters. |
 
 ---
 
@@ -101,7 +101,7 @@ flowchart TD
 
 Porque quem dita o contrato é quem precisa dele. O `TripService` não se adapta ao que o Spring Data oferece — ele declara o que precisa (`findUpcomingFrom`, `countByStatus`, `sumDistanceKmByStatus`) e a infraestrutura que se vire. O `JpaTripRepositoryAdapter` traduz esse contrato para Spring Data e converte `TripEntity` em `Trip` pelo caminho.
 
-O efeito prático disso aparece nos testes: `TripServiceTest` roda contra um `InMemoryTripRepository` escrito à mão, sem contexto Spring, sem banco, em 17 milissegundos.
+O efeito prático disso aparece nos testes: `TripServiceTest` roda com o contrato `TripRepository` isolado por Mockito, sem contexto Spring e sem banco.
 
 ### Estrutura de pacotes
 
@@ -306,16 +306,15 @@ Exceções de negócio são traduzidas para status HTTP por um `@RestControllerA
 ./mvnw test
 ```
 
-**98 testes, 0 falhas.** Cada camada é testada com a ferramenta mais barata que dá a garantia necessária:
+**134 testes, 0 falhas.** Cada camada é testada com a ferramenta mais barata que dá a garantia necessária:
 
 | Camada | Abordagem | Testes |
 |---|---|:---:|
 | Domínio | JUnit puro, `Clock` fixo, zero framework | 17 |
-| Services | Fake `InMemoryTripRepository` escrito à mão | 21 |
-| Controllers | `@WebMvcTest` + `MockMvc` + `@MockitoBean` | 22 |
-| Adapters JPA | `@DataJpaTest` + H2 em memória, `create-drop` | 15 |
-| Mappers | Unitário direto | 3 |
-| Contrato do repositório | Suíte sobre o fake in-memory | 20 |
+| Services | JUnit + Mockito, sem contexto Spring | 42 |
+| Controllers | `@WebMvcTest` + `MockMvc` + `@MockitoBean` | 40 |
+| Adapters JPA | `@DataJpaTest` + H2 em memória, `create-drop` | 29 |
+| Mappers | Unitário direto | 6 |
 
 Dois detalhes que valem o destaque:
 

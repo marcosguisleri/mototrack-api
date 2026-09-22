@@ -15,4 +15,6 @@ public interface MotorcycleRepository {
 
     void deleteById(Long motorcycleId);
 
+    List<Motorcycle> findByOwnerId(Long ownerId);
+
 }

@@ -4,10 +4,13 @@ import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
+import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.persistence.entity.MotorcycleEntity;
 import br.dev.guisleri.mototrack.persistence.entity.TripEntity;
+import br.dev.guisleri.mototrack.persistence.entity.UserEntity;
 import br.dev.guisleri.mototrack.persistence.mapper.MotorcycleMapper;
 import br.dev.guisleri.mototrack.persistence.mapper.TripMapper;
+import br.dev.guisleri.mototrack.persistence.mapper.UserMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -31,7 +34,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @DataJpaTest(showSql = false, properties = {
         "spring.jpa.hibernate.ddl-auto=create-drop"
 })
-@Import({JpaTripRepositoryAdapter.class, TripMapper.class, MotorcycleMapper.class})
+@Import({
+        JpaTripRepositoryAdapter.class,
+        TripMapper.class,
+        MotorcycleMapper.class,
+        UserMapper.class
+})
 class JpaTripRepositoryAdapterTest {
 
     private static final Clock FIXED_CLOCK = Clock.fixed(
@@ -44,14 +52,16 @@ class JpaTripRepositoryAdapterTest {
             "NX 500",
             "Black",
             2025,
-            471
+            471,
+            User.register("Marcos", "marcos@example.com")
     );
     private static final Motorcycle YAMAHA = Motorcycle.register(
             "Yamaha",
             "Tenere 700",
             "Blue",
             2024,
-            689
+            689,
+            User.register("Ana", "ana@example.com")
     );
 
     @Autowired
@@ -64,13 +74,16 @@ class JpaTripRepositoryAdapterTest {
     private SpringDataMotorcycleRepository springDataMotorcycleRepository;
 
     @Autowired
+    private SpringDataUserRepository springDataUserRepository;
+
+    @Autowired
     private MotorcycleMapper motorcycleMapper;
 
     @PersistenceContext
     private EntityManager entityManager;
 
     @Test
-    void shouldPersistNewTripWithExistingMotorcycleRelationship() {
+    void shouldPersistTripWithMotorcycleOwner() {
         Trip newTrip = plannedTrip(175.5, TerrainType.MIXED, TODAY.plusDays(5), HONDA);
 
         assertNull(newTrip.getId());
@@ -81,7 +94,10 @@ class JpaTripRepositoryAdapterTest {
         entityManager.clear();
 
         Long savedMotorcycleId = savedTrip.getMotorcycle().getId();
+        Long savedOwnerId = savedTrip.getMotorcycle().getOwner().getId();
         MotorcycleEntity savedMotorcycle = springDataMotorcycleRepository.findById(savedMotorcycleId)
+                .orElseThrow();
+        UserEntity savedOwner = springDataUserRepository.findById(savedOwnerId)
                 .orElseThrow();
         TripEntity savedTripEntity = springDataTripRepository.findById(savedTrip.getId())
                 .orElseThrow();
@@ -89,32 +105,52 @@ class JpaTripRepositoryAdapterTest {
         assertAll(
                 () -> assertNotNull(savedTrip.getId()),
                 () -> assertNotNull(savedMotorcycleId),
+                () -> assertNotNull(savedOwnerId),
                 () -> assertEquals(savedMotorcycleId, savedMotorcycle.getId()),
                 () -> assertEquals("Honda", savedMotorcycle.getBrand()),
                 () -> assertEquals("Black", savedMotorcycle.getColor()),
+                () -> assertEquals(savedOwnerId, savedMotorcycle.getOwner().getId()),
+                () -> assertEquals("Marcos", savedOwner.getName()),
                 () -> assertEquals(
                         savedMotorcycle.getId(),
                         savedTripEntity.getMotorcycle().getId()
                 ),
-                () -> assertEquals(savedMotorcycleId, savedTrip.getMotorcycle().getId())
+                () -> assertEquals(
+                        savedOwnerId,
+                        savedTripEntity.getMotorcycle().getOwner().getId()
+                ),
+                () -> assertEquals(savedMotorcycleId, savedTrip.getMotorcycle().getId()),
+                () -> assertEquals(savedOwnerId, savedTrip.getMotorcycle().getOwner().getId())
         );
     }
 
     @Test
-    void shouldFindTripById() {
+    void shouldFindTripByIdWithMotorcycleOwner() {
         Trip savedTrip = save(plannedTrip(
                 100,
                 TerrainType.ASPHALT,
                 TODAY.plusDays(1),
                 HONDA
         ));
+        entityManager.clear();
 
         Trip result = tripRepositoryAdapter.findById(savedTrip.getId()).orElseThrow();
 
         assertAll(
                 () -> assertEquals(savedTrip.getId(), result.getId()),
                 () -> assertEquals(TripStatus.PLANNED, result.getStatus()),
-                () -> assertEquals(savedTrip.getMotorcycle(), result.getMotorcycle())
+                () -> assertEquals(savedTrip.getMotorcycle(), result.getMotorcycle()),
+                () -> assertNotNull(result.getMotorcycle()),
+                () -> assertNotNull(result.getMotorcycle().getOwner()),
+                () -> assertEquals(
+                        savedTrip.getMotorcycle().getOwner().getId(),
+                        result.getMotorcycle().getOwner().getId()
+                ),
+                () -> assertEquals("Marcos", result.getMotorcycle().getOwner().getName()),
+                () -> assertEquals(
+                        "marcos@example.com",
+                        result.getMotorcycle().getOwner().getEmail()
+                )
         );
     }
 
@@ -124,7 +160,7 @@ class JpaTripRepositoryAdapterTest {
     }
 
     @Test
-    void shouldFindAllTrips() {
+    void shouldFindAllTripsWithMotorcycleOwners() {
         Trip firstTrip = save(plannedTrip(
                 100,
                 TerrainType.ASPHALT,
@@ -137,12 +173,25 @@ class JpaTripRepositoryAdapterTest {
                 TODAY.plusDays(2),
                 YAMAHA
         ));
+        entityManager.clear();
 
         List<Trip> result = tripRepositoryAdapter.findAll();
 
         assertEquals(2, result.size());
         assertTrue(result.stream().map(Trip::getId).toList()
                 .containsAll(List.of(firstTrip.getId(), secondTrip.getId())));
+        assertTrue(result.stream()
+                .map(Trip::getMotorcycle)
+                .allMatch(motorcycle -> motorcycle.getOwner() != null));
+        assertTrue(result.stream()
+                .map(Trip::getMotorcycle)
+                .map(Motorcycle::getOwner)
+                .map(User::getId)
+                .toList()
+                .containsAll(List.of(
+                        firstTrip.getMotorcycle().getOwner().getId(),
+                        secondTrip.getMotorcycle().getOwner().getId()
+                )));
     }
 
     @Test
@@ -416,8 +465,14 @@ class JpaTripRepositoryAdapterTest {
             return motorcycle;
         }
 
+        User owner = motorcycle.getOwner();
+        UserEntity ownerEntity = springDataUserRepository
+                .findByEmail(owner.getEmail())
+                .orElseGet(() -> springDataUserRepository.saveAndFlush(
+                        new UserEntity(null, owner.getName(), owner.getEmail())
+                ));
         MotorcycleEntity savedMotorcycleEntity = springDataMotorcycleRepository.saveAndFlush(
-                motorcycleMapper.toEntity(motorcycle)
+                motorcycleMapper.toEntity(motorcycle, ownerEntity)
         );
         return motorcycleMapper.toDomain(savedMotorcycleEntity);
     }

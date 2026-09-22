@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TripStatus;
+import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.service.TripStatisticsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +36,8 @@ class TripStatisticsControllerTest {
                 "CB 500X",
                 "Red",
                 2023,
-                471
+                471,
+                User.restore(1L, "Marcos", "marcos@example.com")
         );
         Map<TripStatus, Long> tripsByStatus = Map.of(
                 TripStatus.PLANNED, 1L,
@@ -56,6 +58,7 @@ class TripStatisticsControllerTest {
                 .andExpect(jsonPath("$.mostUsedMotorcycle.brand").value("Honda"))
                 .andExpect(jsonPath("$.mostUsedMotorcycle.model").value("CB 500X"))
                 .andExpect(jsonPath("$.mostUsedMotorcycle.color").value("Red"))
+                .andExpect(jsonPath("$.mostUsedMotorcycle.owner.id").value(1))
                 .andExpect(jsonPath("$.tripsByStatus.PLANNED").value(1))
                 .andExpect(jsonPath("$.tripsByStatus.IN_PROGRESS").value(2))
                 .andExpect(jsonPath("$.tripsByStatus.COMPLETED").value(3));

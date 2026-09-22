@@ -2,19 +2,30 @@ package br.dev.guisleri.mototrack.persistence.mapper;
 
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.persistence.entity.MotorcycleEntity;
+import br.dev.guisleri.mototrack.persistence.entity.UserEntity;
 import org.springframework.stereotype.Component;
 
 @Component
 public class MotorcycleMapper {
 
-    public MotorcycleEntity toEntity(Motorcycle motorcycle) {
+    private final UserMapper userMapper;
+
+    public MotorcycleMapper(UserMapper userMapper) {
+        this.userMapper = userMapper;
+    }
+
+    public MotorcycleEntity toEntity(
+            Motorcycle motorcycle,
+            UserEntity userEntity
+    ) {
         return new MotorcycleEntity(
                 motorcycle.getId(),
                 motorcycle.getBrand(),
                 motorcycle.getModel(),
                 motorcycle.getColor(),
                 motorcycle.getYear(),
-                motorcycle.getEngineCapacity()
+                motorcycle.getEngineCapacity(),
+                userEntity
         );
     }
 
@@ -25,7 +36,8 @@ public class MotorcycleMapper {
                 motorcycleEntity.getModel(),
                 motorcycleEntity.getColor(),
                 motorcycleEntity.getYear(),
-                motorcycleEntity.getEngineCapacity()
+                motorcycleEntity.getEngineCapacity(),
+                userMapper.toDomain(motorcycleEntity.getOwner())
         );
     }
 }

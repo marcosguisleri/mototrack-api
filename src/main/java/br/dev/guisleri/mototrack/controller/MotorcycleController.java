@@ -30,7 +30,8 @@ public class MotorcycleController {
                 createMotorcycleRequest.model(),
                 createMotorcycleRequest.color(),
                 createMotorcycleRequest.year(),
-                createMotorcycleRequest.engineCapacity()
+                createMotorcycleRequest.engineCapacity(),
+                createMotorcycleRequest.ownerId()
         );
 
         return ResponseEntity

@@ -4,22 +4,27 @@ import br.dev.guisleri.mototrack.exception.UserAlreadyExistsException;
 import br.dev.guisleri.mototrack.exception.UserNotFoundException;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public User registerUser(
             String name,
-            String email
+            String email,
+            String password
     ) {
 
         String normalizedEmail = normalizeEmail(email);
@@ -30,7 +35,9 @@ public class UserService {
             );
         }
 
-        User user = User.register(name, normalizedEmail);
+        String passwordHash = passwordEncoder.encode(password);
+
+        User user = User.register(name, normalizedEmail, passwordHash);
 
         return userRepository.save(user);
     }
@@ -55,7 +62,7 @@ public class UserService {
     }
 
     private String normalizeEmail(String email) {
-        return email.trim().toLowerCase();
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 
 }

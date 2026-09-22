@@ -32,7 +32,8 @@ public class UserController {
     ) {
         User user = userService.registerUser(
                 requestDTO.name(),
-                requestDTO.email()
+                requestDTO.email(),
+                requestDTO.password()
         );
 
         return ResponseEntity.status(HttpStatus.CREATED)

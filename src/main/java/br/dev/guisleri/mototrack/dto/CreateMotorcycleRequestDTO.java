@@ -6,19 +6,19 @@ import jakarta.validation.constraints.Positive;
 
 public record CreateMotorcycleRequestDTO(
 
-        @NotBlank
+        @NotBlank(message = "A marca é obrigatória.")
         String brand,
 
-        @NotBlank
+        @NotBlank(message = "O modelo é obrigatório.")
         String model,
 
-        @NotBlank
+        @NotBlank(message = "A cor é obrigatória.")
         String color,
 
-        @Min(1900)
+        @Min(value = 1900, message = "O ano deve ser igual ou posterior a 1900.")
         int year,
 
-        @Positive
+        @Positive(message = "A cilindrada deve ser maior que zero.")
         int engineCapacity
 
 ) {

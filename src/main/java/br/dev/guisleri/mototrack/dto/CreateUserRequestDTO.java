@@ -6,15 +6,18 @@ import jakarta.validation.constraints.Size;
 
 public record CreateUserRequestDTO(
 
-        @NotBlank
+        @NotBlank(message = "O nome é obrigatório.")
         String name,
 
-        @NotBlank
-        @Email
+        @NotBlank(message = "O e-mail é obrigatório.")
+        @Email(message = "Informe um endereço de e-mail válido.")
         String email,
 
-        @NotBlank
-        @Size(min = 8)
+        @NotBlank(message = "A senha é obrigatória.")
+        @Size(
+                min = 8,
+                message = "A senha deve ter no mínimo 8 caracteres."
+        )
         String password
 
 ) {

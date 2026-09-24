@@ -10,6 +10,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Optional;
@@ -103,6 +104,37 @@ class UserServiceTest {
         verify(userRepository).findByEmail("marcos@example.com");
         verify(userRepository, never()).save(any(User.class));
         verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    void shouldConvertDuplicateEmailRaceConditionToUserAlreadyExists() {
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        when(userRepository.findByEmail("marcos@example.com"))
+                .thenReturn(Optional.empty());
+        when(passwordEncoder.encode(PLAIN_PASSWORD)).thenReturn(PASSWORD_HASH);
+        when(userRepository.save(any(User.class)))
+                .thenThrow(new DataIntegrityViolationException("unique email"));
+
+        UserAlreadyExistsException exception = assertThrows(
+                UserAlreadyExistsException.class,
+                () -> service.registerUser(
+                        "Marcos",
+                        "  Marcos@Example.COM  ",
+                        PLAIN_PASSWORD
+                )
+        );
+
+        assertEquals(
+                "Já existe um usuário cadastrado com este e-mail.",
+                exception.getMessage()
+        );
+        verify(userRepository).findByEmail("marcos@example.com");
+        verify(passwordEncoder).encode(PLAIN_PASSWORD);
+        verify(userRepository).save(userCaptor.capture());
+        User userSentToRepository = userCaptor.getValue();
+        assertEquals("marcos@example.com", userSentToRepository.getEmail());
+        assertEquals(PASSWORD_HASH, userSentToRepository.getPasswordHash());
+        assertNotEquals(PLAIN_PASSWORD, userSentToRepository.getPasswordHash());
     }
 
     @Test

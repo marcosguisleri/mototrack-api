@@ -131,20 +131,29 @@ class MotorcycleControllerTest {
     }
 
     @Test
-    void shouldRejectBlankMotorcycleColor() throws Exception {
+    void shouldReturnFriendlyMessagesForInvalidMotorcycle() throws Exception {
         mockMvc.perform(post("/motorcycles")
                         .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "brand": "Honda",
-                                  "model": "NX 500",
+                                  "brand": " ",
+                                  "model": "",
                                   "color": " ",
-                                  "year": 2025,
-                                  "engineCapacity": 471
+                                  "year": 1899,
+                                  "engineCapacity": 0
                                 }
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Validation Failed"))
+                .andExpect(jsonPath("$.errors.brand").value("A marca é obrigatória."))
+                .andExpect(jsonPath("$.errors.model").value("O modelo é obrigatório."))
+                .andExpect(jsonPath("$.errors.color").value("A cor é obrigatória."))
+                .andExpect(jsonPath("$.errors.year")
+                        .value("O ano deve ser igual ou posterior a 1900."))
+                .andExpect(jsonPath("$.errors.engineCapacity")
+                        .value("A cilindrada deve ser maior que zero."));
 
         verifyNoInteractions(motorcycleService);
     }
@@ -191,7 +200,10 @@ class MotorcycleControllerTest {
 
         mockMvc.perform(get("/motorcycles/999").principal(AUTHENTICATION))
                 .andExpect(status().isNotFound())
-                .andExpect(content().string("Motocicleta com id 999 não encontrada"));
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message")
+                        .value("Motocicleta com id 999 não encontrada"));
     }
 
     @Test
@@ -202,7 +214,9 @@ class MotorcycleControllerTest {
 
         mockMvc.perform(get("/motorcycles/1").principal(AUTHENTICATION))
                 .andExpect(status().isForbidden())
-                .andExpect(content().string(message));
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value(message));
     }
 
     @Test
@@ -226,7 +240,9 @@ class MotorcycleControllerTest {
 
         mockMvc.perform(delete("/motorcycles/1").principal(AUTHENTICATION))
                 .andExpect(status().isForbidden())
-                .andExpect(content().string(message));
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value(message));
     }
 
     @Test
@@ -239,7 +255,9 @@ class MotorcycleControllerTest {
 
         mockMvc.perform(delete("/motorcycles/1").principal(AUTHENTICATION))
                 .andExpect(status().isConflict())
-                .andExpect(content().string(message));
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value(message));
     }
 
     @Test
@@ -251,7 +269,9 @@ class MotorcycleControllerTest {
 
         mockMvc.perform(delete("/motorcycles/999").principal(AUTHENTICATION))
                 .andExpect(status().isNotFound())
-                .andExpect(content().string(message));
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value(message));
     }
 
     private Motorcycle motorcycle(Long id, String brand, String model) {

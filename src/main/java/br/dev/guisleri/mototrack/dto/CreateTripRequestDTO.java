@@ -9,24 +9,25 @@ import java.time.LocalDate;
 
 public record CreateTripRequestDTO(
 
-        @NotBlank
+        @NotBlank(message = "A origem é obrigatória.")
         String origin,
 
-        @NotBlank
+        @NotBlank(message = "O destino é obrigatório.")
         String destination,
 
-        @NotNull
-        @Positive
+        @NotNull(message = "A distância é obrigatória.")
+        @Positive(message = "A distância deve ser maior que zero.")
         Double distanceKm,
 
-        @NotNull
+        @NotNull(message = "O tipo de terreno é obrigatório.")
         TerrainType terrain,
 
-        @NotNull
+        @NotNull(message = "A data da viagem é obrigatória.")
         LocalDate tripDate,
 
-        @NotNull
-        @Positive
+        @NotNull(message = "A motocicleta é obrigatória.")
+        @Positive(message = "O identificador da motocicleta deve ser maior que zero.")
         Long motorcycleId
+
 ) {
 }

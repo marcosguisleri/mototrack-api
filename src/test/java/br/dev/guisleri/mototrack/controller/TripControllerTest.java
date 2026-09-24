@@ -26,6 +26,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.util.List;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -43,6 +45,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 class TripControllerTest {
 
+    private static final String INVALID_REQUEST_BODY_MESSAGE =
+            "O corpo da requisição contém valores inválidos ou mal formatados.";
     private static final User CURRENT_USER = User.restore(
             1L,
             "Marcos",
@@ -284,7 +288,10 @@ class TripControllerTest {
 
         mockMvc.perform(get("/trips/999").principal(AUTHENTICATION))
                 .andExpect(status().isNotFound())
-                .andExpect(content().string("Viagem com id 999 não encontrada"));
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message")
+                        .value("Viagem com id 999 não encontrada"));
     }
 
     @Test
@@ -297,7 +304,9 @@ class TripControllerTest {
 
         mockMvc.perform(get("/trips/1").principal(AUTHENTICATION))
                 .andExpect(status().isForbidden())
-                .andExpect(content().string(
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value(
                         "Você não possui permissão para acessar esta viagem."
                 ));
     }
@@ -323,7 +332,9 @@ class TripControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createTripJson("2026-09-10")))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string(
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value(
                         "Não é possível planejar uma viagem para uma data passada."
                 ));
     }
@@ -343,7 +354,20 @@ class TripControllerTest {
                                   "motorcycleId": null
                                 }
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Validation Failed"))
+                .andExpect(jsonPath("$.errors.origin").value("A origem é obrigatória."))
+                .andExpect(jsonPath("$.errors.destination")
+                        .value("O destino é obrigatório."))
+                .andExpect(jsonPath("$.errors.distanceKm")
+                        .value("A distância deve ser maior que zero."))
+                .andExpect(jsonPath("$.errors.terrain")
+                        .value("O tipo de terreno é obrigatório."))
+                .andExpect(jsonPath("$.errors.tripDate")
+                        .value("A data da viagem é obrigatória."))
+                .andExpect(jsonPath("$.errors.motorcycleId")
+                        .value("A motocicleta é obrigatória."));
 
         verifyNoInteractions(tripService);
     }
@@ -354,9 +378,44 @@ class TripControllerTest {
                         .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createTripJson("2026-09-20", 0)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Validation Failed"))
+                .andExpect(jsonPath("$.errors.motorcycleId")
+                        .value("O identificador da motocicleta deve ser maior que zero."));
 
         verifyNoInteractions(tripService);
+    }
+
+    @Test
+    void shouldReturnGenericBadRequestForInvalidTerrainEnum() throws Exception {
+        assertUnreadableTripPayload(
+                createTripJson("2026-09-20")
+                        .replace("\"MIXED\"", "\"UNSUPPORTED\"")
+        );
+    }
+
+    @Test
+    void shouldReturnGenericBadRequestForMalformedLocalDate() throws Exception {
+        assertUnreadableTripPayload(createTripJson("20/09/2026"));
+    }
+
+    @Test
+    void shouldReturnGenericBadRequestForMalformedJson() throws Exception {
+        assertUnreadableTripPayload("""
+                {
+                  "origin": "Florianopolis"
+                  "destination": "Urubici"
+                }
+                """);
+    }
+
+    @Test
+    void shouldReturnGenericBadRequestForIncompatibleType() throws Exception {
+        assertUnreadableTripPayload(
+                createTripJson("2026-09-20")
+                        .replace("\"distanceKm\": 175.5", "\"distanceKm\": \"far\"")
+        );
     }
 
     @Test
@@ -376,9 +435,11 @@ class TripControllerTest {
                                 {
                                   "status": "COMPLETED"
                                 }
-                                """))
+                """))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string("Status inválido!"));
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Status inválido!"));
     }
 
     @Test
@@ -391,7 +452,11 @@ class TripControllerTest {
                                   "status": null
                                 }
                                 """))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Validation Failed"))
+                .andExpect(jsonPath("$.errors.status")
+                        .value("O status da viagem é obrigatório."));
 
         verifyNoInteractions(tripService);
     }
@@ -422,6 +487,22 @@ class TripControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(tripService).deleteTripByIdForOwner(1L, CURRENT_USER.getId());
+    }
+
+    private void assertUnreadableTripPayload(String payload) throws Exception {
+        mockMvc.perform(post("/trips")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value(INVALID_REQUEST_BODY_MESSAGE))
+                .andExpect(content().string(not(containsString("Jackson"))))
+                .andExpect(content().string(not(containsString("InvalidFormatException"))))
+                .andExpect(content().string(not(containsString("TerrainType"))));
+
+        verifyNoInteractions(tripService, motorcycleService);
     }
 
     private Trip plannedTrip(long tripId, LocalDate tripDate) {

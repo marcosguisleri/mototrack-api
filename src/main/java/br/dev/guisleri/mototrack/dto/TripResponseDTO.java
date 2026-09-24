@@ -1,6 +1,5 @@
 package br.dev.guisleri.mototrack.dto;
 
-import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -15,7 +14,7 @@ public record TripResponseDTO(
         TripStatus status,
         TerrainType terrain,
         LocalDate tripDate,
-        Motorcycle motorcycle
+        MotorcycleResponseDTO motorcycle
 ) {
     public static TripResponseDTO from(Trip trip) {
         return new TripResponseDTO(
@@ -26,7 +25,7 @@ public record TripResponseDTO(
                 trip.getStatus(),
                 trip.getTerrain(),
                 trip.getTripDate(),
-                trip.getMotorcycle()
+                MotorcycleResponseDTO.from(trip.getMotorcycle())
         );
     }
 }

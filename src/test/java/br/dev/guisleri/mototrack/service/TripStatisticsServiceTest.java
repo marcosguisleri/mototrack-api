@@ -22,6 +22,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class TripStatisticsServiceTest {
 
+    private static final Long OWNER_ID = 1L;
+
     @Mock
     private TripRepository tripRepository;
 
@@ -53,45 +55,51 @@ class TripStatisticsServiceTest {
                 TripStatus.IN_PROGRESS, 1L,
                 TripStatus.COMPLETED, 1L
         );
-        when(tripRepository.countByStatus()).thenReturn(counts);
+        when(tripRepository.countByOwnerIdAndStatus(OWNER_ID)).thenReturn(counts);
 
-        Map<TripStatus, Long> result = statisticsService.countTripsByStatus();
+        Map<TripStatus, Long> result = statisticsService.countTripsByStatus(OWNER_ID);
 
         assertSame(counts, result);
-        verify(tripRepository).countByStatus();
+        verify(tripRepository).countByOwnerIdAndStatus(OWNER_ID);
     }
 
     @Test
     void shouldCountCompletedTrips() {
-        when(tripRepository.countByStatus())
+        when(tripRepository.countByOwnerIdAndStatus(OWNER_ID))
                 .thenReturn(Map.of(TripStatus.COMPLETED, 1L));
 
-        long result = statisticsService.countCompletedTrips();
+        long result = statisticsService.countCompletedTrips(OWNER_ID);
 
         assertEquals(1L, result);
-        verify(tripRepository).countByStatus();
+        verify(tripRepository).countByOwnerIdAndStatus(OWNER_ID);
     }
 
     @Test
     void shouldReturnZeroWhenThereAreNoCompletedTrips() {
-        when(tripRepository.countByStatus())
+        when(tripRepository.countByOwnerIdAndStatus(OWNER_ID))
                 .thenReturn(Map.of(TripStatus.PLANNED, 2L));
 
-        long result = statisticsService.countCompletedTrips();
+        long result = statisticsService.countCompletedTrips(OWNER_ID);
 
         assertEquals(0L, result);
-        verify(tripRepository).countByStatus();
+        verify(tripRepository).countByOwnerIdAndStatus(OWNER_ID);
     }
 
     @Test
     void shouldCalculateTotalCompletedDistanceKm() {
-        when(tripRepository.sumDistanceKmByStatus(TripStatus.COMPLETED))
+        when(tripRepository.sumDistanceKmByOwnerIdAndStatus(
+                OWNER_ID,
+                TripStatus.COMPLETED
+        ))
                 .thenReturn(250.0);
 
-        double result = statisticsService.calculateTotalCompletedDistanceKm();
+        double result = statisticsService.calculateTotalCompletedDistanceKm(OWNER_ID);
 
         assertEquals(250.0, result, 0.001);
-        verify(tripRepository).sumDistanceKmByStatus(TripStatus.COMPLETED);
+        verify(tripRepository).sumDistanceKmByOwnerIdAndStatus(
+                OWNER_ID,
+                TripStatus.COMPLETED
+        );
     }
 
     @Test
@@ -100,26 +108,28 @@ class TripStatisticsServiceTest {
                 honda, 2L,
                 yamaha, 1L
         );
-        when(tripRepository.countByMotorcycle()).thenReturn(counts);
+        when(tripRepository.countByOwnerIdAndMotorcycle(OWNER_ID)).thenReturn(counts);
 
-        Map<Motorcycle, Long> result = statisticsService.countTripsByMotorcycle();
+        Map<Motorcycle, Long> result = statisticsService.countTripsByMotorcycle(OWNER_ID);
 
         assertSame(counts, result);
-        verify(tripRepository).countByMotorcycle();
+        verify(tripRepository).countByOwnerIdAndMotorcycle(OWNER_ID);
     }
 
     @Test
     void shouldCalculateCompletedDistanceKmByMotorcycle() {
-        when(tripRepository.sumDistanceKmByMotorcycleAndStatus(
+        when(tripRepository.sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
+                OWNER_ID,
                 honda,
                 TripStatus.COMPLETED
         )).thenReturn(100.0);
 
         double result = statisticsService
-                .calculateCompletedDistanceKmByMotorcycle(honda);
+                .calculateCompletedDistanceKmByMotorcycle(OWNER_ID, honda);
 
         assertEquals(100.0, result, 0.001);
-        verify(tripRepository).sumDistanceKmByMotorcycleAndStatus(
+        verify(tripRepository).sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
+                OWNER_ID,
                 honda,
                 TripStatus.COMPLETED
         );
@@ -127,25 +137,25 @@ class TripStatisticsServiceTest {
 
     @Test
     void shouldFindMostUsedMotorcycle() {
-        when(tripRepository.findMostUsedMotorcycleInCompletedTrips())
+        when(tripRepository.findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID))
                 .thenReturn(Optional.of(honda));
 
         Optional<Motorcycle> result =
-                statisticsService.findMostUsedMotorcycleInCompletedTrips();
+                statisticsService.findMostUsedMotorcycleInCompletedTrips(OWNER_ID);
 
         assertEquals(Optional.of(honda), result);
-        verify(tripRepository).findMostUsedMotorcycleInCompletedTrips();
+        verify(tripRepository).findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID);
     }
 
     @Test
     void shouldReturnEmptyWhenThereAreNoCompletedTrips() {
-        when(tripRepository.findMostUsedMotorcycleInCompletedTrips())
+        when(tripRepository.findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID))
                 .thenReturn(Optional.empty());
 
         Optional<Motorcycle> result =
-                statisticsService.findMostUsedMotorcycleInCompletedTrips();
+                statisticsService.findMostUsedMotorcycleInCompletedTrips(OWNER_ID);
 
         assertTrue(result.isEmpty());
-        verify(tripRepository).findMostUsedMotorcycleInCompletedTrips();
+        verify(tripRepository).findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID);
     }
 }

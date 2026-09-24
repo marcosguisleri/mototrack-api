@@ -16,18 +16,21 @@ public interface TripRepository {
 
     Optional<Trip> findById(long tripId);
 
-    Map<TripStatus, Long> countByStatus();
+    Map<TripStatus, Long> countByOwnerIdAndStatus(Long ownerId);
 
-    double sumDistanceKmByStatus(TripStatus status);
+    double sumDistanceKmByOwnerIdAndStatus(Long ownerId, TripStatus status);
 
-    Map<Motorcycle, Long> countByMotorcycle();
+    Map<Motorcycle, Long> countByOwnerIdAndMotorcycle(Long ownerId);
 
-    double sumDistanceKmByMotorcycleAndStatus(
+    double sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
+            Long ownerId,
             Motorcycle motorcycle,
             TripStatus status
     );
 
-    Optional<Motorcycle> findMostUsedMotorcycleInCompletedTrips();
+    Optional<Motorcycle> findMostUsedMotorcycleInCompletedTripsByOwnerId(
+            Long ownerId
+    );
 
     boolean existsByMotorcycleId(Long motorcycleId);
 

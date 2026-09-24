@@ -27,6 +27,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -314,16 +315,21 @@ class JpaTripRepositoryAdapterTest {
         save(completedTrip(144.0, TerrainType.MIXED, TODAY.minusDays(2), savedHonda));
         save(completedTrip(300, TerrainType.OFF_ROAD, TODAY.minusDays(3), YAMAHA));
         save(plannedTrip(500, TerrainType.ASPHALT, TODAY.plusDays(1), savedHonda));
+        Long ownerId = savedHonda.getOwner().getId();
 
         assertAll(
                 () -> assertEquals(
-                        544.5,
-                        tripRepositoryAdapter.sumDistanceKmByStatus(TripStatus.COMPLETED),
+                        244.5,
+                        tripRepositoryAdapter.sumDistanceKmByOwnerIdAndStatus(
+                                ownerId,
+                                TripStatus.COMPLETED
+                        ),
                         0.001
                 ),
                 () -> assertEquals(
                         244.5,
-                        tripRepositoryAdapter.sumDistanceKmByMotorcycleAndStatus(
+                        tripRepositoryAdapter.sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
+                                ownerId,
                                 savedHonda,
                                 TripStatus.COMPLETED
                         ),
@@ -334,9 +340,17 @@ class JpaTripRepositoryAdapterTest {
 
     @Test
     void shouldCountTripsByStatusIncludingStatusesWithZeroTrips() {
-        save(plannedTrip(100, TerrainType.ASPHALT, TODAY.plusDays(1), HONDA));
+        Trip savedTrip = save(plannedTrip(
+                100,
+                TerrainType.ASPHALT,
+                TODAY.plusDays(1),
+                HONDA
+        ));
+        save(completedTrip(200, TerrainType.MIXED, TODAY.minusDays(1), YAMAHA));
+        Long ownerId = savedTrip.getMotorcycle().getOwner().getId();
 
-        Map<TripStatus, Long> result = tripRepositoryAdapter.countByStatus();
+        Map<TripStatus, Long> result =
+                tripRepositoryAdapter.countByOwnerIdAndStatus(ownerId);
 
         assertAll(
                 () -> assertEquals(1L, result.get(TripStatus.PLANNED)),
@@ -361,11 +375,14 @@ class JpaTripRepositoryAdapterTest {
                 YAMAHA
         )).getMotorcycle();
 
-        Map<Motorcycle, Long> result = tripRepositoryAdapter.countByMotorcycle();
+        Long ownerId = savedHonda.getOwner().getId();
+        Map<Motorcycle, Long> result =
+                tripRepositoryAdapter.countByOwnerIdAndMotorcycle(ownerId);
 
         assertAll(
                 () -> assertEquals(2L, result.get(savedHonda)),
-                () -> assertEquals(1L, result.get(savedYamaha))
+                () -> assertEquals(1, result.size()),
+                () -> assertFalse(result.containsKey(savedYamaha))
         );
     }
 
@@ -387,7 +404,10 @@ class JpaTripRepositoryAdapterTest {
         save(plannedTrip(400, TerrainType.ASPHALT, TODAY.plusDays(1), savedYamaha));
         save(plannedTrip(500, TerrainType.MIXED, TODAY.plusDays(2), savedYamaha));
 
-        Motorcycle result = tripRepositoryAdapter.findMostUsedMotorcycleInCompletedTrips()
+        Motorcycle result = tripRepositoryAdapter
+                .findMostUsedMotorcycleInCompletedTripsByOwnerId(
+                        savedHonda.getOwner().getId()
+                )
                 .orElseThrow();
 
         assertEquals(savedHonda, result);
@@ -395,7 +415,9 @@ class JpaTripRepositoryAdapterTest {
 
     @Test
     void shouldReturnEmptyMostUsedMotorcycleWhenDatabaseIsEmpty() {
-        assertTrue(tripRepositoryAdapter.findMostUsedMotorcycleInCompletedTrips().isEmpty());
+        assertTrue(tripRepositoryAdapter
+                .findMostUsedMotorcycleInCompletedTripsByOwnerId(999L)
+                .isEmpty());
     }
 
     @Test

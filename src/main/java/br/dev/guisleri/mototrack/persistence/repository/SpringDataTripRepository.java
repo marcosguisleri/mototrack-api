@@ -17,16 +17,21 @@ public interface SpringDataTripRepository extends JpaRepository<TripEntity, Long
     @Query("""
         SELECT t.status AS status, COUNT(t) AS tripCount
         FROM TripEntity t
+        WHERE t.motorcycle.owner.id = :ownerId
         GROUP BY t.status
         """)
-    List<TripStatusCountProjection> countTripsGroupedByStatus();
+    List<TripStatusCountProjection> countTripsGroupedByStatusForOwner(
+            @Param("ownerId") Long ownerId
+    );
 
     @Query("""
         SELECT COALESCE(SUM(t.distanceKm), 0)
         FROM TripEntity t
-        WHERE t.status = :status
+        WHERE t.motorcycle.owner.id = :ownerId
+        AND t.status = :status
         """)
-    double sumDistanceKmByStatus(
+    double sumDistanceKmByOwnerIdAndStatus(
+            @Param("ownerId") Long ownerId,
             @Param("status") TripStatus status
     );
 
@@ -34,29 +39,36 @@ public interface SpringDataTripRepository extends JpaRepository<TripEntity, Long
         SELECT COALESCE(SUM(t.distanceKm), 0)
         FROM TripEntity t
         WHERE t.motorcycle.id = :motorcycleId
+        AND t.motorcycle.owner.id = :ownerId
         AND t.status = :status
         """)
-    double sumDistanceKmByMotorcycleIdAndStatus(
+    double sumDistanceKmByMotorcycleIdAndOwnerIdAndStatus(
             @Param("motorcycleId") long motorcycleId,
+            @Param("ownerId") Long ownerId,
             @Param("status") TripStatus status
     );
 
     @Query("""
         SELECT t.motorcycle AS motorcycle, COUNT(t) AS tripCount
         FROM TripEntity t
-        WHERE t.status = :status
+        WHERE t.motorcycle.owner.id = :ownerId
+        AND t.status = :status
         GROUP BY t.motorcycle
         """)
-    List<MotorcycleTripCountProjection> countTripsGroupedByMotorcycleAndStatus(
+    List<MotorcycleTripCountProjection> countTripsGroupedByMotorcycleAndOwnerAndStatus(
+            @Param("ownerId") Long ownerId,
             @Param("status") TripStatus status
     );
 
     @Query("""
         SELECT t.motorcycle AS motorcycle, COUNT(t) AS tripCount
         FROM TripEntity t
+        WHERE t.motorcycle.owner.id = :ownerId
         GROUP BY t.motorcycle
         """)
-    List<MotorcycleTripCountProjection> countTripsGroupedByMotorcycle();
+    List<MotorcycleTripCountProjection> countTripsGroupedByMotorcycleForOwner(
+            @Param("ownerId") Long ownerId
+    );
 
     List<TripEntity> findByMotorcycle_Owner_Id(Long ownerId);
 

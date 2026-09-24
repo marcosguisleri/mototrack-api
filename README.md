@@ -4,13 +4,13 @@
 
 **Planeje, acompanhe e meça suas viagens de moto.**
 
-API REST construída com domínio isolado de framework, persistência plugável e 134 testes automatizados.
+API REST construída com domínio isolado de framework, persistência plugável e 146 testes automatizados.
 
 [![Java](https://img.shields.io/badge/Java-25-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-[![Tests](https://img.shields.io/badge/tests-134%20passing-success?style=for-the-badge&logo=junit5&logoColor=white)](#-testes)
+[![Tests](https://img.shields.io/badge/tests-146%20passing-success?style=for-the-badge&logo=junit5&logoColor=white)](#-testes)
 [![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow?style=for-the-badge)](#-roadmap)
 
 </div>
@@ -37,13 +37,14 @@ O resultado é uma API que evoluiu de um app de console para uma aplicação com
 | ⏰ **`Clock` injetável** | Nenhuma chamada a `LocalDate.now()` sem `Clock`. Regras que dependem de tempo são testadas com relógio fixo e resultado determinístico. |
 | 🏭 **Factory methods nomeados** | `Trip.schedule(...)`, `Trip.registerCompleted(...)` e `Trip.restore(...)` — cada um com suas próprias invariantes. Construtor privado. |
 | 📊 **Agregações no banco** | Contagens e somatórios usam JPQL com *projections*. Nada de carregar tudo em memória para fazer `stream().count()`. |
+| 🔐 **Isolamento por usuário** | Spring Security + HTTP Basic, senhas com BCrypt e consultas filtradas pelo proprietário autenticado. |
 | 🧪 **Testes por camada** | Unitário puro no domínio, Mockito nos services, `@WebMvcTest` nos controllers, `@DataJpaTest` + H2 nos adapters. |
 
 ---
 
 ## 🛠️ Stack
 
-**Core** — Java 25 · Spring Boot 4.1.1 · Spring Web MVC · Spring Data JPA · Bean Validation
+**Core** — Java 25 · Spring Boot 4.1.1 · Spring Web MVC · Spring Security · Spring Data JPA · Bean Validation
 
 **Persistência** — PostgreSQL 17 (produção/dev) · H2 (testes) · Hibernate
 
@@ -60,17 +61,17 @@ A dependência sempre aponta para dentro. O domínio não conhece ninguém; a in
 ```mermaid
 flowchart TD
     subgraph WEB["🌐 Camada Web"]
-        C["Controllers<br/>DTOs · Bean Validation"]
+        C["Controllers<br/>DTOs · Bean Validation · Security"]
         GEH["GlobalExceptionHandler<br/>exceção → status HTTP"]
     end
 
     subgraph APP["⚙️ Camada de Aplicação"]
         S["Services<br/>orquestração de casos de uso"]
-        P["Ports<br/>TripRepository · MotorcycleRepository"]
+        P["Ports<br/>TripRepository · MotorcycleRepository · UserRepository"]
     end
 
     subgraph DOM["💛 Domínio"]
-        M["Trip · Motorcycle<br/>TripStatus · TerrainType<br/>regras e invariantes"]
+        M["Trip · Motorcycle · User<br/>TripStatus · TerrainType<br/>regras e invariantes"]
     end
 
     subgraph INFRA["🗄️ Infraestrutura"]
@@ -99,7 +100,7 @@ flowchart TD
 
 ### Por que as ports ficam na camada de aplicação?
 
-Porque quem dita o contrato é quem precisa dele. O `TripService` não se adapta ao que o Spring Data oferece — ele declara o que precisa (`findUpcomingFrom`, `countByStatus`, `sumDistanceKmByStatus`) e a infraestrutura que se vire. O `JpaTripRepositoryAdapter` traduz esse contrato para Spring Data e converte `TripEntity` em `Trip` pelo caminho.
+Porque quem dita o contrato é quem precisa dele. O `TripService` não se adapta ao que o Spring Data oferece — ele declara o que precisa (`findUpcomingFromByOwnerId`, `countByOwnerIdAndStatus`, `sumDistanceKmByOwnerIdAndStatus`) e a infraestrutura que se vire. O `JpaTripRepositoryAdapter` traduz esse contrato para Spring Data e converte `TripEntity` em `Trip` pelo caminho.
 
 O efeito prático disso aparece nos testes: `TripServiceTest` roda com o contrato `TripRepository` isolado por Mockito, sem contexto Spring e sem banco.
 
@@ -107,13 +108,14 @@ O efeito prático disso aparece nos testes: `TripServiceTest` roda com o contrat
 
 ```
 br.dev.guisleri.mototrack
-├── config/                 ClockConfig — Clock como bean
-├── controller/             MotorcycleController · TripController · TripStatisticsController
+├── config/                 ClockConfig · SecurityConfig
+├── controller/             UserController · MotorcycleController · TripController · TripStatisticsController
 ├── dto/                    Records de request e response
 ├── exception/              Exceções de negócio + GlobalExceptionHandler
-├── model/                  💛 Trip · Motorcycle · TripStatus · TerrainType
+├── model/                  💛 User · Trip · Motorcycle · TripStatus · TerrainType
 ├── repository/             🔌 Ports (interfaces)
-├── service/                MotorcycleService · TripService · TripStatisticsService
+├── security/               CustomUserDetailsService
+├── service/                UserService · MotorcycleService · TripService · TripStatisticsService
 └── persistence/
     ├── entity/             MotorcycleEntity · TripEntity
     ├── mapper/             Entity ⇄ Domain
@@ -155,14 +157,31 @@ Essas regras estão em `Trip`, `TripStatus` e nos services — **não** nos cont
 
 Base URL: `http://localhost:8080`
 
+### 🔐 Autenticação
+
+O cadastro (`POST /users`) é público. Todos os demais endpoints exigem HTTP Basic com o e-mail e a senha cadastrados. A API é stateless, então as credenciais devem acompanhar cada requisição:
+
+```bash
+curl -u marcos@example.com:secret123 http://localhost:8080/users/me
+```
+
+As senhas são persistidas somente como hash BCrypt. Em produção, HTTP Basic deve ser usado exclusivamente atrás de HTTPS.
+
+### 👤 Usuário
+
+| Método | Endpoint | Descrição | Sucesso |
+|:---:|---|---|:---:|
+| `POST` | `/users` | Cadastra um usuário | `201` |
+| `GET` | `/users/me` | Retorna o usuário autenticado | `200` |
+
 ### 🏍️ Motos
 
 | Método | Endpoint | Descrição | Sucesso |
 |:---:|---|---|:---:|
 | `POST` | `/motorcycles` | Cadastra uma moto na garagem | `201` |
-| `GET` | `/motorcycles` | Lista todas as motos | `200` |
-| `GET` | `/motorcycles/{id}` | Busca uma moto por ID | `200` |
-| `DELETE` | `/motorcycles/{id}` | Remove uma moto sem viagens | `204` |
+| `GET` | `/motorcycles` | Lista as motos do usuário autenticado | `200` |
+| `GET` | `/motorcycles/{id}` | Busca uma moto do usuário autenticado | `200` |
+| `DELETE` | `/motorcycles/{id}` | Remove uma moto própria sem viagens | `204` |
 
 ### 🛣️ Viagens
 
@@ -170,7 +189,7 @@ Base URL: `http://localhost:8080`
 |:---:|---|---|:---:|
 | `POST` | `/trips` | Agenda uma viagem futura | `201` |
 | `POST` | `/trips/completed` | Registra uma viagem já concluída | `201` |
-| `GET` | `/trips` | Lista viagens · filtro opcional `?status=PLANNED` | `200` |
+| `GET` | `/trips` | Lista viagens próprias · filtro opcional `?status=PLANNED` | `200` |
 | `GET` | `/trips/{id}` | Busca uma viagem por ID | `200` |
 | `GET` | `/trips/upcoming` | Próximas viagens planejadas, ordenadas por data | `200` |
 | `GET` | `/trips/terrain/{terrain}` | Filtra por `ASPHALT`, `MIXED` ou `OFF_ROAD` | `200` |
@@ -183,16 +202,29 @@ Base URL: `http://localhost:8080`
 
 | Método | Endpoint | Descrição | Sucesso |
 |:---:|---|---|:---:|
-| `GET` | `/statistics` | Resumo consolidado das viagens | `200` |
+| `GET` | `/statistics` | Resumo das viagens do usuário autenticado | `200` |
 
 ---
 
 ## 🚀 Exemplos de uso
 
-### 1. Colocar uma moto na garagem
+### 1. Criar uma conta
+
+```bash
+curl -X POST http://localhost:8080/users \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "Marcos",
+    "email": "marcos@example.com",
+    "password": "secret123"
+  }'
+```
+
+### 2. Colocar uma moto na garagem
 
 ```bash
 curl -X POST http://localhost:8080/motorcycles \
+  -u marcos@example.com:secret123 \
   -H 'Content-Type: application/json' \
   -d '{
     "brand": "Honda",
@@ -214,10 +246,11 @@ curl -X POST http://localhost:8080/motorcycles \
 }
 ```
 
-### 2. Agendar uma viagem
+### 3. Agendar uma viagem
 
 ```bash
 curl -X POST http://localhost:8080/trips \
+  -u marcos@example.com:secret123 \
   -H 'Content-Type: application/json' \
   -d '{
     "origin": "Florianopolis",
@@ -249,18 +282,19 @@ curl -X POST http://localhost:8080/trips \
 }
 ```
 
-### 3. Botar o pé na estrada
+### 4. Botar o pé na estrada
 
 ```bash
 curl -X PATCH http://localhost:8080/trips/1/status \
+  -u marcos@example.com:secret123 \
   -H 'Content-Type: application/json' \
   -d '{ "status": "IN_PROGRESS" }'
 ```
 
-### 4. Ver o resumo
+### 5. Ver o resumo
 
 ```bash
-curl http://localhost:8080/statistics
+curl -u marcos@example.com:secret123 http://localhost:8080/statistics
 ```
 
 ```json
@@ -296,6 +330,9 @@ Exceções de negócio são traduzidas para status HTTP por um `@RestControllerA
 | Data inválida para o tipo de registro | `InvalidTripDateException` | `400` |
 | Transição de status não permitida | `InvalidTripStatusException` | `400` |
 | Exclusão de moto com viagens vinculadas | `MotorcycleInUseException` | `409` |
+| E-mail já cadastrado | `UserAlreadyExistsException` | `409` |
+| Requisição sem credenciais válidas | Spring Security | `401` |
+| Recurso pertencente a outro usuário | Exceção de acesso do recurso | `403` |
 | Payload que falha na Bean Validation | `MethodArgumentNotValidException` | `400` |
 
 ---
@@ -306,14 +343,15 @@ Exceções de negócio são traduzidas para status HTTP por um `@RestControllerA
 ./mvnw test
 ```
 
-**134 testes, 0 falhas.** Cada camada é testada com a ferramenta mais barata que dá a garantia necessária:
+**146 testes, 0 falhas.** Cada camada é testada com a ferramenta mais barata que dá a garantia necessária:
 
 | Camada | Abordagem | Testes |
 |---|---|:---:|
-| Domínio | JUnit puro, `Clock` fixo, zero framework | 17 |
-| Services | JUnit + Mockito, sem contexto Spring | 42 |
-| Controllers | `@WebMvcTest` + `MockMvc` + `@MockitoBean` | 40 |
-| Adapters JPA | `@DataJpaTest` + H2 em memória, `create-drop` | 29 |
+| Domínio | JUnit puro, `Clock` fixo, zero framework | 19 |
+| Services | JUnit + Mockito, sem contexto Spring | 43 |
+| Controllers | `@WebMvcTest` + `MockMvc` + `@MockitoBean` | 47 |
+| Segurança | Spring Security + MockMvc e serviço isolado | 6 |
+| Adapters JPA | `@DataJpaTest` + H2 em memória, `create-drop` | 25 |
 | Mappers | Unitário direto | 6 |
 
 Dois detalhes que valem o destaque:
@@ -385,7 +423,7 @@ O projeto está **em desenvolvimento ativo**. Próximos passos:
 - [ ] Testes de integração ponta a ponta com Testcontainers
 - [ ] Pipeline de CI no GitHub Actions
 - [ ] Dockerfile da aplicação para subir tudo com um `docker compose up`
-- [ ] Autenticação e viagens por usuário
+- [x] Autenticação e isolamento de dados por usuário
 
 ---
 
@@ -402,6 +440,7 @@ test: adiciona testes automatizados com JUnit
 refactor: aprimora dominio e separa estatisticas             ← regras vão pro domínio
 feat: adiciona API REST com Spring Boot                      ← entra a camada web
 feat: migrate trip persistence to JPA and PostgreSQL         ← entra o adapter JPA
+feat: add authentication and user-owned resources            ← entra a segurança
 ```
 
 Quando o PostgreSQL entrou em cena, **nenhuma regra de negócio precisou mudar**. Só apareceu um adapter novo do outro lado da interface. Era exatamente esse o ponto.

@@ -120,7 +120,9 @@ class TripControllerTest {
                 .andExpect(jsonPath("$.motorcycle.owner.id").value(1))
                 .andExpect(jsonPath("$.motorcycle.owner.name").value("Marcos"))
                 .andExpect(jsonPath("$.motorcycle.owner.email")
-                        .value("marcos@example.com"));
+                        .value("marcos@example.com"))
+                .andExpect(jsonPath("$.motorcycle.owner.password").doesNotExist())
+                .andExpect(jsonPath("$.motorcycle.owner.passwordHash").doesNotExist());
 
         verify(tripService).scheduleTrip(
                 eq("Florianopolis"),

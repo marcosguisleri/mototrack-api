@@ -17,34 +17,43 @@ public class TripStatisticsService {
         this.tripRepository = tripRepository;
     }
 
-    public Map<TripStatus, Long> countTripsByStatus() {
-        return tripRepository.countByStatus();
+    public Map<TripStatus, Long> countTripsByStatus(Long ownerId) {
+        return tripRepository.countByOwnerIdAndStatus(ownerId);
     }
 
-    public long countCompletedTrips() {
-        return tripRepository.countByStatus()
+    public long countCompletedTrips(Long ownerId) {
+        return tripRepository.countByOwnerIdAndStatus(ownerId)
                 .getOrDefault(TripStatus.COMPLETED, 0L);
     }
 
-    public double calculateTotalCompletedDistanceKm() {
-        return tripRepository.sumDistanceKmByStatus(TripStatus.COMPLETED);
+    public double calculateTotalCompletedDistanceKm(Long ownerId) {
+        return tripRepository.sumDistanceKmByOwnerIdAndStatus(
+                ownerId,
+                TripStatus.COMPLETED
+        );
     }
 
-    public Map<Motorcycle, Long> countTripsByMotorcycle() {
-        return tripRepository.countByMotorcycle();
+    public Map<Motorcycle, Long> countTripsByMotorcycle(Long ownerId) {
+        return tripRepository.countByOwnerIdAndMotorcycle(ownerId);
     }
 
     public double calculateCompletedDistanceKmByMotorcycle(
+            Long ownerId,
             Motorcycle motorcycle
     ) {
-        return tripRepository.sumDistanceKmByMotorcycleAndStatus(
+        return tripRepository.sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
+                ownerId,
                 motorcycle,
                 TripStatus.COMPLETED
         );
     }
 
-    public Optional<Motorcycle> findMostUsedMotorcycleInCompletedTrips() {
-        return tripRepository.findMostUsedMotorcycleInCompletedTrips();
+    public Optional<Motorcycle> findMostUsedMotorcycleInCompletedTrips(
+            Long ownerId
+    ) {
+        return tripRepository.findMostUsedMotorcycleInCompletedTripsByOwnerId(
+                ownerId
+        );
     }
 
 }

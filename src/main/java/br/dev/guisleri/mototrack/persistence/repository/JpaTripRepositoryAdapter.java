@@ -72,14 +72,14 @@ public class JpaTripRepositoryAdapter implements TripRepository {
     }
 
     @Override
-    public Map<TripStatus, Long> countByStatus() {
+    public Map<TripStatus, Long> countByOwnerIdAndStatus(Long ownerId) {
         Map<TripStatus, Long> tripCountsByStatus = new EnumMap<>(TripStatus.class);
 
         for (TripStatus status : TripStatus.values()) {
             tripCountsByStatus.put(status, 0L);
         }
 
-        springDataTripRepository.countTripsGroupedByStatus()
+        springDataTripRepository.countTripsGroupedByStatusForOwner(ownerId)
                 .forEach(statusCount ->
                         tripCountsByStatus.put(
                                 statusCount.getStatus(),
@@ -91,8 +91,8 @@ public class JpaTripRepositoryAdapter implements TripRepository {
     }
 
     @Override
-    public Map<Motorcycle, Long> countByMotorcycle() {
-        return springDataTripRepository.countTripsGroupedByMotorcycle()
+    public Map<Motorcycle, Long> countByOwnerIdAndMotorcycle(Long ownerId) {
+        return springDataTripRepository.countTripsGroupedByMotorcycleForOwner(ownerId)
                 .stream()
                 .collect(Collectors.toMap(
                         motorcycleCount -> motorcycleMapper.toDomain(
@@ -103,24 +103,35 @@ public class JpaTripRepositoryAdapter implements TripRepository {
     }
 
     @Override
-    public double sumDistanceKmByStatus(TripStatus status) {
-        return springDataTripRepository.sumDistanceKmByStatus(status);
-    }
-
-    @Override
-    public double sumDistanceKmByMotorcycleAndStatus(
-            Motorcycle motorcycle,
+    public double sumDistanceKmByOwnerIdAndStatus(
+            Long ownerId,
             TripStatus status
     ) {
-        return springDataTripRepository.sumDistanceKmByMotorcycleIdAndStatus(
-                motorcycle.getId(),
+        return springDataTripRepository.sumDistanceKmByOwnerIdAndStatus(
+                ownerId,
                 status
         );
     }
 
     @Override
-    public Optional<Motorcycle> findMostUsedMotorcycleInCompletedTrips() {
-        return springDataTripRepository.countTripsGroupedByMotorcycleAndStatus(
+    public double sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
+            Long ownerId,
+            Motorcycle motorcycle,
+            TripStatus status
+    ) {
+        return springDataTripRepository.sumDistanceKmByMotorcycleIdAndOwnerIdAndStatus(
+                motorcycle.getId(),
+                ownerId,
+                status
+        );
+    }
+
+    @Override
+    public Optional<Motorcycle> findMostUsedMotorcycleInCompletedTripsByOwnerId(
+            Long ownerId
+    ) {
+        return springDataTripRepository.countTripsGroupedByMotorcycleAndOwnerAndStatus(
+                        ownerId,
                         TripStatus.COMPLETED
                 )
                 .stream()

@@ -70,14 +70,6 @@ public class JpaMotorcycleRepositoryAdapter implements MotorcycleRepository {
     }
 
     @Override
-    public List<Motorcycle> findAll() {
-        return springDataMotorcycleRepository.findAll()
-                .stream()
-                .map(motorcycleMapper::toDomain)
-                .toList();
-    }
-
-    @Override
     @Transactional
     public void deleteById(Long motorcycleId) {
         springDataMotorcycleRepository.deleteById(motorcycleId);

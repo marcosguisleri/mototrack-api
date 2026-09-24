@@ -1,15 +1,15 @@
 package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.exception.UserAlreadyExistsException;
-import br.dev.guisleri.mototrack.exception.UserNotFoundException;
-import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.User;
-import br.dev.guisleri.mototrack.service.MotorcycleService;
 import br.dev.guisleri.mototrack.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,13 +25,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class UserControllerTest {
 
+    private static final String PASSWORD = "secret123";
     private static final User USER = User.restore(
             1L,
             "Marcos",
-            "marcos@example.com"
+            "marcos@example.com",
+            "password-hash"
     );
+    private static final Authentication AUTHENTICATION =
+            UsernamePasswordAuthenticationToken.authenticated(
+                    USER.getEmail(),
+                    null,
+                    List.of()
+            );
 
     @Autowired
     private MockMvc mockMvc;
@@ -39,44 +48,55 @@ class UserControllerTest {
     @MockitoBean
     private UserService userService;
 
-    @MockitoBean
-    private MotorcycleService motorcycleService;
-
     @Test
-    void shouldCreateUser() throws Exception {
-        when(userService.registerUser("Marcos", "marcos@example.com"))
+    void shouldCreateUserWithoutExposingCredentials() throws Exception {
+        when(userService.registerUser("Marcos", "marcos@example.com", PASSWORD))
                 .thenReturn(USER);
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(userJson("Marcos", "marcos@example.com")))
+                        .content(userJson("Marcos", "marcos@example.com", PASSWORD)))
                 .andExpect(status().isCreated())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Marcos"))
-                .andExpect(jsonPath("$.email").value("marcos@example.com"));
+                .andExpect(jsonPath("$.email").value("marcos@example.com"))
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(jsonPath("$.passwordHash").doesNotExist());
 
-        verify(userService).registerUser("Marcos", "marcos@example.com");
+        verify(userService).registerUser("Marcos", "marcos@example.com", PASSWORD);
     }
 
     @Test
-    void shouldCreateUserWithTrimmedEmail() throws Exception {
-        when(userService.registerUser("Marcos", "Marcos@Example.COM"))
-                .thenReturn(USER);
+    void shouldTrimEmailButPreservePassword() throws Exception {
+        String passwordWithSpaces = "  secret123  ";
+        when(userService.registerUser(
+                "Marcos",
+                "Marcos@Example.COM",
+                passwordWithSpaces
+        )).thenReturn(USER);
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(userJson("Marcos", "  Marcos@Example.COM  ")))
+                        .content(userJson(
+                                "Marcos",
+                                "  Marcos@Example.COM  ",
+                                passwordWithSpaces
+                        )))
                 .andExpect(status().isCreated());
 
-        verify(userService).registerUser("Marcos", "Marcos@Example.COM");
+        verify(userService).registerUser(
+                "Marcos",
+                "Marcos@Example.COM",
+                passwordWithSpaces
+        );
     }
 
     @Test
     void shouldRejectInvalidEmail() throws Exception {
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(userJson("Marcos", "email-invalido")))
+                        .content(userJson("Marcos", "email-invalido", PASSWORD)))
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(userService);
@@ -86,7 +106,17 @@ class UserControllerTest {
     void shouldRejectBlankName() throws Exception {
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(userJson(" ", "marcos@example.com")))
+                        .content(userJson(" ", "marcos@example.com", PASSWORD)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void shouldRejectShortPassword() throws Exception {
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(userJson("Marcos", "marcos@example.com", "short")))
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(userService);
@@ -95,133 +125,54 @@ class UserControllerTest {
     @Test
     void shouldReturnConflictWhenEmailAlreadyExists() throws Exception {
         String message = "Já existe um usuário cadastrado com este e-mail.";
-        when(userService.registerUser("Marcos", "marcos@example.com"))
+        when(userService.registerUser("Marcos", "marcos@example.com", PASSWORD))
                 .thenThrow(new UserAlreadyExistsException(message));
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(userJson("Marcos", "marcos@example.com")))
+                        .content(userJson("Marcos", "marcos@example.com", PASSWORD)))
                 .andExpect(status().isConflict())
                 .andExpect(content().string(message));
     }
 
     @Test
-    void shouldFindAllUsers() throws Exception {
-        User ana = User.restore(2L, "Ana", "ana@example.com");
-        when(userService.findAllUsers()).thenReturn(List.of(USER, ana));
+    void shouldReturnCurrentAuthenticatedUserWithoutExposingCredentials() throws Exception {
+        when(userService.findUserByEmail(USER.getEmail())).thenReturn(USER);
 
-        mockMvc.perform(get("/users"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].name").value("Marcos"))
-                .andExpect(jsonPath("$[0].email").value("marcos@example.com"))
-                .andExpect(jsonPath("$[1].id").value(2))
-                .andExpect(jsonPath("$[1].name").value("Ana"));
-
-        verify(userService).findAllUsers();
-    }
-
-    @Test
-    void shouldFindUserById() throws Exception {
-        when(userService.findUserById(1L)).thenReturn(USER);
-
-        mockMvc.perform(get("/users/1"))
+        mockMvc.perform(get("/users/me").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.name").value("Marcos"))
-                .andExpect(jsonPath("$.email").value("marcos@example.com"));
+                .andExpect(jsonPath("$.email").value("marcos@example.com"))
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(jsonPath("$.passwordHash").doesNotExist());
 
-        verify(userService).findUserById(1L);
+        verify(userService).findUserByEmail(USER.getEmail());
     }
 
     @Test
-    void shouldReturnNotFoundWhenUserDoesNotExist() throws Exception {
-        String message = "Usuário com id 999 não encontrado";
-        when(userService.findUserById(999L))
-                .thenThrow(new UserNotFoundException(message));
+    void shouldNotExposeUserCollectionEndpoint() throws Exception {
+        mockMvc.perform(get("/users"))
+                .andExpect(status().isMethodNotAllowed());
 
-        mockMvc.perform(get("/users/999"))
-                .andExpect(status().isNotFound())
-                .andExpect(content().string(message));
+        verifyNoInteractions(userService);
     }
 
     @Test
-    void shouldFindMotorcyclesByUserId() throws Exception {
-        User ana = User.restore(2L, "Ana", "ana@example.com");
-        Motorcycle honda = Motorcycle.restore(
-                1L,
-                "Honda",
-                "NX 500",
-                "Black",
-                2025,
-                471,
-                USER
-        );
-        Motorcycle yamaha = Motorcycle.restore(
-                2L,
-                "Yamaha",
-                "Tenere 700",
-                "Blue",
-                2024,
-                689,
-                USER
-        );
-        Motorcycle dafra = Motorcycle.restore(
-                3L,
-                "Dafra",
-                "NH 300",
-                "Red",
-                2025,
-                291,
-                ana
-        );
-        when(motorcycleService.findMotorcyclesByOwnerId(1L))
-                .thenReturn(List.of(honda, yamaha));
-        when(motorcycleService.findMotorcyclesByOwnerId(2L))
-                .thenReturn(List.of(dafra));
+    void shouldNotExposeUserByIdEndpoint() throws Exception {
+        mockMvc.perform(get("/users/1"))
+                .andExpect(status().isNotFound());
 
-        mockMvc.perform(get("/users/1/motorcycles"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].brand").value("Honda"))
-                .andExpect(jsonPath("$[1].id").value(2))
-                .andExpect(jsonPath("$[1].brand").value("Yamaha"))
-                .andExpect(jsonPath("$[0].owner.id").value(1))
-                .andExpect(jsonPath("$[0].owner.email").value("marcos@example.com"));
-
-        mockMvc.perform(get("/users/2/motorcycles"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(3))
-                .andExpect(jsonPath("$[0].brand").value("Dafra"))
-                .andExpect(jsonPath("$[0].owner.id").value(2))
-                .andExpect(jsonPath("$[0].owner.email").value("ana@example.com"));
-
-        verify(motorcycleService).findMotorcyclesByOwnerId(1L);
-        verify(motorcycleService).findMotorcyclesByOwnerId(2L);
+        verifyNoInteractions(userService);
     }
 
-    @Test
-    void shouldReturnNotFoundWhenFindingMotorcyclesForUnknownUser() throws Exception {
-        String message = "Usuário com id 999 não encontrado";
-        when(motorcycleService.findMotorcyclesByOwnerId(999L))
-                .thenThrow(new UserNotFoundException(message));
-
-        mockMvc.perform(get("/users/999/motorcycles"))
-                .andExpect(status().isNotFound())
-                .andExpect(content().string(message));
-
-        verify(motorcycleService).findMotorcyclesByOwnerId(999L);
-    }
-
-    private String userJson(String name, String email) {
+    private String userJson(String name, String email, String password) {
         return """
                 {
                   "name": "%s",
-                  "email": "%s"
+                  "email": "%s",
+                  "password": "%s"
                 }
-                """.formatted(name, email);
+                """.formatted(name, email, password);
     }
 }

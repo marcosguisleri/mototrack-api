@@ -7,7 +7,6 @@ import br.dev.guisleri.mototrack.repository.UserRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -37,23 +36,9 @@ public class JpaUserRepositoryAdapter implements UserRepository {
     }
 
     @Override
-    public Optional<User> findById(Long userId) {
-        return springDataUserRepository.findById(userId)
-                .map(userMapper::toDomain);
-    }
-
-    @Override
     public Optional<User> findByEmail(String userEmail) {
         return springDataUserRepository.findByEmail(userEmail)
                 .map(userMapper::toDomain);
-    }
-
-    @Override
-    public List<User> findAll() {
-        return springDataUserRepository.findAll()
-                .stream()
-                .map(userMapper::toDomain)
-                .toList();
     }
 
 }

@@ -11,8 +11,6 @@ public interface MotorcycleRepository {
 
     Optional<Motorcycle> findById(Long motorcycleId);
 
-    List<Motorcycle> findAll();
-
     void deleteById(Long motorcycleId);
 
     List<Motorcycle> findByOwnerId(Long ownerId);

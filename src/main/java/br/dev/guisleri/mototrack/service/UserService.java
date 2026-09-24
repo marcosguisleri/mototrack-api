@@ -7,7 +7,6 @@ import br.dev.guisleri.mototrack.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Locale;
 
 @Service
@@ -42,23 +41,12 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public User findUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException(
-                        "Usuário com id %d não encontrado".formatted(userId)
-                ));
-    }
-
     public User findUserByEmail(String userEmail) {
         String normalizedEmail = normalizeEmail(userEmail);
         return userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new UserNotFoundException(
                         "Usuário com email: %s não encontrado".formatted(normalizedEmail)
                 ));
-    }
-
-    public List<User> findAllUsers() {
-        return userRepository.findAll();
     }
 
     private String normalizeEmail(String email) {

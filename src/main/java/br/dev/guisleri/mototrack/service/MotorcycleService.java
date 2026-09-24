@@ -3,12 +3,10 @@ package br.dev.guisleri.mototrack.service;
 import br.dev.guisleri.mototrack.exception.MotorcycleAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.MotorcycleInUseException;
 import br.dev.guisleri.mototrack.exception.MotorcycleNotFoundException;
-import br.dev.guisleri.mototrack.exception.UserNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.repository.MotorcycleRepository;
 import br.dev.guisleri.mototrack.repository.TripRepository;
-import br.dev.guisleri.mototrack.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,16 +16,13 @@ public class MotorcycleService {
 
     private final MotorcycleRepository motorcycleRepository;
     private final TripRepository tripRepository;
-    private final UserRepository userRepository;
 
     public MotorcycleService(
             MotorcycleRepository motorcycleRepository,
-            TripRepository tripRepository,
-            UserRepository userRepository
+            TripRepository tripRepository
     ) {
         this.motorcycleRepository = motorcycleRepository;
         this.tripRepository = tripRepository;
-        this.userRepository = userRepository;
     }
 
     public Motorcycle registerMotorcycle(
@@ -46,19 +41,8 @@ public class MotorcycleService {
         return motorcycleRepository.save(motorcycle);
     }
 
-    public Motorcycle findMotorcycleById(Long motorcycleId) {
-        return motorcycleRepository.findById(motorcycleId)
-                .orElseThrow(() -> new MotorcycleNotFoundException(
-                        "Motocicleta com id %d não encontrada".formatted(motorcycleId)
-                ));
-    }
-
-    public List<Motorcycle> findAllMotorcycles() {
-        return motorcycleRepository.findAll();
-    }
-
-    public void deleteMotorcycleById(Long motorcycleId) {
-        findMotorcycleById(motorcycleId);
+    public void deleteMotorcycleByIdForOwner(Long motorcycleId, Long ownerId) {
+        findMotorcycleByIdForOwner(motorcycleId, ownerId);
 
         if (tripRepository.existsByMotorcycleId(motorcycleId)) {
             throw new MotorcycleInUseException(
@@ -70,12 +54,6 @@ public class MotorcycleService {
     }
 
     public List<Motorcycle> findMotorcyclesByOwnerId(Long ownerId) {
-        userRepository.findById(ownerId)
-                .orElseThrow(() -> new UserNotFoundException(
-                        "Usuário com id %d não encontrado"
-                                .formatted(ownerId)
-                ));
-
         return motorcycleRepository.findByOwnerId(ownerId);
     }
 
@@ -83,7 +61,10 @@ public class MotorcycleService {
             Long motorcycleId,
             Long ownerId
     ) {
-        Motorcycle motorcycle = findMotorcycleById(motorcycleId);
+        Motorcycle motorcycle = motorcycleRepository.findById(motorcycleId)
+                .orElseThrow(() -> new MotorcycleNotFoundException(
+                        "Motocicleta com id %d não encontrada".formatted(motorcycleId)
+                ));
 
         if (!motorcycle.getOwner().getId().equals(ownerId)) {
             throw new MotorcycleAccessDeniedException(

@@ -1,11 +1,13 @@
 package br.dev.guisleri.mototrack.service;
 
 import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
+import br.dev.guisleri.mototrack.exception.TripAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
+import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.repository.TripRepository;
 import org.springframework.stereotype.Service;
 
@@ -67,49 +69,20 @@ public class TripService {
         return tripRepository.save(trip);
     }
 
-    public void changeTripStatus(long tripId, TripStatus newStatus) {
-        Trip trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new TripNotFoundException(
-                        "Viagem com id %d não encontrada".formatted(tripId)
-                ));
+    public void changeTripStatusForOwner(
+            long tripId,
+            Long ownerId,
+            TripStatus newStatus
+    ) {
+        Trip trip = findTripByIdForOwner(tripId, ownerId);
 
         trip.changeStatus(newStatus,
                 LocalDate.now(clock));
         tripRepository.save(trip);
     }
 
-    public Trip findTripById(long tripId) {
-        return tripRepository.findById(tripId)
-                .orElseThrow(() -> new TripNotFoundException(
-                        "Viagem com id %d não encontrada".formatted(tripId)
-                ));
-    }
-
-    public List<Trip> findAllTrips() {
-        return tripRepository.findAll();
-    }
-
-    public List<Trip> findTripsByTerrain(TerrainType terrainType) {
-        return tripRepository.findByTerrain(terrainType);
-    }
-
-    public List<Trip> findTripsByStatus(TripStatus status) {
-        return tripRepository.findByStatus(status);
-    }
-
-    public List<Trip> findTripsByDate(LocalDate tripDate) {
-        return tripRepository.findByTripDate(tripDate);
-    }
-
-    public List<Trip> findUpcomingTrips() {
-        return tripRepository.findUpcomingFrom(LocalDate.now(clock));
-    }
-
-    public long calculateDaysUntilTrip(long tripId) {
-        Trip trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new TripNotFoundException(
-                        "Viagem com id %d não encontrada".formatted(tripId)
-                ));
+    public long calculateDaysUntilTripForOwner(long tripId, Long ownerId) {
+        Trip trip = findTripByIdForOwner(tripId, ownerId);
 
         if (trip.getStatus() != TripStatus.PLANNED) {
             throw new InvalidTripStatusException(
@@ -123,9 +96,62 @@ public class TripService {
         );
     }
 
-    public void deleteTripById(Long tripId) {
-        findTripById(tripId);
+    public void deleteTripByIdForOwner(Long tripId, Long ownerId) {
+        findTripByIdForOwner(tripId, ownerId);
         tripRepository.deleteById(tripId);
+    }
+
+    public Trip findTripByIdForOwner(
+            Long tripId,
+            Long ownerId
+    ) {
+
+        Trip trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new TripNotFoundException(
+                        "Viagem com id %d não encontrada".formatted(tripId)
+                ));
+
+        Motorcycle motorcycle = trip.getMotorcycle();
+
+        User user = motorcycle.getOwner();
+
+        if (!user.getId().equals(ownerId)) {
+            throw new TripAccessDeniedException(
+                    "Você não possui permissão para acessar esta viagem."
+            );
+        }
+
+        return trip;
+
+    }
+
+    public List<Trip> findTripsByOwnerId(Long ownerId) {
+        return tripRepository.findByOwnerId(ownerId);
+    }
+
+    public List<Trip> findTripsByOwnerIdAndStatus(Long ownerId, TripStatus status) {
+        return tripRepository.findByOwnerIdAndStatus(ownerId, status);
+    }
+
+    public List<Trip> findUpcomingTripsByOwnerId(Long ownerId) {
+        return tripRepository.findUpcomingFromByOwnerId(
+                ownerId,
+                LocalDate.now(clock)
+        );
+    }
+
+    public List<Trip> findTripsByOwnerIdAndTerrain(Long ownerId, TerrainType terrainType) {
+        return tripRepository.findByOwnerIdAndTerrain(
+                ownerId,
+                terrainType
+        );
+    }
+
+    public List<Trip> findTripsByOwnerIdAndDate(
+            Long ownerId,
+            LocalDate tripDate
+    ) {
+        return tripRepository.findByOwnerIdAndTripDate(ownerId, tripDate);
     }
 
 }

@@ -23,9 +23,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username)
             throws UsernameNotFoundException {
 
-        String normalizedUsername = username
-                .trim()
-                .toLowerCase(Locale.ROOT);
+        String normalizedUsername = normalizeEmail(username);
 
         User user = userRepository.findByEmail(normalizedUsername)
                 .orElseThrow(() -> new UsernameNotFoundException(
@@ -38,5 +36,9 @@ public class CustomUserDetailsService implements UserDetailsService {
                 .password(user.getPasswordHash())
                 .authorities(List.of())
                 .build();
+    }
+
+    private String normalizeEmail(String email) {
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }

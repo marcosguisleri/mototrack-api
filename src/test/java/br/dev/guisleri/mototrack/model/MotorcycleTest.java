@@ -11,7 +11,8 @@ class MotorcycleTest {
     private static final User OWNER = User.restore(
             1L,
             "Marcos",
-            "marcos@example.com"
+            "marcos@example.com",
+            "password-hash"
     );
 
     @Test

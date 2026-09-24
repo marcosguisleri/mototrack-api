@@ -32,7 +32,12 @@ class TripStatisticsServiceTest {
     @BeforeEach
     void setUp() {
         statisticsService = new TripStatisticsService(tripRepository);
-        User owner = User.restore(1L, "Marcos", "marcos@example.com");
+        User owner = User.restore(
+                1L,
+                "Marcos",
+                "marcos@example.com",
+                "password-hash"
+        );
         honda = Motorcycle.restore(
                 1L, "Honda", "NX 500", "Black", 2025, 471, owner
         );

@@ -16,17 +16,7 @@ public interface TripRepository {
 
     Optional<Trip> findById(long tripId);
 
-    List<Trip> findAll();
-
-    List<Trip> findByTerrain(TerrainType terrainType);
-
-    List<Trip> findByStatus(TripStatus status);
-
     Map<TripStatus, Long> countByStatus();
-
-    List<Trip> findByTripDate(LocalDate tripDate);
-
-    List<Trip> findUpcomingFrom(LocalDate referenceDate);
 
     double sumDistanceKmByStatus(TripStatus status);
 
@@ -43,4 +33,22 @@ public interface TripRepository {
 
     void deleteById(Long tripId);
 
+    List<Trip> findByOwnerId(Long ownerId);
+
+    List<Trip> findByOwnerIdAndStatus(Long ownerId, TripStatus status);
+
+    List<Trip> findUpcomingFromByOwnerId(
+            Long ownerId,
+            LocalDate startDate
+    );
+
+    List<Trip> findByOwnerIdAndTerrain(
+            Long ownerId,
+            TerrainType terrainType
+    );
+
+    List<Trip> findByOwnerIdAndTripDate(
+            Long ownerId,
+            LocalDate tripDate
+    );
 }

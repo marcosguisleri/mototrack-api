@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleUserAlreadyExists(
             UserAlreadyExistsException exception
     ) {
-        return  ResponseEntity
+        return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(exception.getMessage());
     }
@@ -75,7 +75,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleMotorcycleAccessDenied(
             MotorcycleAccessDeniedException exception
     ) {
-        return  ResponseEntity
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(exception.getMessage());
+    }
+
+    @ExceptionHandler(TripAccessDeniedException.class)
+    public ResponseEntity<String> handleTripAccessDenied(
+            TripAccessDeniedException exception
+    ) {
+        return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(exception.getMessage());
     }

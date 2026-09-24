@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.service;
 
 import br.dev.guisleri.mototrack.exception.InvalidTripDateException;
 import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
+import br.dev.guisleri.mototrack.exception.TripAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
@@ -36,12 +37,15 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class TripServiceTest {
 
+    private static final Long OWNER_ID = 1L;
+
     @Mock
     private TripRepository tripRepository;
 
     private TripService service;
     private Motorcycle honda;
     private Motorcycle yamaha;
+    private Motorcycle foreignMotorcycle;
     private Clock fixedClock;
     private LocalDate today;
 
@@ -53,12 +57,26 @@ class TripServiceTest {
         );
         today = LocalDate.now(fixedClock);
         service = new TripService(tripRepository, fixedClock);
-        User owner = User.restore(1L, "Marcos", "marcos@example.com");
+        User owner = User.restore(
+                OWNER_ID,
+                "Marcos",
+                "marcos@example.com",
+                "password-hash"
+        );
         honda = Motorcycle.restore(
                 1L, "Honda", "NX 500", "Black", 2025, 471, owner
         );
         yamaha = Motorcycle.restore(
                 2L, "Yamaha", "Tenere 700", "Blue", 2024, 689, owner
+        );
+        User otherOwner = User.restore(
+                2L,
+                "Ana",
+                "ana@example.com",
+                "password-hash"
+        );
+        foreignMotorcycle = Motorcycle.restore(
+                3L, "BMW", "F 900 GS", "White", 2025, 895, otherOwner
         );
     }
 
@@ -120,49 +138,62 @@ class TripServiceTest {
     }
 
     @Test
-    void shouldFindTripById() {
+    void shouldFindTripByIdForOwner() {
         Trip trip = plannedTrip(1L, 1, honda);
         when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
 
-        Trip result = service.findTripById(1L);
+        Trip result = service.findTripByIdForOwner(1L, OWNER_ID);
 
         assertSame(trip, result);
         verify(tripRepository).findById(1L);
     }
 
     @Test
-    void shouldThrowWhenFindingUnknownTrip() {
+    void shouldThrowWhenFindingUnknownTripForOwner() {
         when(tripRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(
                 TripNotFoundException.class,
-                () -> service.findTripById(99L)
+                () -> service.findTripByIdForOwner(99L, OWNER_ID)
         );
 
         verify(tripRepository).findById(99L);
     }
 
     @Test
-    void shouldFindAllTrips() {
+    void shouldDenyFindingTripOwnedByAnotherUser() {
+        Trip trip = plannedTrip(1L, 1, foreignMotorcycle);
+        when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                TripAccessDeniedException.class,
+                () -> service.findTripByIdForOwner(1L, OWNER_ID)
+        );
+
+        verify(tripRepository).findById(1L);
+    }
+
+    @Test
+    void shouldFindTripsByOwner() {
         List<Trip> trips = List.of(
                 plannedTrip(1L, 1, honda),
                 plannedTrip(2L, 2, yamaha)
         );
-        when(tripRepository.findAll()).thenReturn(trips);
+        when(tripRepository.findByOwnerId(OWNER_ID)).thenReturn(trips);
 
-        List<Trip> result = service.findAllTrips();
+        List<Trip> result = service.findTripsByOwnerId(OWNER_ID);
 
         assertSame(trips, result);
-        verify(tripRepository).findAll();
+        verify(tripRepository).findByOwnerId(OWNER_ID);
     }
 
     @Test
-    void shouldChangeTripStatus() {
+    void shouldChangeTripStatusForOwner() {
         Trip trip = plannedTrip(1L, 1, honda);
         when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
         when(tripRepository.save(trip)).thenReturn(trip);
 
-        service.changeTripStatus(1L, TripStatus.IN_PROGRESS);
+        service.changeTripStatusForOwner(1L, OWNER_ID, TripStatus.IN_PROGRESS);
 
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
         verify(tripRepository).findById(1L);
@@ -170,12 +201,16 @@ class TripServiceTest {
     }
 
     @Test
-    void shouldThrowWhenChangingStatusOfUnknownTrip() {
+    void shouldThrowWhenChangingStatusOfUnknownTripForOwner() {
         when(tripRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(
                 TripNotFoundException.class,
-                () -> service.changeTripStatus(99L, TripStatus.IN_PROGRESS)
+                () -> service.changeTripStatusForOwner(
+                        99L,
+                        OWNER_ID,
+                        TripStatus.IN_PROGRESS
+                )
         );
 
         verify(tripRepository).findById(99L);
@@ -183,68 +218,97 @@ class TripServiceTest {
     }
 
     @Test
-    void shouldFindTripsByTerrain() {
-        List<Trip> trips = List.of(plannedTrip(1L, 1, honda));
-        when(tripRepository.findByTerrain(TerrainType.OFF_ROAD)).thenReturn(trips);
+    void shouldDenyChangingStatusOfTripOwnedByAnotherUser() {
+        Trip trip = plannedTrip(1L, 1, foreignMotorcycle);
+        when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
 
-        List<Trip> result = service.findTripsByTerrain(TerrainType.OFF_ROAD);
+        assertThrows(
+                TripAccessDeniedException.class,
+                () -> service.changeTripStatusForOwner(
+                        1L,
+                        OWNER_ID,
+                        TripStatus.IN_PROGRESS
+                )
+        );
 
-        assertSame(trips, result);
-        verify(tripRepository).findByTerrain(TerrainType.OFF_ROAD);
+        assertEquals(TripStatus.PLANNED, trip.getStatus());
+        verify(tripRepository).findById(1L);
+        verify(tripRepository, never()).save(any(Trip.class));
     }
 
     @Test
-    void shouldFindTripsByStatus() {
+    void shouldFindTripsByOwnerAndTerrain() {
         List<Trip> trips = List.of(plannedTrip(1L, 1, honda));
-        when(tripRepository.findByStatus(TripStatus.PLANNED)).thenReturn(trips);
+        when(tripRepository.findByOwnerIdAndTerrain(OWNER_ID, TerrainType.OFF_ROAD))
+                .thenReturn(trips);
 
-        List<Trip> result = service.findTripsByStatus(TripStatus.PLANNED);
+        List<Trip> result = service.findTripsByOwnerIdAndTerrain(
+                OWNER_ID,
+                TerrainType.OFF_ROAD
+        );
 
         assertSame(trips, result);
-        verify(tripRepository).findByStatus(TripStatus.PLANNED);
+        verify(tripRepository).findByOwnerIdAndTerrain(OWNER_ID, TerrainType.OFF_ROAD);
     }
 
     @Test
-    void shouldFindTripsByDate() {
+    void shouldFindTripsByOwnerAndStatus() {
+        List<Trip> trips = List.of(plannedTrip(1L, 1, honda));
+        when(tripRepository.findByOwnerIdAndStatus(OWNER_ID, TripStatus.PLANNED))
+                .thenReturn(trips);
+
+        List<Trip> result = service.findTripsByOwnerIdAndStatus(
+                OWNER_ID,
+                TripStatus.PLANNED
+        );
+
+        assertSame(trips, result);
+        verify(tripRepository).findByOwnerIdAndStatus(OWNER_ID, TripStatus.PLANNED);
+    }
+
+    @Test
+    void shouldFindTripsByOwnerAndDate() {
         LocalDate searchedDate = today.plusDays(5);
         List<Trip> trips = List.of(
                 trip(1L, TerrainType.ASPHALT, searchedDate, honda, TripStatus.PLANNED)
         );
-        when(tripRepository.findByTripDate(searchedDate)).thenReturn(trips);
+        when(tripRepository.findByOwnerIdAndTripDate(OWNER_ID, searchedDate))
+                .thenReturn(trips);
 
-        List<Trip> result = service.findTripsByDate(searchedDate);
+        List<Trip> result = service.findTripsByOwnerIdAndDate(OWNER_ID, searchedDate);
 
         assertSame(trips, result);
-        verify(tripRepository).findByTripDate(searchedDate);
+        verify(tripRepository).findByOwnerIdAndTripDate(OWNER_ID, searchedDate);
     }
 
     @Test
-    void shouldFindUpcomingTrips() {
+    void shouldFindUpcomingTripsByOwnerUsingClock() {
         List<Trip> trips = List.of(
                 plannedTrip(1L, 0, honda),
                 plannedTrip(2L, 2, yamaha)
         );
-        when(tripRepository.findUpcomingFrom(today)).thenReturn(trips);
+        when(tripRepository.findUpcomingFromByOwnerId(OWNER_ID, today))
+                .thenReturn(trips);
 
-        List<Trip> result = service.findUpcomingTrips();
+        List<Trip> result = service.findUpcomingTripsByOwnerId(OWNER_ID);
 
         assertSame(trips, result);
-        verify(tripRepository).findUpcomingFrom(today);
+        verify(tripRepository).findUpcomingFromByOwnerId(OWNER_ID, today);
     }
 
     @Test
-    void shouldCalculateDaysUntilPlannedTrip() {
+    void shouldCalculateDaysUntilPlannedTripForOwner() {
         Trip trip = plannedTrip(1L, 12, honda);
         when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
 
-        long result = service.calculateDaysUntilTrip(1L);
+        long result = service.calculateDaysUntilTripForOwner(1L, OWNER_ID);
 
         assertEquals(12, result);
         verify(tripRepository).findById(1L);
     }
 
     @Test
-    void shouldThrowWhenCalculatingDaysUntilCompletedTrip() {
+    void shouldThrowWhenCalculatingDaysUntilCompletedTripForOwner() {
         Trip trip = trip(
                 1L,
                 TerrainType.ASPHALT,
@@ -256,7 +320,20 @@ class TripServiceTest {
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> service.calculateDaysUntilTrip(1L)
+                () -> service.calculateDaysUntilTripForOwner(1L, OWNER_ID)
+        );
+
+        verify(tripRepository).findById(1L);
+    }
+
+    @Test
+    void shouldDenyCalculatingDaysUntilTripOwnedByAnotherUser() {
+        Trip trip = plannedTrip(1L, 12, foreignMotorcycle);
+        when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                TripAccessDeniedException.class,
+                () -> service.calculateDaysUntilTripForOwner(1L, OWNER_ID)
         );
 
         verify(tripRepository).findById(1L);
@@ -268,11 +345,15 @@ class TripServiceTest {
         when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
         when(tripRepository.save(trip)).thenReturn(trip);
 
-        service.changeTripStatus(1L, TripStatus.IN_PROGRESS);
+        service.changeTripStatusForOwner(1L, OWNER_ID, TripStatus.IN_PROGRESS);
 
         assertThrows(
                 InvalidTripDateException.class,
-                () -> service.changeTripStatus(1L, TripStatus.COMPLETED)
+                () -> service.changeTripStatusForOwner(
+                        1L,
+                        OWNER_ID,
+                        TripStatus.COMPLETED
+                )
         );
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
         verify(tripRepository, times(2)).findById(1L);
@@ -280,27 +361,41 @@ class TripServiceTest {
     }
 
     @Test
-    void shouldDeleteTripById() {
+    void shouldDeleteTripByIdForOwner() {
         Trip trip = plannedTrip(1L, 1, honda);
         when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
 
-        service.deleteTripById(1L);
+        service.deleteTripByIdForOwner(1L, OWNER_ID);
 
         verify(tripRepository).findById(1L);
         verify(tripRepository).deleteById(1L);
     }
 
     @Test
-    void shouldThrowWhenDeletingUnknownTrip() {
+    void shouldThrowWhenDeletingUnknownTripForOwner() {
         when(tripRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(
                 TripNotFoundException.class,
-                () -> service.deleteTripById(99L)
+                () -> service.deleteTripByIdForOwner(99L, OWNER_ID)
         );
 
         verify(tripRepository).findById(99L);
         verify(tripRepository, never()).deleteById(99L);
+    }
+
+    @Test
+    void shouldDenyDeletingTripOwnedByAnotherUser() {
+        Trip trip = plannedTrip(1L, 1, foreignMotorcycle);
+        when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                TripAccessDeniedException.class,
+                () -> service.deleteTripByIdForOwner(1L, OWNER_ID)
+        );
+
+        verify(tripRepository).findById(1L);
+        verify(tripRepository, never()).deleteById(1L);
     }
 
     private Trip plannedTrip(

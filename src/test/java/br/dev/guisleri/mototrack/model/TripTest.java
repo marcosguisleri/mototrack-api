@@ -25,7 +25,12 @@ public class TripTest {
 
     @BeforeEach
     void setUp() {
-        User owner = User.restore(1L, "Marcos", "marcos@example.com");
+        User owner = User.restore(
+                1L,
+                "Marcos",
+                "marcos@example.com",
+                "password-hash"
+        );
         motorcycle = Motorcycle.register(
                 "Honda",
                 "NX 500",

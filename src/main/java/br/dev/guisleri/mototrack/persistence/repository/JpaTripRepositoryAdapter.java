@@ -72,30 +72,6 @@ public class JpaTripRepositoryAdapter implements TripRepository {
     }
 
     @Override
-    public List<Trip> findAll() {
-        return springDataTripRepository.findAll()
-                .stream()
-                .map(tripMapper::toDomain)
-                .toList();
-    }
-
-    @Override
-    public List<Trip> findByTerrain(TerrainType terrainType) {
-        return springDataTripRepository.findByTerrain(terrainType)
-                .stream()
-                .map(tripMapper::toDomain)
-                .toList();
-    }
-
-    @Override
-    public List<Trip> findByStatus(TripStatus status) {
-        return springDataTripRepository.findByStatus(status)
-                .stream()
-                .map(tripMapper::toDomain)
-                .toList();
-    }
-
-    @Override
     public Map<TripStatus, Long> countByStatus() {
         Map<TripStatus, Long> tripCountsByStatus = new EnumMap<>(TripStatus.class);
 
@@ -124,26 +100,6 @@ public class JpaTripRepositoryAdapter implements TripRepository {
                         ),
                         MotorcycleTripCountProjection::getTripCount
                 ));
-    }
-
-    @Override
-    public List<Trip> findByTripDate(LocalDate tripDate) {
-        return springDataTripRepository.findByTripDate(tripDate)
-                .stream()
-                .map(tripMapper::toDomain)
-                .toList();
-    }
-
-    @Override
-    public List<Trip> findUpcomingFrom(LocalDate referenceDate) {
-        return springDataTripRepository
-                .findByTripDateGreaterThanEqualAndStatusOrderByTripDateAsc(
-                        referenceDate,
-                        TripStatus.PLANNED
-                )
-                .stream()
-                .map(tripMapper::toDomain)
-                .toList();
     }
 
     @Override
@@ -184,6 +140,58 @@ public class JpaTripRepositoryAdapter implements TripRepository {
     @Transactional
     public void deleteById(Long tripId) {
         springDataTripRepository.deleteById(tripId);
+    }
+
+    @Override
+    public List<Trip> findByOwnerId(Long ownerId) {
+        return springDataTripRepository.findByMotorcycle_Owner_Id(ownerId)
+                .stream()
+                .map(tripMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Trip> findByOwnerIdAndStatus(Long ownerId, TripStatus status) {
+        return springDataTripRepository.findByMotorcycle_Owner_IdAndStatus(
+                        ownerId,
+                        status
+                ).stream()
+                .map(tripMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Trip> findUpcomingFromByOwnerId(Long ownerId, LocalDate startDate) {
+        return springDataTripRepository.findByMotorcycle_Owner_IdAndTripDateGreaterThanEqualAndStatusOrderByTripDateAsc(
+                        ownerId,
+                        startDate,
+                        TripStatus.PLANNED
+                ).stream()
+                .map(tripMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Trip> findByOwnerIdAndTerrain(Long ownerId, TerrainType terrainType) {
+        return springDataTripRepository.findByMotorcycle_Owner_IdAndTerrain(
+                        ownerId,
+                        terrainType
+                ).stream()
+                .map(tripMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Trip> findByOwnerIdAndTripDate(
+            Long ownerId,
+            LocalDate tripDate
+    ) {
+        return springDataTripRepository.findByMotorcycle_Owner_IdAndTripDate(
+                ownerId,
+                tripDate
+        ).stream()
+            .map(tripMapper::toDomain)
+            .toList();
     }
 
 }

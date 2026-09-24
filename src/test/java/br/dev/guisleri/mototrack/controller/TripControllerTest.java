@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.exception.InvalidTripDateException;
 import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
+import br.dev.guisleri.mototrack.exception.TripAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
@@ -10,10 +11,15 @@ import br.dev.guisleri.mototrack.model.TripStatus;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.service.MotorcycleService;
 import br.dev.guisleri.mototrack.service.TripService;
+import br.dev.guisleri.mototrack.service.UserService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -34,8 +40,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(TripController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class TripControllerTest {
 
+    private static final User CURRENT_USER = User.restore(
+            1L,
+            "Marcos",
+            "marcos@example.com",
+            "password-hash"
+    );
     private static final Motorcycle PERSISTED_MOTORCYCLE = Motorcycle.restore(
             1L,
             "Honda",
@@ -43,8 +56,20 @@ class TripControllerTest {
             "Black",
             2025,
             471,
-            User.restore(1L, "Marcos", "marcos@example.com")
+            CURRENT_USER
     );
+    private static final Authentication AUTHENTICATION =
+            UsernamePasswordAuthenticationToken.authenticated(
+                    CURRENT_USER.getEmail(),
+                    null,
+                    List.of()
+            );
+
+    @BeforeEach
+    void setUp() {
+        when(userService.findUserByEmail(CURRENT_USER.getEmail()))
+                .thenReturn(CURRENT_USER);
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -55,11 +80,14 @@ class TripControllerTest {
     @MockitoBean
     private MotorcycleService motorcycleService;
 
+    @MockitoBean
+    private UserService userService;
+
     @Test
     void shouldScheduleTrip() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 20);
         Trip trip = plannedTrip(1, tripDate);
-        when(motorcycleService.findMotorcycleById(1L))
+        when(motorcycleService.findMotorcycleByIdForOwner(1L, CURRENT_USER.getId()))
                 .thenReturn(PERSISTED_MOTORCYCLE);
         when(tripService.scheduleTrip(
                 eq("Florianopolis"),
@@ -71,6 +99,7 @@ class TripControllerTest {
         )).thenReturn(trip);
 
         mockMvc.perform(post("/trips")
+                        .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createTripJson("2026-09-20")))
                 .andExpect(status().isCreated())
@@ -97,14 +126,14 @@ class TripControllerTest {
                 eq(tripDate),
                 eq(PERSISTED_MOTORCYCLE)
         );
-        verify(motorcycleService).findMotorcycleById(1L);
+        verify(motorcycleService).findMotorcycleByIdForOwner(1L, CURRENT_USER.getId());
     }
 
     @Test
     void shouldRegisterCompletedTrip() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 10);
         Trip trip = completedTrip(2, tripDate);
-        when(motorcycleService.findMotorcycleById(1L))
+        when(motorcycleService.findMotorcycleByIdForOwner(1L, CURRENT_USER.getId()))
                 .thenReturn(PERSISTED_MOTORCYCLE);
         when(tripService.registerCompletedTrip(
                 eq("Florianopolis"),
@@ -116,6 +145,7 @@ class TripControllerTest {
         )).thenReturn(trip);
 
         mockMvc.perform(post("/trips/completed")
+                        .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createTripJson("2026-09-10")))
                 .andExpect(status().isCreated())
@@ -130,95 +160,117 @@ class TripControllerTest {
                 eq(tripDate),
                 eq(PERSISTED_MOTORCYCLE)
         );
-        verify(motorcycleService).findMotorcycleById(1L);
+        verify(motorcycleService).findMotorcycleByIdForOwner(1L, CURRENT_USER.getId());
     }
 
     @Test
-    void shouldFindAllTrips() throws Exception {
+    void shouldFindTripsForOwner() throws Exception {
         Trip trip = plannedTrip(1, LocalDate.of(2026, 9, 20));
-        when(tripService.findAllTrips()).thenReturn(List.of(trip));
+        when(tripService.findTripsByOwnerId(CURRENT_USER.getId()))
+                .thenReturn(List.of(trip));
 
-        mockMvc.perform(get("/trips"))
+        mockMvc.perform(get("/trips").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].status").value("PLANNED"));
 
-        verify(tripService).findAllTrips();
+        verify(tripService).findTripsByOwnerId(CURRENT_USER.getId());
     }
 
     @Test
-    void shouldFindTripsByStatus() throws Exception {
+    void shouldFindTripsByOwnerAndStatus() throws Exception {
         Trip trip = completedTrip(1, LocalDate.of(2026, 9, 10));
-        when(tripService.findTripsByStatus(TripStatus.COMPLETED))
+        when(tripService.findTripsByOwnerIdAndStatus(
+                CURRENT_USER.getId(),
+                TripStatus.COMPLETED
+        ))
                 .thenReturn(List.of(trip));
 
-        mockMvc.perform(get("/trips").param("status", "COMPLETED"))
+        mockMvc.perform(get("/trips")
+                        .principal(AUTHENTICATION)
+                        .param("status", "COMPLETED"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].status").value("COMPLETED"));
 
-        verify(tripService).findTripsByStatus(TripStatus.COMPLETED);
+        verify(tripService).findTripsByOwnerIdAndStatus(
+                CURRENT_USER.getId(),
+                TripStatus.COMPLETED
+        );
     }
 
     @Test
     void shouldFindUpcomingTrips() throws Exception {
         Trip trip = plannedTrip(1, LocalDate.of(2026, 9, 20));
-        when(tripService.findUpcomingTrips()).thenReturn(List.of(trip));
+        when(tripService.findUpcomingTripsByOwnerId(CURRENT_USER.getId()))
+                .thenReturn(List.of(trip));
 
-        mockMvc.perform(get("/trips/upcoming"))
+        mockMvc.perform(get("/trips/upcoming").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].tripDate").value("2026-09-20"));
 
-        verify(tripService).findUpcomingTrips();
+        verify(tripService).findUpcomingTripsByOwnerId(CURRENT_USER.getId());
     }
 
     @Test
     void shouldFindTripsByTerrain() throws Exception {
         Trip trip = plannedTrip(1, LocalDate.of(2026, 9, 20));
-        when(tripService.findTripsByTerrain(TerrainType.ASPHALT))
+        when(tripService.findTripsByOwnerIdAndTerrain(
+                CURRENT_USER.getId(),
+                TerrainType.ASPHALT
+        ))
                 .thenReturn(List.of(trip));
 
-        mockMvc.perform(get("/trips/terrain/ASPHALT"))
+        mockMvc.perform(get("/trips/terrain/ASPHALT").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
 
-        verify(tripService).findTripsByTerrain(TerrainType.ASPHALT);
+        verify(tripService).findTripsByOwnerIdAndTerrain(
+                CURRENT_USER.getId(),
+                TerrainType.ASPHALT
+        );
     }
 
     @Test
     void shouldConvertDateAndFindTripsByDate() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 20);
         Trip trip = plannedTrip(1, tripDate);
-        when(tripService.findTripsByDate(tripDate)).thenReturn(List.of(trip));
+        when(tripService.findTripsByOwnerIdAndDate(CURRENT_USER.getId(), tripDate))
+                .thenReturn(List.of(trip));
 
-        mockMvc.perform(get("/trips/date/2026-09-20"))
+        mockMvc.perform(get("/trips/date/2026-09-20").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].tripDate").value("2026-09-20"));
 
-        verify(tripService).findTripsByDate(LocalDate.of(2026, 9, 20));
+        verify(tripService).findTripsByOwnerIdAndDate(
+                CURRENT_USER.getId(),
+                LocalDate.of(2026, 9, 20)
+        );
     }
 
     @Test
     void shouldCalculateDaysUntilTrip() throws Exception {
-        when(tripService.calculateDaysUntilTrip(1)).thenReturn(5L);
+        when(tripService.calculateDaysUntilTripForOwner(1, CURRENT_USER.getId()))
+                .thenReturn(5L);
 
-        mockMvc.perform(get("/trips/1/days-until"))
+        mockMvc.perform(get("/trips/1/days-until").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
                 .andExpect(content().string("5"));
 
-        verify(tripService).calculateDaysUntilTrip(1);
+        verify(tripService).calculateDaysUntilTripForOwner(1, CURRENT_USER.getId());
     }
 
     @Test
     void shouldFindTripById() throws Exception {
         Trip trip = plannedTrip(1, LocalDate.of(2026, 9, 20));
-        when(tripService.findTripById(1)).thenReturn(trip);
+        when(tripService.findTripByIdForOwner(1L, CURRENT_USER.getId()))
+                .thenReturn(trip);
 
-        mockMvc.perform(get("/trips/1"))
+        mockMvc.perform(get("/trips/1").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
                 .andExpect(jsonPath("$.destination").value("Urubici"));
@@ -226,19 +278,34 @@ class TripControllerTest {
 
     @Test
     void shouldReturnNotFoundWhenTripDoesNotExist() throws Exception {
-        when(tripService.findTripById(999)).thenThrow(
+        when(tripService.findTripByIdForOwner(999L, CURRENT_USER.getId())).thenThrow(
                 new TripNotFoundException("Viagem com id 999 não encontrada")
         );
 
-        mockMvc.perform(get("/trips/999"))
+        mockMvc.perform(get("/trips/999").principal(AUTHENTICATION))
                 .andExpect(status().isNotFound())
                 .andExpect(content().string("Viagem com id 999 não encontrada"));
     }
 
     @Test
+    void shouldReturnForbiddenWhenTripBelongsToAnotherUser() throws Exception {
+        when(tripService.findTripByIdForOwner(1L, CURRENT_USER.getId())).thenThrow(
+                new TripAccessDeniedException(
+                        "Você não possui permissão para acessar esta viagem."
+                )
+        );
+
+        mockMvc.perform(get("/trips/1").principal(AUTHENTICATION))
+                .andExpect(status().isForbidden())
+                .andExpect(content().string(
+                        "Você não possui permissão para acessar esta viagem."
+                ));
+    }
+
+    @Test
     void shouldReturnBadRequestWhenTripDateIsInvalid() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 10);
-        when(motorcycleService.findMotorcycleById(1L))
+        when(motorcycleService.findMotorcycleByIdForOwner(1L, CURRENT_USER.getId()))
                 .thenReturn(PERSISTED_MOTORCYCLE);
         when(tripService.scheduleTrip(
                 eq("Florianopolis"),
@@ -252,6 +319,7 @@ class TripControllerTest {
         ));
 
         mockMvc.perform(post("/trips")
+                        .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createTripJson("2026-09-10")))
                 .andExpect(status().isBadRequest())
@@ -263,6 +331,7 @@ class TripControllerTest {
     @Test
     void shouldRejectInvalidCreateTripRequestBeforeCallingService() throws Exception {
         mockMvc.perform(post("/trips")
+                        .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -282,6 +351,7 @@ class TripControllerTest {
     @Test
     void shouldRejectNonPositiveMotorcycleIdBeforeCallingService() throws Exception {
         mockMvc.perform(post("/trips")
+                        .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createTripJson("2026-09-20", 0)))
                 .andExpect(status().isBadRequest());
@@ -293,9 +363,14 @@ class TripControllerTest {
     void shouldReturnBadRequestWhenTripStatusIsInvalid() throws Exception {
         doThrow(new InvalidTripStatusException("Status inválido!"))
                 .when(tripService)
-                .changeTripStatus(1, TripStatus.COMPLETED);
+                .changeTripStatusForOwner(
+                        1,
+                        CURRENT_USER.getId(),
+                        TripStatus.COMPLETED
+                );
 
         mockMvc.perform(patch("/trips/1/status")
+                        .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -309,6 +384,7 @@ class TripControllerTest {
     @Test
     void shouldRejectNullStatusBeforeCallingService() throws Exception {
         mockMvc.perform(patch("/trips/1/status")
+                        .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -323,6 +399,7 @@ class TripControllerTest {
     @Test
     void shouldChangeTripStatus() throws Exception {
         mockMvc.perform(patch("/trips/1/status")
+                        .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -332,15 +409,19 @@ class TripControllerTest {
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        verify(tripService).changeTripStatus(1, TripStatus.IN_PROGRESS);
+        verify(tripService).changeTripStatusForOwner(
+                1,
+                CURRENT_USER.getId(),
+                TripStatus.IN_PROGRESS
+        );
     }
 
     @Test
     void shouldDeleteTripById() throws Exception {
-        mockMvc.perform(delete("/trips/1"))
+        mockMvc.perform(delete("/trips/1").principal(AUTHENTICATION))
                 .andExpect(status().isNoContent());
 
-        verify(tripService).deleteTripById(1L);
+        verify(tripService).deleteTripByIdForOwner(1L, CURRENT_USER.getId());
     }
 
     private Trip plannedTrip(long tripId, LocalDate tripDate) {

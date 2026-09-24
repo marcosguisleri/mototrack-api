@@ -3,15 +3,12 @@ package br.dev.guisleri.mototrack.controller;
 import br.dev.guisleri.mototrack.dto.CreateUserRequestDTO;
 import br.dev.guisleri.mototrack.dto.UserResponseDTO;
 import br.dev.guisleri.mototrack.model.User;
-import br.dev.guisleri.mototrack.service.MotorcycleService;
 import br.dev.guisleri.mototrack.service.UserService;
 import jakarta.validation.Valid;
-import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/users")
@@ -36,23 +33,6 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(UserResponseDTO.from(user));
 
-    }
-
-    @GetMapping
-    public List<UserResponseDTO> getAllUsers() {
-        return userService.findAllUsers()
-                .stream()
-                .map(UserResponseDTO::from)
-                .toList();
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<UserResponseDTO> getUserById(
-            @PathVariable Long id
-    ) {
-        User user = userService.findUserById(id);
-
-        return ResponseEntity.ok(UserResponseDTO.from(user));
     }
 
     @GetMapping("/me")

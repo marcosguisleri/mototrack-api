@@ -14,17 +14,6 @@ import java.util.List;
 
 public interface SpringDataTripRepository extends JpaRepository<TripEntity, Long> {
 
-    List<TripEntity> findByTerrain(TerrainType terrainType);
-
-    List<TripEntity> findByStatus(TripStatus status);
-
-    List<TripEntity> findByTripDate(LocalDate tripDate);
-
-    List<TripEntity> findByTripDateGreaterThanEqualAndStatusOrderByTripDateAsc(
-            LocalDate startDate,
-            TripStatus status
-    );
-
     @Query("""
         SELECT t.status AS status, COUNT(t) AS tripCount
         FROM TripEntity t
@@ -68,6 +57,26 @@ public interface SpringDataTripRepository extends JpaRepository<TripEntity, Long
         GROUP BY t.motorcycle
         """)
     List<MotorcycleTripCountProjection> countTripsGroupedByMotorcycle();
+
+    List<TripEntity> findByMotorcycle_Owner_Id(Long ownerId);
+
+    List<TripEntity> findByMotorcycle_Owner_IdAndStatus(Long ownerId, TripStatus status);
+
+    List<TripEntity> findByMotorcycle_Owner_IdAndTripDateGreaterThanEqualAndStatusOrderByTripDateAsc(
+            Long ownerId,
+            LocalDate startDate,
+            TripStatus status
+    );
+
+    List<TripEntity> findByMotorcycle_Owner_IdAndTerrain(
+            Long ownerId,
+            TerrainType terrainType
+    );
+
+    List<TripEntity> findByMotorcycle_Owner_IdAndTripDate(
+            Long ownerId,
+            LocalDate tripDate
+    );
 
     boolean existsByMotorcycleId(Long motorcycleId);
 

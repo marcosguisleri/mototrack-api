@@ -37,7 +37,12 @@ class TripStatisticsControllerTest {
                 "Red",
                 2023,
                 471,
-                User.restore(1L, "Marcos", "marcos@example.com")
+                User.restore(
+                        1L,
+                        "Marcos",
+                        "marcos@example.com",
+                        "password-hash"
+                )
         );
         Map<TripStatus, Long> tripsByStatus = Map.of(
                 TripStatus.PLANNED, 1L,

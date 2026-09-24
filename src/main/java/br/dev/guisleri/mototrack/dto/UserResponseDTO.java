@@ -1,6 +1,5 @@
 package br.dev.guisleri.mototrack.dto;
 
-
 import br.dev.guisleri.mototrack.model.User;
 
 public record UserResponseDTO(

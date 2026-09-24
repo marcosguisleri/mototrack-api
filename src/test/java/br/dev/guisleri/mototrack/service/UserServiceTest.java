@@ -10,57 +10,80 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
+    private static final String PLAIN_PASSWORD = "  secret123  ";
+    private static final String PASSWORD_HASH = "$2a$10$encoded-password";
+
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     private UserService service;
 
     @BeforeEach
     void setUp() {
-        service = new UserService(userRepository);
+        service = new UserService(userRepository, passwordEncoder);
     }
 
     @Test
-    void shouldRegisterUserWithNormalizedEmail() {
-        User persistedUser = User.restore(1L, "Marcos", "marcos@example.com");
+    void shouldRegisterUserWithNormalizedEmailAndEncodedPassword() {
+        User persistedUser = User.restore(
+                1L,
+                "Marcos",
+                "marcos@example.com",
+                PASSWORD_HASH
+        );
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         when(userRepository.findByEmail("marcos@example.com"))
                 .thenReturn(Optional.empty());
+        when(passwordEncoder.encode(PLAIN_PASSWORD)).thenReturn(PASSWORD_HASH);
         when(userRepository.save(any(User.class))).thenReturn(persistedUser);
 
         User result = service.registerUser(
                 "Marcos",
-                "  Marcos@Example.COM  "
+                "  Marcos@Example.COM  ",
+                PLAIN_PASSWORD
         );
 
         verify(userRepository).findByEmail("marcos@example.com");
+        verify(passwordEncoder).encode(PLAIN_PASSWORD);
         verify(userRepository).save(userCaptor.capture());
         User userSentToRepository = userCaptor.getValue();
         assertNull(userSentToRepository.getId());
         assertEquals("Marcos", userSentToRepository.getName());
         assertEquals("marcos@example.com", userSentToRepository.getEmail());
+        assertEquals(PASSWORD_HASH, userSentToRepository.getPasswordHash());
+        assertNotEquals(PLAIN_PASSWORD, userSentToRepository.getPasswordHash());
         assertSame(persistedUser, result);
     }
 
     @Test
-    void shouldRejectDuplicateEmail() {
-        User existingUser = User.restore(1L, "Marcos", "marcos@example.com");
+    void shouldRejectDuplicateNormalizedEmailBeforeEncodingPassword() {
+        User existingUser = User.restore(
+                1L,
+                "Marcos",
+                "marcos@example.com",
+                PASSWORD_HASH
+        );
         when(userRepository.findByEmail("marcos@example.com"))
                 .thenReturn(Optional.of(existingUser));
 
@@ -68,7 +91,8 @@ class UserServiceTest {
                 UserAlreadyExistsException.class,
                 () -> service.registerUser(
                         "Outro usuário",
-                        "  Marcos@Example.COM  "
+                        "  Marcos@Example.COM  ",
+                        PLAIN_PASSWORD
                 )
         );
 
@@ -78,35 +102,17 @@ class UserServiceTest {
         );
         verify(userRepository).findByEmail("marcos@example.com");
         verify(userRepository, never()).save(any(User.class));
-    }
-
-    @Test
-    void shouldFindUserById() {
-        User user = User.restore(1L, "Marcos", "marcos@example.com");
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-
-        User result = service.findUserById(1L);
-
-        assertSame(user, result);
-        verify(userRepository).findById(1L);
-    }
-
-    @Test
-    void shouldThrowWhenFindingUnknownUserById() {
-        when(userRepository.findById(999L)).thenReturn(Optional.empty());
-
-        UserNotFoundException exception = assertThrows(
-                UserNotFoundException.class,
-                () -> service.findUserById(999L)
-        );
-
-        assertEquals("Usuário com id 999 não encontrado", exception.getMessage());
-        verify(userRepository).findById(999L);
+        verifyNoInteractions(passwordEncoder);
     }
 
     @Test
     void shouldFindUserByNormalizedEmail() {
-        User user = User.restore(1L, "Marcos", "marcos@example.com");
+        User user = User.restore(
+                1L,
+                "Marcos",
+                "marcos@example.com",
+                PASSWORD_HASH
+        );
         when(userRepository.findByEmail("marcos@example.com"))
                 .thenReturn(Optional.of(user));
 
@@ -131,19 +137,5 @@ class UserServiceTest {
                 exception.getMessage()
         );
         verify(userRepository).findByEmail("unknown@example.com");
-    }
-
-    @Test
-    void shouldFindAllUsers() {
-        List<User> users = List.of(
-                User.restore(1L, "Marcos", "marcos@example.com"),
-                User.restore(2L, "Ana", "ana@example.com")
-        );
-        when(userRepository.findAll()).thenReturn(users);
-
-        List<User> result = service.findAllUsers();
-
-        assertSame(users, result);
-        verify(userRepository).findAll();
     }
 }

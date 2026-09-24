@@ -17,7 +17,12 @@ class MotorcycleMapperTest {
 
     @Test
     void shouldMapMotorcycleToEntityWithOwner() {
-        User owner = User.restore(1L, "Marcos", "marcos@example.com");
+        User owner = User.restore(
+                1L,
+                "Marcos",
+                "marcos@example.com",
+                "password-hash"
+        );
         Motorcycle motorcycle = Motorcycle.restore(
                 10L,
                 "Honda",
@@ -47,7 +52,8 @@ class MotorcycleMapperTest {
         UserEntity ownerEntity = new UserEntity(
                 1L,
                 "Marcos",
-                "marcos@example.com"
+                "marcos@example.com",
+                "password-hash"
         );
         MotorcycleEntity entity = new MotorcycleEntity(
                 10L,

@@ -24,7 +24,12 @@ class TripMapperTest {
 
     @Test
     void shouldMapTripToEntityWithMotorcycleOwner() {
-        User owner = User.restore(1L, "Marcos", "marcos@example.com");
+        User owner = User.restore(
+                1L,
+                "Marcos",
+                "marcos@example.com",
+                "password-hash"
+        );
         Motorcycle motorcycle = motorcycle(owner);
         UserEntity ownerEntity = userMapper.toEntity(owner);
         MotorcycleEntity motorcycleEntity = motorcycleMapper.toEntity(
@@ -59,7 +64,8 @@ class TripMapperTest {
         UserEntity ownerEntity = new UserEntity(
                 1L,
                 "Marcos",
-                "marcos@example.com"
+                "marcos@example.com",
+                "password-hash"
         );
         MotorcycleEntity motorcycleEntity = new MotorcycleEntity(
                 10L,

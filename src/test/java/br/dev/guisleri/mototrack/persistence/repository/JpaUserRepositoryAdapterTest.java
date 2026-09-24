@@ -11,8 +11,6 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -37,7 +35,11 @@ class JpaUserRepositoryAdapterTest {
 
     @Test
     void shouldPersistNewUser() {
-        User newUser = User.register("Marcos", "marcos@example.com");
+        User newUser = User.register(
+                "Marcos",
+                "marcos@example.com",
+                "password-hash"
+        );
 
         assertNull(newUser.getId());
 
@@ -52,33 +54,20 @@ class JpaUserRepositoryAdapterTest {
                 () -> assertEquals(savedUser.getId(), savedEntity.getId()),
                 () -> assertEquals("Marcos", savedUser.getName()),
                 () -> assertEquals("marcos@example.com", savedUser.getEmail()),
+                () -> assertEquals("password-hash", savedUser.getPasswordHash()),
                 () -> assertEquals("Marcos", savedEntity.getName()),
-                () -> assertEquals("marcos@example.com", savedEntity.getEmail())
+                () -> assertEquals("marcos@example.com", savedEntity.getEmail()),
+                () -> assertEquals("password-hash", savedEntity.getPasswordHash())
         );
-    }
-
-    @Test
-    void shouldFindUserById() {
-        User savedUser = save(User.register("Marcos", "marcos@example.com"));
-        entityManager.clear();
-
-        User result = userRepositoryAdapter.findById(savedUser.getId()).orElseThrow();
-
-        assertAll(
-                () -> assertEquals(savedUser.getId(), result.getId()),
-                () -> assertEquals("Marcos", result.getName()),
-                () -> assertEquals("marcos@example.com", result.getEmail())
-        );
-    }
-
-    @Test
-    void shouldReturnEmptyWhenUserDoesNotExist() {
-        assertTrue(userRepositoryAdapter.findById(999L).isEmpty());
     }
 
     @Test
     void shouldFindUserByEmail() {
-        User savedUser = save(User.register("Marcos", "marcos@example.com"));
+        User savedUser = save(User.register(
+                "Marcos",
+                "marcos@example.com",
+                "password-hash"
+        ));
         entityManager.clear();
 
         User result = userRepositoryAdapter
@@ -88,7 +77,8 @@ class JpaUserRepositoryAdapterTest {
         assertAll(
                 () -> assertEquals(savedUser.getId(), result.getId()),
                 () -> assertEquals("Marcos", result.getName()),
-                () -> assertEquals("marcos@example.com", result.getEmail())
+                () -> assertEquals("marcos@example.com", result.getEmail()),
+                () -> assertEquals("password-hash", result.getPasswordHash())
         );
     }
 
@@ -100,26 +90,21 @@ class JpaUserRepositoryAdapterTest {
     }
 
     @Test
-    void shouldFindAllUsers() {
-        User marcos = save(User.register("Marcos", "marcos@example.com"));
-        User ana = save(User.register("Ana", "ana@example.com"));
-        entityManager.clear();
-
-        List<User> result = userRepositoryAdapter.findAll();
-
-        assertEquals(2, result.size());
-        assertTrue(result.stream().map(User::getId).toList()
-                .containsAll(List.of(marcos.getId(), ana.getId())));
-    }
-
-    @Test
     void shouldRejectDuplicateEmailAtDatabaseLevel() {
-        save(User.register("Marcos", "duplicate@example.com"));
+        save(User.register(
+                "Marcos",
+                "duplicate@example.com",
+                "password-hash"
+        ));
 
         assertThrows(
                 DataIntegrityViolationException.class,
                 () -> userRepositoryAdapter.save(
-                        User.register("Outro usuário", "duplicate@example.com")
+                        User.register(
+                                "Outro usuário",
+                                "duplicate@example.com",
+                                "other-password-hash"
+                        )
                 )
         );
     }

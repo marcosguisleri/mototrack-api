@@ -92,12 +92,10 @@ public class MotorcycleController {
                 authentication.getName()
         );
 
-        motorcycleService.findMotorcycleByIdForOwner(
+        motorcycleService.deleteMotorcycleByIdForOwner(
                 motorcycleId,
                 currentUser.getId()
         );
-
-        motorcycleService.deleteMotorcycleById(motorcycleId);
 
         return ResponseEntity.noContent().build();
     }

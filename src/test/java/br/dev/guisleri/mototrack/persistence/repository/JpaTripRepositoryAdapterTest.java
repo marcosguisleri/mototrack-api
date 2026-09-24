@@ -53,7 +53,7 @@ class JpaTripRepositoryAdapterTest {
             "Black",
             2025,
             471,
-            User.register("Marcos", "marcos@example.com")
+            User.register("Marcos", "marcos@example.com", "password-hash")
     );
     private static final Motorcycle YAMAHA = Motorcycle.register(
             "Yamaha",
@@ -61,7 +61,7 @@ class JpaTripRepositoryAdapterTest {
             "Blue",
             2024,
             689,
-            User.register("Ana", "ana@example.com")
+            User.register("Ana", "ana@example.com", "password-hash")
     );
 
     @Autowired
@@ -160,7 +160,7 @@ class JpaTripRepositoryAdapterTest {
     }
 
     @Test
-    void shouldFindAllTripsWithMotorcycleOwners() {
+    void shouldFindTripsByOwner() {
         Trip firstTrip = save(plannedTrip(
                 100,
                 TerrainType.ASPHALT,
@@ -175,11 +175,11 @@ class JpaTripRepositoryAdapterTest {
         ));
         entityManager.clear();
 
-        List<Trip> result = tripRepositoryAdapter.findAll();
+        Long ownerId = firstTrip.getMotorcycle().getOwner().getId();
+        List<Trip> result = tripRepositoryAdapter.findByOwnerId(ownerId);
 
-        assertEquals(2, result.size());
-        assertTrue(result.stream().map(Trip::getId).toList()
-                .containsAll(List.of(firstTrip.getId(), secondTrip.getId())));
+        assertEquals(1, result.size());
+        assertEquals(firstTrip.getId(), result.getFirst().getId());
         assertTrue(result.stream()
                 .map(Trip::getMotorcycle)
                 .allMatch(motorcycle -> motorcycle.getOwner() != null));
@@ -187,16 +187,13 @@ class JpaTripRepositoryAdapterTest {
                 .map(Trip::getMotorcycle)
                 .map(Motorcycle::getOwner)
                 .map(User::getId)
-                .toList()
-                .containsAll(List.of(
-                        firstTrip.getMotorcycle().getOwner().getId(),
-                        secondTrip.getMotorcycle().getOwner().getId()
-                )));
+                .allMatch(ownerId::equals));
+        assertTrue(result.stream().noneMatch(trip -> trip.getId().equals(secondTrip.getId())));
     }
 
     @Test
-    void shouldFindTripsByStatus() {
-        save(plannedTrip(100, TerrainType.ASPHALT, TODAY.plusDays(1), HONDA));
+    void shouldFindTripsByOwnerAndStatus() {
+        save(inProgressTrip(100, TerrainType.ASPHALT, TODAY.plusDays(1), HONDA));
         Trip inProgressTrip = inProgressTrip(
                 200,
                 TerrainType.MIXED,
@@ -204,31 +201,39 @@ class JpaTripRepositoryAdapterTest {
                 YAMAHA
         );
         Trip savedInProgressTrip = save(inProgressTrip);
+        Long ownerId = savedInProgressTrip.getMotorcycle().getOwner().getId();
 
-        List<Trip> result = tripRepositoryAdapter.findByStatus(TripStatus.IN_PROGRESS);
+        List<Trip> result = tripRepositoryAdapter.findByOwnerIdAndStatus(
+                ownerId,
+                TripStatus.IN_PROGRESS
+        );
 
         assertEquals(1, result.size());
         assertEquals(savedInProgressTrip.getId(), result.getFirst().getId());
     }
 
     @Test
-    void shouldFindTripsByTerrain() {
-        save(plannedTrip(100, TerrainType.ASPHALT, TODAY.plusDays(1), HONDA));
+    void shouldFindTripsByOwnerAndTerrain() {
+        save(plannedTrip(100, TerrainType.OFF_ROAD, TODAY.plusDays(1), HONDA));
         Trip offRoadTrip = save(plannedTrip(
                 200,
                 TerrainType.OFF_ROAD,
                 TODAY.plusDays(2),
                 YAMAHA
         ));
+        Long ownerId = offRoadTrip.getMotorcycle().getOwner().getId();
 
-        List<Trip> result = tripRepositoryAdapter.findByTerrain(TerrainType.OFF_ROAD);
+        List<Trip> result = tripRepositoryAdapter.findByOwnerIdAndTerrain(
+                ownerId,
+                TerrainType.OFF_ROAD
+        );
 
         assertEquals(1, result.size());
         assertEquals(offRoadTrip.getId(), result.getFirst().getId());
     }
 
     @Test
-    void shouldFindTripsByDate() {
+    void shouldFindTripsByOwnerAndDate() {
         LocalDate searchedDate = TODAY.plusDays(5);
         Trip tripOnDate = save(plannedTrip(
                 100,
@@ -236,23 +241,27 @@ class JpaTripRepositoryAdapterTest {
                 searchedDate,
                 HONDA
         ));
-        save(plannedTrip(200, TerrainType.MIXED, searchedDate.plusDays(1), YAMAHA));
+        save(plannedTrip(200, TerrainType.MIXED, searchedDate, YAMAHA));
+        Long ownerId = tripOnDate.getMotorcycle().getOwner().getId();
 
-        List<Trip> result = tripRepositoryAdapter.findByTripDate(searchedDate);
+        List<Trip> result = tripRepositoryAdapter.findByOwnerIdAndTripDate(
+                ownerId,
+                searchedDate
+        );
 
         assertEquals(1, result.size());
         assertEquals(tripOnDate.getId(), result.getFirst().getId());
     }
 
     @Test
-    void shouldFindOnlyPlannedUpcomingTripsInDateOrder() {
+    void shouldFindOnlyOwnersPlannedUpcomingTripsInDateOrder() {
         LocalDate referenceDate = TODAY.plusDays(5);
         save(plannedTrip(100, TerrainType.ASPHALT, referenceDate.minusDays(1), HONDA));
         Trip laterTrip = save(plannedTrip(
                 200,
                 TerrainType.MIXED,
                 referenceDate.plusDays(3),
-                YAMAHA
+                HONDA
         ));
         Trip closestTrip = save(plannedTrip(
                 300,
@@ -260,14 +269,24 @@ class JpaTripRepositoryAdapterTest {
                 referenceDate,
                 HONDA
         ));
-        save(inProgressTrip(
+        save(plannedTrip(
                 400,
                 TerrainType.ASPHALT,
                 referenceDate.plusDays(1),
                 YAMAHA
         ));
+        save(inProgressTrip(
+                500,
+                TerrainType.MIXED,
+                referenceDate.plusDays(2),
+                HONDA
+        ));
+        Long ownerId = closestTrip.getMotorcycle().getOwner().getId();
 
-        List<Trip> result = tripRepositoryAdapter.findUpcomingFrom(referenceDate);
+        List<Trip> result = tripRepositoryAdapter.findUpcomingFromByOwnerId(
+                ownerId,
+                referenceDate
+        );
 
         assertEquals(
                 List.of(closestTrip.getId(), laterTrip.getId()),
@@ -278,6 +297,9 @@ class JpaTripRepositoryAdapterTest {
         ));
         assertTrue(result.stream().noneMatch(
                 trip -> trip.getTripDate().isBefore(referenceDate)
+        ));
+        assertTrue(result.stream().allMatch(
+                trip -> trip.getMotorcycle().getOwner().getId().equals(ownerId)
         ));
     }
 
@@ -469,7 +491,12 @@ class JpaTripRepositoryAdapterTest {
         UserEntity ownerEntity = springDataUserRepository
                 .findByEmail(owner.getEmail())
                 .orElseGet(() -> springDataUserRepository.saveAndFlush(
-                        new UserEntity(null, owner.getName(), owner.getEmail())
+                        new UserEntity(
+                                null,
+                                owner.getName(),
+                                owner.getEmail(),
+                                owner.getPasswordHash()
+                        )
                 ));
         MotorcycleEntity savedMotorcycleEntity = springDataMotorcycleRepository.saveAndFlush(
                 motorcycleMapper.toEntity(motorcycle, ownerEntity)

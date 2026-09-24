@@ -127,31 +127,6 @@ class JpaMotorcycleRepositoryAdapterTest {
     }
 
     @Test
-    void shouldFindAllMotorcycles() {
-        Motorcycle honda = save(motorcycle(
-                "Honda",
-                "NX 500",
-                "Black",
-                2025,
-                471
-        ));
-        Motorcycle yamaha = save(motorcycle(
-                "Yamaha",
-                "Tenere 700",
-                "Blue",
-                2024,
-                689
-        ));
-        entityManager.clear();
-
-        List<Motorcycle> result = motorcycleRepositoryAdapter.findAll();
-
-        assertEquals(2, result.size());
-        assertTrue(result.stream().map(Motorcycle::getId).toList()
-                .containsAll(List.of(honda.getId(), yamaha.getId())));
-    }
-
-    @Test
     void shouldFindMotorcyclesByOwnerId() {
         Motorcycle firstOwnerMotorcycle = save(motorcycle(
                 "Honda",
@@ -259,12 +234,13 @@ class JpaMotorcycleRepositoryAdapterTest {
 
     private User saveUser(String name, String email) {
         UserEntity userEntity = springDataUserRepository.saveAndFlush(
-                new UserEntity(null, name, email)
+                new UserEntity(null, name, email, "password-hash")
         );
         return User.restore(
                 userEntity.getId(),
                 userEntity.getName(),
-                userEntity.getEmail()
+                userEntity.getEmail(),
+                userEntity.getPasswordHash()
         );
     }
 }

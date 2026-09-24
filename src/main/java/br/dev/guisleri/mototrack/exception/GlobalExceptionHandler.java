@@ -71,4 +71,13 @@ public class GlobalExceptionHandler {
                 .body(exception.getMessage());
     }
 
+    @ExceptionHandler(MotorcycleAccessDeniedException.class)
+    public ResponseEntity<String> handleMotorcycleAccessDenied(
+            MotorcycleAccessDeniedException exception
+    ) {
+        return  ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(exception.getMessage());
+    }
+
 }

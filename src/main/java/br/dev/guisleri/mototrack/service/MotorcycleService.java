@@ -1,5 +1,6 @@
 package br.dev.guisleri.mototrack.service;
 
+import br.dev.guisleri.mototrack.exception.MotorcycleAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.MotorcycleInUseException;
 import br.dev.guisleri.mototrack.exception.MotorcycleNotFoundException;
 import br.dev.guisleri.mototrack.exception.UserNotFoundException;
@@ -35,17 +36,11 @@ public class MotorcycleService {
             String color,
             int year,
             int engineCapacity,
-            Long ownerId
+            User owner
     ) {
 
-        User user = userRepository.findById(ownerId)
-                .orElseThrow(() -> new UserNotFoundException(
-                        "Usuário com id %d não encontrado"
-                                .formatted(ownerId)
-                ));
-
         Motorcycle motorcycle = Motorcycle.register(
-                brand, model, color, year, engineCapacity, user
+                brand, model, color, year, engineCapacity, owner
         );
 
         return motorcycleRepository.save(motorcycle);
@@ -82,6 +77,21 @@ public class MotorcycleService {
                 ));
 
         return motorcycleRepository.findByOwnerId(ownerId);
+    }
+
+    public Motorcycle findMotorcycleByIdForOwner(
+            Long motorcycleId,
+            Long ownerId
+    ) {
+        Motorcycle motorcycle = findMotorcycleById(motorcycleId);
+
+        if (!motorcycle.getOwner().getId().equals(ownerId)) {
+            throw new MotorcycleAccessDeniedException(
+                    "Você não possui permissão para acessar esta motocicleta."
+            );
+        }
+
+        return motorcycle;
     }
 
 }

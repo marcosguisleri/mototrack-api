@@ -20,11 +20,7 @@ public record CreateMotorcycleRequestDTO(
         int year,
 
         @Positive
-        int engineCapacity,
-
-        @NotNull
-        @Positive
-        Long ownerId
+        int engineCapacity
 
 ) {
 }

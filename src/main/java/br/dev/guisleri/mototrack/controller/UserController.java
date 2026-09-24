@@ -1,13 +1,12 @@
 package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.dto.CreateUserRequestDTO;
-import br.dev.guisleri.mototrack.dto.MotorcycleResponseDTO;
 import br.dev.guisleri.mototrack.dto.UserResponseDTO;
-import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.service.MotorcycleService;
 import br.dev.guisleri.mototrack.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,11 +18,9 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
-    private final MotorcycleService motorcycleService;
 
-    public UserController(UserService userService, MotorcycleService motorcycleService) {
+    public UserController(UserService userService) {
         this.userService = userService;
-        this.motorcycleService = motorcycleService;
     }
 
     @PostMapping
@@ -58,14 +55,15 @@ public class UserController {
         return ResponseEntity.ok(UserResponseDTO.from(user));
     }
 
-    @GetMapping("/{id}/motorcycles")
-    public List<MotorcycleResponseDTO> findMotorcyclesByOwnerId(
-            @PathVariable Long id
+    @GetMapping("/me")
+    public ResponseEntity<UserResponseDTO> getCurrentUser(
+            Authentication authentication
     ) {
-        return motorcycleService.findMotorcyclesByOwnerId(id)
-                .stream()
-                .map(MotorcycleResponseDTO::from)
-                .toList();
+        String email = authentication.getName();
+
+        User user = userService.findUserByEmail(email);
+
+        return ResponseEntity.ok(UserResponseDTO.from(user));
     }
 
 }

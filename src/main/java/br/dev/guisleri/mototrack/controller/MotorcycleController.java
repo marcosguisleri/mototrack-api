@@ -3,10 +3,13 @@ package br.dev.guisleri.mototrack.controller;
 import br.dev.guisleri.mototrack.dto.CreateMotorcycleRequestDTO;
 import br.dev.guisleri.mototrack.dto.MotorcycleResponseDTO;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.service.MotorcycleService;
+import br.dev.guisleri.mototrack.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,22 +19,29 @@ import java.util.List;
 public class MotorcycleController {
 
     private final MotorcycleService motorcycleService;
+    private final UserService userService;
 
-    public MotorcycleController(MotorcycleService motorcycleService) {
+    public MotorcycleController(MotorcycleService motorcycleService, UserService userService) {
         this.motorcycleService = motorcycleService;
+        this.userService = userService;
     }
 
     @PostMapping
     public ResponseEntity<MotorcycleResponseDTO> createMotorcycle(
-            @Valid @RequestBody CreateMotorcycleRequestDTO createMotorcycleRequest
+            @Valid @RequestBody CreateMotorcycleRequestDTO createMotorcycleRequest,
+            Authentication authentication
     ) {
+        User owner = userService.findUserByEmail(
+                authentication.getName()
+        );
+
         Motorcycle motorcycle = motorcycleService.registerMotorcycle(
                 createMotorcycleRequest.brand(),
                 createMotorcycleRequest.model(),
                 createMotorcycleRequest.color(),
                 createMotorcycleRequest.year(),
                 createMotorcycleRequest.engineCapacity(),
-                createMotorcycleRequest.ownerId()
+                owner
         );
 
         return ResponseEntity
@@ -40,8 +50,14 @@ public class MotorcycleController {
     }
 
     @GetMapping
-    public List<MotorcycleResponseDTO> findAllMotorcycles() {
-        return motorcycleService.findAllMotorcycles()
+    public List<MotorcycleResponseDTO> findCurrentUserMotorcycles(
+            Authentication authentication
+    ) {
+        String email = authentication.getName();
+
+        User currentUser = userService.findUserByEmail(email);
+
+        return motorcycleService.findMotorcyclesByOwnerId(currentUser.getId())
                 .stream()
                 .map(MotorcycleResponseDTO::from)
                 .toList();
@@ -49,17 +65,38 @@ public class MotorcycleController {
 
     @GetMapping("/{id}")
     public ResponseEntity<MotorcycleResponseDTO> findMotorcycleById(
-            @PathVariable("id") Long motorcycleId
+            @PathVariable("id") Long motorcycleId,
+            Authentication authentication
     ) {
-        Motorcycle motorcycle = motorcycleService.findMotorcycleById(motorcycleId);
+        User currentUser = userService.findUserByEmail(
+                authentication.getName()
+        );
 
-        return ResponseEntity.ok(MotorcycleResponseDTO.from(motorcycle));
+        Motorcycle motorcycle = motorcycleService.findMotorcycleByIdForOwner(
+                motorcycleId,
+                currentUser.getId()
+        );
+
+        return ResponseEntity.ok(
+                MotorcycleResponseDTO.from(motorcycle)
+        );
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteMotorcycleById(
-            @PathVariable("id") Long motorcycleId
+            @PathVariable("id") Long motorcycleId,
+            Authentication authentication
     ) {
+
+        User currentUser = userService.findUserByEmail(
+                authentication.getName()
+        );
+
+        motorcycleService.findMotorcycleByIdForOwner(
+                motorcycleId,
+                currentUser.getId()
+        );
+
         motorcycleService.deleteMotorcycleById(motorcycleId);
 
         return ResponseEntity.noContent().build();

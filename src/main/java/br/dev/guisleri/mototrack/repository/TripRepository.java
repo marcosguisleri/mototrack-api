@@ -16,22 +16,6 @@ public interface TripRepository {
 
     Optional<Trip> findById(long tripId);
 
-    Map<TripStatus, Long> countByOwnerIdAndStatus(Long ownerId);
-
-    double sumDistanceKmByOwnerIdAndStatus(Long ownerId, TripStatus status);
-
-    Map<Motorcycle, Long> countByOwnerIdAndMotorcycle(Long ownerId);
-
-    double sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
-            Long ownerId,
-            Motorcycle motorcycle,
-            TripStatus status
-    );
-
-    Optional<Motorcycle> findMostUsedMotorcycleInCompletedTripsByOwnerId(
-            Long ownerId
-    );
-
     boolean existsByMotorcycleId(Long motorcycleId);
 
     void deleteById(Long tripId);

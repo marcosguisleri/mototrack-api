@@ -3,7 +3,7 @@ package br.dev.guisleri.mototrack.service;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TripStatus;
 import br.dev.guisleri.mototrack.model.User;
-import br.dev.guisleri.mototrack.repository.TripRepository;
+import br.dev.guisleri.mototrack.repository.TripStatisticsRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,7 +25,7 @@ class TripStatisticsServiceTest {
     private static final Long OWNER_ID = 1L;
 
     @Mock
-    private TripRepository tripRepository;
+    private TripStatisticsRepository tripStatisticsRepository;
 
     private TripStatisticsService statisticsService;
     private Motorcycle honda;
@@ -33,7 +33,7 @@ class TripStatisticsServiceTest {
 
     @BeforeEach
     void setUp() {
-        statisticsService = new TripStatisticsService(tripRepository);
+        statisticsService = new TripStatisticsService(tripStatisticsRepository);
         User owner = User.restore(
                 1L,
                 "Marcos",
@@ -55,39 +55,39 @@ class TripStatisticsServiceTest {
                 TripStatus.IN_PROGRESS, 1L,
                 TripStatus.COMPLETED, 1L
         );
-        when(tripRepository.countByOwnerIdAndStatus(OWNER_ID)).thenReturn(counts);
+        when(tripStatisticsRepository.countByOwnerIdAndStatus(OWNER_ID)).thenReturn(counts);
 
         Map<TripStatus, Long> result = statisticsService.countTripsByStatus(OWNER_ID);
 
         assertSame(counts, result);
-        verify(tripRepository).countByOwnerIdAndStatus(OWNER_ID);
+        verify(tripStatisticsRepository).countByOwnerIdAndStatus(OWNER_ID);
     }
 
     @Test
     void shouldCountCompletedTrips() {
-        when(tripRepository.countByOwnerIdAndStatus(OWNER_ID))
+        when(tripStatisticsRepository.countByOwnerIdAndStatus(OWNER_ID))
                 .thenReturn(Map.of(TripStatus.COMPLETED, 1L));
 
         long result = statisticsService.countCompletedTrips(OWNER_ID);
 
         assertEquals(1L, result);
-        verify(tripRepository).countByOwnerIdAndStatus(OWNER_ID);
+        verify(tripStatisticsRepository).countByOwnerIdAndStatus(OWNER_ID);
     }
 
     @Test
     void shouldReturnZeroWhenThereAreNoCompletedTrips() {
-        when(tripRepository.countByOwnerIdAndStatus(OWNER_ID))
+        when(tripStatisticsRepository.countByOwnerIdAndStatus(OWNER_ID))
                 .thenReturn(Map.of(TripStatus.PLANNED, 2L));
 
         long result = statisticsService.countCompletedTrips(OWNER_ID);
 
         assertEquals(0L, result);
-        verify(tripRepository).countByOwnerIdAndStatus(OWNER_ID);
+        verify(tripStatisticsRepository).countByOwnerIdAndStatus(OWNER_ID);
     }
 
     @Test
     void shouldCalculateTotalCompletedDistanceKm() {
-        when(tripRepository.sumDistanceKmByOwnerIdAndStatus(
+        when(tripStatisticsRepository.sumDistanceKmByOwnerIdAndStatus(
                 OWNER_ID,
                 TripStatus.COMPLETED
         ))
@@ -96,7 +96,7 @@ class TripStatisticsServiceTest {
         double result = statisticsService.calculateTotalCompletedDistanceKm(OWNER_ID);
 
         assertEquals(250.0, result, 0.001);
-        verify(tripRepository).sumDistanceKmByOwnerIdAndStatus(
+        verify(tripStatisticsRepository).sumDistanceKmByOwnerIdAndStatus(
                 OWNER_ID,
                 TripStatus.COMPLETED
         );
@@ -108,17 +108,17 @@ class TripStatisticsServiceTest {
                 honda, 2L,
                 yamaha, 1L
         );
-        when(tripRepository.countByOwnerIdAndMotorcycle(OWNER_ID)).thenReturn(counts);
+        when(tripStatisticsRepository.countByOwnerIdAndMotorcycle(OWNER_ID)).thenReturn(counts);
 
         Map<Motorcycle, Long> result = statisticsService.countTripsByMotorcycle(OWNER_ID);
 
         assertSame(counts, result);
-        verify(tripRepository).countByOwnerIdAndMotorcycle(OWNER_ID);
+        verify(tripStatisticsRepository).countByOwnerIdAndMotorcycle(OWNER_ID);
     }
 
     @Test
     void shouldCalculateCompletedDistanceKmByMotorcycle() {
-        when(tripRepository.sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
+        when(tripStatisticsRepository.sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
                 OWNER_ID,
                 honda,
                 TripStatus.COMPLETED
@@ -128,7 +128,7 @@ class TripStatisticsServiceTest {
                 .calculateCompletedDistanceKmByMotorcycle(OWNER_ID, honda);
 
         assertEquals(100.0, result, 0.001);
-        verify(tripRepository).sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
+        verify(tripStatisticsRepository).sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
                 OWNER_ID,
                 honda,
                 TripStatus.COMPLETED
@@ -137,25 +137,27 @@ class TripStatisticsServiceTest {
 
     @Test
     void shouldFindMostUsedMotorcycle() {
-        when(tripRepository.findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID))
+        when(tripStatisticsRepository.findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID))
                 .thenReturn(Optional.of(honda));
 
         Optional<Motorcycle> result =
                 statisticsService.findMostUsedMotorcycleInCompletedTrips(OWNER_ID);
 
         assertEquals(Optional.of(honda), result);
-        verify(tripRepository).findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID);
+        verify(tripStatisticsRepository)
+                .findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID);
     }
 
     @Test
     void shouldReturnEmptyWhenThereAreNoCompletedTrips() {
-        when(tripRepository.findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID))
+        when(tripStatisticsRepository.findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID))
                 .thenReturn(Optional.empty());
 
         Optional<Motorcycle> result =
                 statisticsService.findMostUsedMotorcycleInCompletedTrips(OWNER_ID);
 
         assertTrue(result.isEmpty());
-        verify(tripRepository).findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID);
+        verify(tripStatisticsRepository)
+                .findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID);
     }
 }

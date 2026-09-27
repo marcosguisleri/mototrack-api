@@ -1,6 +1,8 @@
 package br.dev.guisleri.mototrack.persistence.repository;
 
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
+import br.dev.guisleri.mototrack.model.TerrainStatistics;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -19,6 +21,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -162,6 +165,157 @@ class JpaTripStatisticsRepositoryAdapterTest {
     }
 
     @Test
+    void shouldCalculateTerrainStatisticsForCompletedTripsAndOwner() {
+        Motorcycle savedHonda = save(completedTrip(
+                100,
+                TerrainType.ASPHALT,
+                TODAY.minusDays(1),
+                HONDA
+        )).getMotorcycle();
+        save(completedTrip(
+                200,
+                TerrainType.ASPHALT,
+                TODAY.minusDays(2),
+                savedHonda
+        ));
+        save(completedTrip(
+                300,
+                TerrainType.MIXED,
+                TODAY.minusDays(3),
+                savedHonda
+        ));
+        save(plannedTrip(
+                900,
+                TerrainType.OFF_ROAD,
+                TODAY.plusDays(1),
+                savedHonda
+        ));
+        save(completedTrip(
+                1_000,
+                TerrainType.ASPHALT,
+                TODAY.minusDays(4),
+                YAMAHA
+        ));
+        Long ownerId = savedHonda.getOwner().getId();
+
+        Map<TerrainType, TerrainStatistics> result =
+                tripStatisticsRepositoryAdapter
+                        .findTerrainStatisticsByOwnerId(ownerId);
+
+        assertAll(
+                () -> assertEquals(
+                        2L,
+                        result.get(TerrainType.ASPHALT).tripCount()
+                ),
+                () -> assertEquals(
+                        300.0,
+                        result.get(TerrainType.ASPHALT).totalDistanceKm(),
+                        0.001
+                ),
+                () -> assertEquals(
+                        1L,
+                        result.get(TerrainType.MIXED).tripCount()
+                ),
+                () -> assertEquals(
+                        300.0,
+                        result.get(TerrainType.MIXED).totalDistanceKm(),
+                        0.001
+                )
+        );
+    }
+
+    @Test
+    void shouldIncludeTerrainsWithZeroCompletedTrips() {
+        Trip savedTrip = save(completedTrip(
+                100,
+                TerrainType.ASPHALT,
+                TODAY,
+                HONDA
+        ));
+        Long ownerId = savedTrip.getMotorcycle().getOwner().getId();
+
+        Map<TerrainType, TerrainStatistics> result =
+                tripStatisticsRepositoryAdapter
+                        .findTerrainStatisticsByOwnerId(ownerId);
+
+        assertAll(
+                () -> assertEquals(
+                        0L,
+                        result.get(TerrainType.MIXED).tripCount()
+                ),
+                () -> assertEquals(
+                        0.0,
+                        result.get(TerrainType.MIXED).totalDistanceKm(),
+                        0.001
+                ),
+                () -> assertEquals(
+                        0L,
+                        result.get(TerrainType.OFF_ROAD).tripCount()
+                ),
+                () -> assertEquals(
+                        0.0,
+                        result.get(TerrainType.OFF_ROAD).totalDistanceKm(),
+                        0.001
+                )
+        );
+    }
+
+    @Test
+    void shouldCalculateMonthlyStatisticsForCompletedTripsSinceStartDateAndOwner() {
+        LocalDate startDate = LocalDate.of(2025, 10, 1);
+        Motorcycle savedHonda = save(completedTrip(
+                300,
+                TerrainType.MIXED,
+                LocalDate.of(2025, 12, 10),
+                HONDA
+        )).getMotorcycle();
+        save(completedTrip(
+                150,
+                TerrainType.ASPHALT,
+                LocalDate.of(2025, 10, 20),
+                savedHonda
+        ));
+        save(completedTrip(
+                100,
+                TerrainType.OFF_ROAD,
+                startDate,
+                savedHonda
+        ));
+        save(completedTrip(
+                1_000,
+                TerrainType.ASPHALT,
+                startDate.minusDays(1),
+                savedHonda
+        ));
+        save(plannedTrip(
+                2_000,
+                TerrainType.MIXED,
+                TODAY.plusDays(1),
+                savedHonda
+        ));
+        save(completedTrip(
+                3_000,
+                TerrainType.OFF_ROAD,
+                LocalDate.of(2025, 11, 10),
+                YAMAHA
+        ));
+
+        List<MonthlyTripStatistics> result = tripStatisticsRepositoryAdapter
+                .findMonthlyStatisticsByOwnerIdFromDate(
+                        savedHonda.getOwner().getId(),
+                        startDate
+                );
+
+        assertEquals(
+                List.of(
+                        new MonthlyTripStatistics(2025, 10, 2L, 250.0),
+                        new MonthlyTripStatistics(2025, 12, 1L, 300.0)
+                ),
+                result
+        );
+    }
+
+    @Test
     void shouldFindMostUsedMotorcycleAmongCompletedTrips() {
         Motorcycle savedHonda = save(completedTrip(
                 100,
@@ -201,6 +355,199 @@ class JpaTripStatisticsRepositoryAdapterTest {
         assertTrue(tripStatisticsRepositoryAdapter
                 .findMostUsedMotorcycleInCompletedTripsByOwnerId(999L)
                 .isEmpty());
+    }
+
+    @Test
+    void shouldFindLongestCompletedTripForOwner() {
+        Motorcycle savedHonda = save(completedTrip(
+                200,
+                TerrainType.ASPHALT,
+                TODAY.minusDays(3),
+                HONDA
+        )).getMotorcycle();
+        Trip expected = save(completedTrip(
+                500,
+                TerrainType.MIXED,
+                TODAY.minusDays(2),
+                savedHonda
+        ));
+        save(plannedTrip(
+                900,
+                TerrainType.OFF_ROAD,
+                TODAY.plusDays(1),
+                savedHonda
+        ));
+        save(completedTrip(
+                1_200,
+                TerrainType.ASPHALT,
+                TODAY.minusDays(1),
+                YAMAHA
+        ));
+
+        Trip result = tripStatisticsRepositoryAdapter
+                .findLongestCompletedTripByOwnerId(savedHonda.getOwner().getId())
+                .orElseThrow();
+
+        assertEquals(expected.getId(), result.getId());
+    }
+
+    @Test
+    void shouldFindLastCompletedTripForOwner() {
+        Motorcycle savedHonda = save(completedTrip(
+                200,
+                TerrainType.ASPHALT,
+                TODAY.minusDays(4),
+                HONDA
+        )).getMotorcycle();
+        Trip expected = save(completedTrip(
+                300,
+                TerrainType.MIXED,
+                TODAY,
+                savedHonda
+        ));
+        save(plannedTrip(
+                400,
+                TerrainType.OFF_ROAD,
+                TODAY.plusDays(6),
+                savedHonda
+        ));
+        save(completedTrip(
+                500,
+                TerrainType.ASPHALT,
+                TODAY,
+                YAMAHA
+        ));
+
+        Trip result = tripStatisticsRepositoryAdapter
+                .findLastCompletedTripByOwnerId(savedHonda.getOwner().getId())
+                .orElseThrow();
+
+        assertEquals(expected.getId(), result.getId());
+    }
+
+    @Test
+    void shouldFindFirstCompletedTripForOwner() {
+        Motorcycle savedHonda = save(completedTrip(
+                200,
+                TerrainType.ASPHALT,
+                TODAY.minusDays(2),
+                HONDA
+        )).getMotorcycle();
+        Trip expected = save(completedTrip(
+                300,
+                TerrainType.MIXED,
+                TODAY.minusDays(4),
+                savedHonda
+        ));
+        save(plannedTrip(
+                400,
+                TerrainType.OFF_ROAD,
+                TODAY.plusDays(6),
+                savedHonda
+        ));
+        save(completedTrip(
+                500,
+                TerrainType.ASPHALT,
+                TODAY.minusDays(10),
+                YAMAHA
+        ));
+
+        Trip result = tripStatisticsRepositoryAdapter
+                .findFirstCompletedTripByOwnerId(savedHonda.getOwner().getId())
+                .orElseThrow();
+
+        assertEquals(expected.getId(), result.getId());
+    }
+
+    @Test
+    void shouldUseLowestIdWhenFirstCompletedTripsHaveSameDate() {
+        Trip expected = save(completedTrip(
+                200,
+                TerrainType.ASPHALT,
+                TODAY,
+                HONDA
+        ));
+        save(completedTrip(
+                300,
+                TerrainType.MIXED,
+                TODAY,
+                expected.getMotorcycle()
+        ));
+
+        Trip result = tripStatisticsRepositoryAdapter
+                .findFirstCompletedTripByOwnerId(
+                        expected.getMotorcycle().getOwner().getId()
+                )
+                .orElseThrow();
+
+        assertEquals(expected.getId(), result.getId());
+    }
+
+    @Test
+    void shouldUseHighestIdWhenLastCompletedTripsHaveSameDate() {
+        Motorcycle savedHonda = save(completedTrip(
+                200,
+                TerrainType.ASPHALT,
+                TODAY,
+                HONDA
+        )).getMotorcycle();
+        Trip expected = save(completedTrip(
+                300,
+                TerrainType.MIXED,
+                TODAY,
+                savedHonda
+        ));
+
+        Trip result = tripStatisticsRepositoryAdapter
+                .findLastCompletedTripByOwnerId(savedHonda.getOwner().getId())
+                .orElseThrow();
+
+        assertEquals(expected.getId(), result.getId());
+    }
+
+    @Test
+    void shouldUseMostRecentTripWhenLongestTripsHaveSameDistance() {
+        Motorcycle savedHonda = save(completedTrip(
+                500,
+                TerrainType.ASPHALT,
+                LocalDate.of(2026, 9, 10),
+                HONDA
+        )).getMotorcycle();
+        Trip expected = save(completedTrip(
+                500,
+                TerrainType.MIXED,
+                LocalDate.of(2026, 9, 12),
+                savedHonda
+        ));
+
+        Trip result = tripStatisticsRepositoryAdapter
+                .findLongestCompletedTripByOwnerId(savedHonda.getOwner().getId())
+                .orElseThrow();
+
+        assertEquals(expected.getId(), result.getId());
+    }
+
+    @Test
+    void shouldUseHighestIdWhenLongestTripsHaveSameDistanceAndDate() {
+        LocalDate tripDate = LocalDate.of(2026, 9, 12);
+        Motorcycle savedHonda = save(completedTrip(
+                500,
+                TerrainType.ASPHALT,
+                tripDate,
+                HONDA
+        )).getMotorcycle();
+        Trip expected = save(completedTrip(
+                500,
+                TerrainType.MIXED,
+                tripDate,
+                savedHonda
+        ));
+
+        Trip result = tripStatisticsRepositoryAdapter
+                .findLongestCompletedTripByOwnerId(savedHonda.getOwner().getId())
+                .orElseThrow();
+
+        assertEquals(expected.getId(), result.getId());
     }
 
     private Trip save(Trip trip) {

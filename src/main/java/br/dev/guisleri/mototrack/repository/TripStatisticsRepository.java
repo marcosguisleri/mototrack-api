@@ -1,12 +1,15 @@
 package br.dev.guisleri.mototrack.repository;
 
-import br.dev.guisleri.mototrack.model.Motorcycle;
-import br.dev.guisleri.mototrack.model.TripStatus;
+import br.dev.guisleri.mototrack.model.*;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 public interface TripStatisticsRepository {
+
+    // Agregações gerais
 
     Map<TripStatus, Long> countByOwnerIdAndStatus(Long ownerId);
 
@@ -14,6 +17,24 @@ public interface TripStatisticsRepository {
             Long ownerId,
             TripStatus status
     );
+
+    Map<TerrainType, TerrainStatistics>
+    findTerrainStatisticsByOwnerId(Long ownerId);
+
+    List<MonthlyTripStatistics> findMonthlyStatisticsByOwnerIdFromDate(
+            Long ownerId,
+            LocalDate startDate
+    );
+
+    // Destaques de viagens
+
+    Optional<Trip> findLongestCompletedTripByOwnerId(Long ownerId);
+
+    Optional<Trip> findLastCompletedTripByOwnerId(Long ownerId);
+
+    Optional<Trip> findFirstCompletedTripByOwnerId(Long ownerId);
+
+    // Estatísticas por motocicleta
 
     Map<Motorcycle, Long> countByOwnerIdAndMotorcycle(Long ownerId);
 
@@ -26,4 +47,5 @@ public interface TripStatisticsRepository {
     Optional<Motorcycle> findMostUsedMotorcycleInCompletedTripsByOwnerId(
             Long ownerId
     );
+
 }

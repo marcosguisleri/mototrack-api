@@ -38,4 +38,7 @@ public interface TripRepository {
             Long ownerId,
             LocalDate tripDate
     );
+
+    List<Trip> findCompletedByOwnerIdOrderByTripDateDesc(Long ownerId);
+
 }

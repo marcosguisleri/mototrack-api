@@ -30,6 +30,11 @@ public interface SpringDataTripRepository extends JpaRepository<TripEntity, Long
             LocalDate tripDate
     );
 
+    List<TripEntity> findByMotorcycle_Owner_IdAndStatusOrderByTripDateDescIdDesc(
+            Long ownerId,
+            TripStatus status
+    );
+
     boolean existsByMotorcycleId(Long motorcycleId);
 
 }

@@ -303,6 +303,52 @@ class JpaTripRepositoryAdapterTest {
     }
 
     @Test
+    void shouldFindCompletedTripsByOwnerIdOrderedByTripDateDesc() {
+        Trip oldestTrip = save(completedTrip(
+                100,
+                TerrainType.ASPHALT,
+                LocalDate.of(2026, 7, 11),
+                HONDA
+        ));
+        save(completedTrip(
+                300,
+                TerrainType.MIXED,
+                LocalDate.of(2026, 9, 20),
+                HONDA
+        ));
+        save(completedTrip(
+                200,
+                TerrainType.OFF_ROAD,
+                LocalDate.of(2026, 8, 15),
+                HONDA
+        ));
+        save(plannedTrip(
+                999,
+                TerrainType.ASPHALT,
+                TODAY.plusDays(5),
+                HONDA
+        ));
+        save(completedTrip(
+                999,
+                TerrainType.ASPHALT,
+                LocalDate.of(2026, 9, 25),
+                YAMAHA
+        ));
+        entityManager.clear();
+
+        Long ownerId = oldestTrip.getMotorcycle().getOwner().getId();
+        List<Trip> result =
+                tripRepositoryAdapter.findCompletedByOwnerIdOrderByTripDateDesc(
+                        ownerId
+                );
+
+        assertEquals(3, result.size());
+        assertEquals(LocalDate.of(2026, 9, 20), result.get(0).getTripDate());
+        assertEquals(LocalDate.of(2026, 8, 15), result.get(1).getTripDate());
+        assertEquals(LocalDate.of(2026, 7, 11), result.get(2).getTripDate());
+    }
+
+    @Test
     void shouldCheckWhetherMotorcycleHasTrips() {
         Trip savedTrip = save(plannedTrip(
                 100,
@@ -365,6 +411,26 @@ class JpaTripRepositoryAdapterTest {
         Trip trip = plannedTrip(distanceKm, terrainType, tripDate, motorcycle);
         trip.changeStatus(TripStatus.IN_PROGRESS, TODAY);
         return trip;
+    }
+
+    private Trip completedTrip(
+            double distanceKm,
+            TerrainType terrainType,
+            LocalDate tripDate,
+            Motorcycle motorcycle
+    ) {
+        Motorcycle persistedMotorcycle = persistMotorcycleIfNecessary(motorcycle);
+
+        return Trip.restore(
+                null,
+                "Origem",
+                "Destino",
+                distanceKm,
+                terrainType,
+                tripDate,
+                persistedMotorcycle,
+                TripStatus.COMPLETED
+        );
     }
 
     private Motorcycle persistMotorcycleIfNecessary(Motorcycle motorcycle) {

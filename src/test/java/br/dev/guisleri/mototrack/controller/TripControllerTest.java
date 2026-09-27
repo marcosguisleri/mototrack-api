@@ -28,8 +28,11 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -186,23 +189,48 @@ class TripControllerTest {
 
     @Test
     void shouldFindTripsByOwnerAndStatus() throws Exception {
-        Trip trip = completedTrip(1, LocalDate.of(2026, 9, 10));
+        Trip trip = plannedTrip(1, LocalDate.of(2026, 9, 20));
         when(tripService.findTripsByOwnerIdAndStatus(
                 CURRENT_USER.getId(),
-                TripStatus.COMPLETED
+                TripStatus.PLANNED
         ))
                 .thenReturn(List.of(trip));
 
         mockMvc.perform(get("/trips")
                         .principal(AUTHENTICATION)
-                        .param("status", "COMPLETED"))
+                        .param("status", "PLANNED"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].status").value("COMPLETED"));
+                .andExpect(jsonPath("$[0].status").value("PLANNED"));
 
         verify(tripService).findTripsByOwnerIdAndStatus(
                 CURRENT_USER.getId(),
-                TripStatus.COMPLETED
+                TripStatus.PLANNED
+        );
+    }
+
+    @Test
+    void shouldReturnCompletedTripsUsingCompletedHistoryService() throws Exception {
+        Trip newestTrip = completedTrip(2, LocalDate.of(2026, 9, 20));
+        Trip oldestTrip = completedTrip(1, LocalDate.of(2026, 8, 15));
+        when(tripService.findCompletedTripsByOwnerId(CURRENT_USER.getId()))
+                .thenReturn(List.of(newestTrip, oldestTrip));
+
+        mockMvc.perform(get("/trips")
+                        .principal(AUTHENTICATION)
+                        .param("status", "COMPLETED"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].id").value(2))
+                .andExpect(jsonPath("$[0].status").value("COMPLETED"))
+                .andExpect(jsonPath("$[0].tripDate").value("2026-09-20"))
+                .andExpect(jsonPath("$[1].id").value(1))
+                .andExpect(jsonPath("$[1].tripDate").value("2026-08-15"));
+
+        verify(tripService).findCompletedTripsByOwnerId(CURRENT_USER.getId());
+        verify(tripService, never()).findTripsByOwnerIdAndStatus(
+                anyLong(),
+                any(TripStatus.class)
         );
     }
 

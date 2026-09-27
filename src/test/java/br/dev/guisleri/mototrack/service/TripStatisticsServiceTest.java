@@ -200,7 +200,23 @@ class TripStatisticsServiceTest {
         List<MonthlyTripStatistics> result =
                 statisticsService.findMonthlyStatisticsLast12Months(OWNER_ID);
 
-        assertSame(statistics, result);
+        assertEquals(12, result.size());
+        assertEquals(
+                new MonthlyTripStatistics(2025, 10, 2L, 250.0),
+                result.get(0)
+        );
+        assertEquals(
+                new MonthlyTripStatistics(2025, 11, 1L, 300.0),
+                result.get(1)
+        );
+        assertEquals(
+                new MonthlyTripStatistics(2025, 12, 0L, 0.0),
+                result.get(2)
+        );
+        assertEquals(
+                new MonthlyTripStatistics(2026, 9, 0L, 0.0),
+                result.get(11)
+        );
         verify(tripStatisticsRepository).findMonthlyStatisticsByOwnerIdFromDate(
                 OWNER_ID,
                 LocalDate.of(2025, 10, 1)

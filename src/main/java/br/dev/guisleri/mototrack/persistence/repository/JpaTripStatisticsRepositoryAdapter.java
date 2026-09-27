@@ -1,6 +1,11 @@
 package br.dev.guisleri.mototrack.persistence.repository;
 
-import br.dev.guisleri.mototrack.model.*;
+import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
+import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.TerrainStatistics;
+import br.dev.guisleri.mototrack.model.TerrainType;
+import br.dev.guisleri.mototrack.model.Trip;
+import br.dev.guisleri.mototrack.model.TripStatus;
 import br.dev.guisleri.mototrack.persistence.mapper.MotorcycleMapper;
 import br.dev.guisleri.mototrack.persistence.mapper.TripMapper;
 import br.dev.guisleri.mototrack.persistence.projection.MotorcycleTripCountProjection;
@@ -9,11 +14,16 @@ import br.dev.guisleri.mototrack.repository.TripStatisticsRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.util.*;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
-public class JpaTripStatisticsRepositoryAdapter implements TripStatisticsRepository {
+public class JpaTripStatisticsRepositoryAdapter
+        implements TripStatisticsRepository {
 
     private final SpringDataTripStatisticsRepository springDataTripStatisticsRepository;
     private final MotorcycleMapper motorcycleMapper;
@@ -28,7 +38,6 @@ public class JpaTripStatisticsRepositoryAdapter implements TripStatisticsReposit
         this.motorcycleMapper = motorcycleMapper;
         this.tripMapper = tripMapper;
     }
-
 
     // Agregações gerais
 
@@ -64,7 +73,9 @@ public class JpaTripStatisticsRepositoryAdapter implements TripStatisticsReposit
     }
 
     @Override
-    public Map<TerrainType, TerrainStatistics> findTerrainStatisticsByOwnerId(Long ownerId) {
+    public Map<TerrainType, TerrainStatistics> findTerrainStatisticsByOwnerId(
+            Long ownerId
+    ) {
         Map<TerrainType, TerrainStatistics> terrainStatisticsByTerrain =
                 new EnumMap<>(TerrainType.class);
 
@@ -96,7 +107,10 @@ public class JpaTripStatisticsRepositoryAdapter implements TripStatisticsReposit
     }
 
     @Override
-    public List<MonthlyTripStatistics> findMonthlyStatisticsByOwnerIdFromDate(Long ownerId, LocalDate startDate) {
+    public List<MonthlyTripStatistics> findMonthlyStatisticsByOwnerIdFromDate(
+            Long ownerId,
+            LocalDate startDate
+    ) {
         return springDataTripStatisticsRepository
                 .findMonthlyStatisticsByOwnerIdAndStatusFromDate(
                         ownerId,

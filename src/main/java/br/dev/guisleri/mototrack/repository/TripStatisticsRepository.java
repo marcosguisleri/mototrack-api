@@ -1,6 +1,11 @@
 package br.dev.guisleri.mototrack.repository;
 
-import br.dev.guisleri.mototrack.model.*;
+import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
+import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.TerrainStatistics;
+import br.dev.guisleri.mototrack.model.TerrainType;
+import br.dev.guisleri.mototrack.model.Trip;
+import br.dev.guisleri.mototrack.model.TripStatus;
 
 import java.time.LocalDate;
 import java.util.List;

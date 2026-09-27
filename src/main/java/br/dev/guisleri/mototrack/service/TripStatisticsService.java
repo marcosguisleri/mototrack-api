@@ -1,13 +1,22 @@
 package br.dev.guisleri.mototrack.service;
 
-import br.dev.guisleri.mototrack.model.*;
+import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
+import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.TerrainStatistics;
+import br.dev.guisleri.mototrack.model.TerrainType;
+import br.dev.guisleri.mototrack.model.Trip;
+import br.dev.guisleri.mototrack.model.TripStatus;
 import br.dev.guisleri.mototrack.repository.TripStatisticsRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class TripStatisticsService {
@@ -16,7 +25,8 @@ public class TripStatisticsService {
     private final Clock clock;
 
     public TripStatisticsService(
-            TripStatisticsRepository tripStatisticsRepository, Clock clock
+            TripStatisticsRepository tripStatisticsRepository,
+            Clock clock
     ) {
         this.tripStatisticsRepository = tripStatisticsRepository;
         this.clock = clock;
@@ -79,11 +89,9 @@ public class TripStatisticsService {
 
     // Distribuições
 
-    public Map<Motorcycle, Long> countTripsByMotorcycle(Long ownerId) {
-        return tripStatisticsRepository.countByOwnerIdAndMotorcycle(ownerId);
-    }
-
-    public Map<TerrainType, TerrainStatistics> findTerrainStatistics(Long ownerId) {
+    public Map<TerrainType, TerrainStatistics> findTerrainStatistics(
+            Long ownerId
+    ) {
         return tripStatisticsRepository.findTerrainStatisticsByOwnerId(ownerId);
     }
 
@@ -152,5 +160,9 @@ public class TripStatisticsService {
                         motorcycle,
                         TripStatus.COMPLETED
                 );
+    }
+
+    public Map<Motorcycle, Long> countTripsByMotorcycle(Long ownerId) {
+        return tripStatisticsRepository.countByOwnerIdAndMotorcycle(ownerId);
     }
 }

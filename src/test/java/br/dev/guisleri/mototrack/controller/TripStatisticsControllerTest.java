@@ -1,6 +1,7 @@
 package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
 import br.dev.guisleri.mototrack.model.TerrainStatistics;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
@@ -113,6 +114,11 @@ class TripStatisticsControllerTest {
                 TerrainType.OFF_ROAD,
                 new TerrainStatistics(0L, 0.0)
         );
+        List<MonthlyTripStatistics> monthlyStatistics = List.of(
+                new MonthlyTripStatistics(2025, 10, 2L, 250.0),
+                new MonthlyTripStatistics(2025, 11, 1L, 300.0),
+                new MonthlyTripStatistics(2025, 12, 0L, 0.0)
+        );
         when(tripStatisticsService.countCompletedTrips(CURRENT_USER.getId()))
                 .thenReturn(3L);
         when(tripStatisticsService.calculateTotalCompletedDistanceKm(CURRENT_USER.getId()))
@@ -135,6 +141,9 @@ class TripStatisticsControllerTest {
                 .thenReturn(tripsByStatus);
         when(tripStatisticsService.findTerrainStatistics(CURRENT_USER.getId()))
                 .thenReturn(terrainStatistics);
+        when(tripStatisticsService.findMonthlyStatisticsLast12Months(
+                CURRENT_USER.getId()
+        )).thenReturn(monthlyStatistics);
 
         mockMvc.perform(get("/statistics").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
@@ -167,7 +176,18 @@ class TripStatisticsControllerTest {
                 .andExpect(jsonPath("$.terrainStatistics.MIXED.tripCount")
                         .value(1))
                 .andExpect(jsonPath("$.terrainStatistics.OFF_ROAD.tripCount")
-                        .value(0));
+                        .value(0))
+                .andExpect(jsonPath("$.monthlyStatistics.length()").value(3))
+                .andExpect(jsonPath("$.monthlyStatistics[0].year").value(2025))
+                .andExpect(jsonPath("$.monthlyStatistics[0].month").value(10))
+                .andExpect(jsonPath("$.monthlyStatistics[0].tripCount").value(2))
+                .andExpect(jsonPath("$.monthlyStatistics[0].totalDistanceKm")
+                        .value(250.0))
+                .andExpect(jsonPath("$.monthlyStatistics[2].year").value(2025))
+                .andExpect(jsonPath("$.monthlyStatistics[2].month").value(12))
+                .andExpect(jsonPath("$.monthlyStatistics[2].tripCount").value(0))
+                .andExpect(jsonPath("$.monthlyStatistics[2].totalDistanceKm")
+                        .value(0.0));
 
         verify(userService).findUserByEmail(CURRENT_USER.getEmail());
         verify(tripStatisticsService).countCompletedTrips(CURRENT_USER.getId());
@@ -182,6 +202,8 @@ class TripStatisticsControllerTest {
         verify(tripStatisticsService).findLastCompletedTrip(CURRENT_USER.getId());
         verify(tripStatisticsService).countTripsByStatus(CURRENT_USER.getId());
         verify(tripStatisticsService).findTerrainStatistics(CURRENT_USER.getId());
+        verify(tripStatisticsService)
+                .findMonthlyStatisticsLast12Months(CURRENT_USER.getId());
     }
 
     @Test

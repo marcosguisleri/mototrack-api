@@ -299,23 +299,115 @@ curl -u marcos@example.com:secret123 http://localhost:8080/statistics
 
 ```json
 {
-  "totalCompletedTrips": 12,
-  "totalCompletedDistance": 3480.7,
+  "totalCompletedTrips": 3,
+  "totalCompletedDistance": 600.0,
+  "averageCompletedDistanceKm": 200.0,
   "mostUsedMotorcycle": {
     "id": 1,
     "brand": "Honda",
     "model": "NX 500",
     "color": "Black",
     "year": 2025,
-    "engineCapacity": 471
+    "engineCapacity": 471,
+    "owner": {
+      "id": 1,
+      "name": "Marcos",
+      "email": "marcos@example.com"
+    }
+  },
+  "longestTrip": {
+    "id": 3,
+    "origin": "Florianopolis",
+    "destination": "Ushuaia",
+    "distanceKm": 300.0,
+    "terrain": "MIXED",
+    "tripDate": "2025-11-20",
+    "motorcycle": {
+      "id": 1,
+      "brand": "Honda",
+      "model": "NX 500",
+      "color": "Black",
+      "year": 2025,
+      "engineCapacity": 471,
+      "owner": {
+        "id": 1,
+        "name": "Marcos",
+        "email": "marcos@example.com"
+      }
+    }
+  },
+  "firstCompletedTrip": {
+    "id": 1,
+    "origin": "Araras",
+    "destination": "Rio Claro",
+    "distanceKm": 100.0,
+    "terrain": "ASPHALT",
+    "tripDate": "2025-10-10",
+    "motorcycle": {
+      "id": 1,
+      "brand": "Honda",
+      "model": "NX 500",
+      "color": "Black",
+      "year": 2025,
+      "engineCapacity": 471,
+      "owner": {
+        "id": 1,
+        "name": "Marcos",
+        "email": "marcos@example.com"
+      }
+    }
+  },
+  "lastCompletedTrip": {
+    "id": 3,
+    "origin": "Florianopolis",
+    "destination": "Ushuaia",
+    "distanceKm": 300.0,
+    "terrain": "MIXED",
+    "tripDate": "2025-11-20",
+    "motorcycle": {
+      "id": 1,
+      "brand": "Honda",
+      "model": "NX 500",
+      "color": "Black",
+      "year": 2025,
+      "engineCapacity": 471,
+      "owner": {
+        "id": 1,
+        "name": "Marcos",
+        "email": "marcos@example.com"
+      }
+    }
   },
   "tripsByStatus": {
-    "PLANNED": 3,
+    "PLANNED": 1,
     "IN_PROGRESS": 1,
-    "COMPLETED": 12
-  }
+    "COMPLETED": 3
+  },
+  "terrainStatistics": {
+    "ASPHALT": { "tripCount": 2, "totalDistanceKm": 300.0 },
+    "MIXED": { "tripCount": 1, "totalDistanceKm": 300.0 },
+    "OFF_ROAD": { "tripCount": 0, "totalDistanceKm": 0.0 }
+  },
+  "monthlyStatistics": [
+    { "year": 2025, "month": 10, "tripCount": 2, "totalDistanceKm": 300.0 },
+    { "year": 2025, "month": 11, "tripCount": 1, "totalDistanceKm": 300.0 },
+    { "year": 2025, "month": 12, "tripCount": 0, "totalDistanceKm": 0.0 },
+    { "year": 2026, "month": 1, "tripCount": 0, "totalDistanceKm": 0.0 },
+    { "year": 2026, "month": 2, "tripCount": 0, "totalDistanceKm": 0.0 },
+    { "year": 2026, "month": 3, "tripCount": 0, "totalDistanceKm": 0.0 },
+    { "year": 2026, "month": 4, "tripCount": 0, "totalDistanceKm": 0.0 },
+    { "year": 2026, "month": 5, "tripCount": 0, "totalDistanceKm": 0.0 },
+    { "year": 2026, "month": 6, "tripCount": 0, "totalDistanceKm": 0.0 },
+    { "year": 2026, "month": 7, "tripCount": 0, "totalDistanceKm": 0.0 },
+    { "year": 2026, "month": 8, "tripCount": 0, "totalDistanceKm": 0.0 },
+    { "year": 2026, "month": 9, "tripCount": 0, "totalDistanceKm": 0.0 }
+  ]
 }
 ```
+
+`monthlyStatistics` sempre contém os 12 meses até o mês atual, em ordem
+cronológica. Meses sem viagens concluídas são retornados com contagem e
+distância iguais a zero.
 
 ---
 

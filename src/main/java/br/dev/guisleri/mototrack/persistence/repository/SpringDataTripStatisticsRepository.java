@@ -17,7 +17,6 @@ import java.util.Optional;
 public interface SpringDataTripStatisticsRepository
         extends Repository<TripEntity, Long> {
 
-
     // Agregações gerais
 
     @Query("""
@@ -42,34 +41,35 @@ public interface SpringDataTripStatisticsRepository
     );
 
     @Query("""
-    SELECT
-        t.terrain AS terrain,
-        COUNT(t) AS tripCount,
-        COALESCE(SUM(t.distanceKm), 0) AS totalDistanceKm
-    FROM TripEntity t
-    WHERE t.motorcycle.owner.id = :ownerId
-    AND t.status = :status
-    GROUP BY t.terrain
-    """)
+        SELECT
+            t.terrain AS terrain,
+            COUNT(t) AS tripCount,
+            COALESCE(SUM(t.distanceKm), 0) AS totalDistanceKm
+        FROM TripEntity t
+        WHERE t.motorcycle.owner.id = :ownerId
+        AND t.status = :status
+        GROUP BY t.terrain
+        """)
     List<TerrainTripStatisticsProjection> findTerrainStatisticsByOwnerIdAndStatus(
             @Param("ownerId") Long ownerId,
             @Param("status") TripStatus status
     );
 
     @Query("""
-    SELECT
-        YEAR(t.tripDate) AS year,
-        MONTH(t.tripDate) AS month,
-        COUNT(t) AS tripCount,
-        COALESCE(SUM(t.distanceKm), 0) AS totalDistanceKm
-    FROM TripEntity t
-    WHERE t.motorcycle.owner.id = :ownerId
-    AND t.status = :status
-    AND t.tripDate >= :startDate
-    GROUP BY YEAR(t.tripDate), MONTH(t.tripDate)
-    ORDER BY YEAR(t.tripDate), MONTH(t.tripDate)
-    """)
-    List<MonthlyTripStatisticsProjection> findMonthlyStatisticsByOwnerIdAndStatusFromDate(
+        SELECT
+            YEAR(t.tripDate) AS year,
+            MONTH(t.tripDate) AS month,
+            COUNT(t) AS tripCount,
+            COALESCE(SUM(t.distanceKm), 0) AS totalDistanceKm
+        FROM TripEntity t
+        WHERE t.motorcycle.owner.id = :ownerId
+        AND t.status = :status
+        AND t.tripDate >= :startDate
+        GROUP BY YEAR(t.tripDate), MONTH(t.tripDate)
+        ORDER BY YEAR(t.tripDate), MONTH(t.tripDate)
+        """)
+    List<MonthlyTripStatisticsProjection>
+    findMonthlyStatisticsByOwnerIdAndStatusFromDate(
             @Param("ownerId") Long ownerId,
             @Param("status") TripStatus status,
             @Param("startDate") LocalDate startDate

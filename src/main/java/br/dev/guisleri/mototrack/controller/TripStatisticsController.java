@@ -3,6 +3,7 @@ package br.dev.guisleri.mototrack.controller;
 import br.dev.guisleri.mototrack.dto.MotorcycleResponseDTO;
 import br.dev.guisleri.mototrack.dto.TripStatisticsResponseDTO;
 import br.dev.guisleri.mototrack.dto.TripSummaryResponseDTO;
+import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
 import br.dev.guisleri.mototrack.model.TerrainStatistics;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -82,7 +84,8 @@ public class TripStatisticsController {
         Map<TerrainType, TerrainStatistics> terrainStatistics =
                 tripStatisticsService.findTerrainStatistics(ownerId);
 
-
+        List<MonthlyTripStatistics> monthlyStatistics =
+                tripStatisticsService.findMonthlyStatisticsLast12Months(ownerId);
 
         TripStatisticsResponseDTO statisticsResponse =
                 new TripStatisticsResponseDTO(
@@ -94,7 +97,8 @@ public class TripStatisticsController {
                         firstCompletedTripResponse,
                         lastCompletedTripResponse,
                         tripsByStatus,
-                        terrainStatistics
+                        terrainStatistics,
+                        monthlyStatistics
                 );
 
         return ResponseEntity.ok(statisticsResponse);

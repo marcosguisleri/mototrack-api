@@ -11,6 +11,7 @@ import br.dev.guisleri.mototrack.persistence.mapper.TripMapper;
 import br.dev.guisleri.mototrack.persistence.projection.MotorcycleTripCountProjection;
 import br.dev.guisleri.mototrack.persistence.projection.TerrainTripStatisticsProjection;
 import br.dev.guisleri.mototrack.repository.TripStatisticsRepository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -22,6 +23,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Repository
+@Transactional(readOnly = true)
 public class JpaTripStatisticsRepositoryAdapter
         implements TripStatisticsRepository {
 

@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -40,7 +41,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -321,7 +324,8 @@ class TripControllerTest {
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message")
-                        .value("Viagem com id 999 não encontrada"));
+                        .value("Viagem com id 999 não encontrada"))
+                .andExpect(jsonPath("$.errors").isEmpty());
     }
 
     @Test
@@ -338,7 +342,8 @@ class TripControllerTest {
                 .andExpect(jsonPath("$.error").value("Forbidden"))
                 .andExpect(jsonPath("$.message").value(
                         "Você não possui permissão para acessar esta viagem."
-                ));
+                ))
+                .andExpect(jsonPath("$.errors").isEmpty());
     }
 
     @Test
@@ -387,6 +392,8 @@ class TripControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Validation Failed"))
+                .andExpect(jsonPath("$.message")
+                        .value("A requisição contém campos inválidos."))
                 .andExpect(jsonPath("$.errors.origin").value("A origem é obrigatória."))
                 .andExpect(jsonPath("$.errors.destination")
                         .value("O destino é obrigatório."))
@@ -446,6 +453,82 @@ class TripControllerTest {
                 createTripJson("2026-09-20")
                         .replace("\"distanceKm\": 175.5", "\"distanceKm\": \"far\"")
         );
+    }
+
+    @Test
+    void shouldReturnStandardErrorForInvalidStatusQueryParameter() throws Exception {
+        mockMvc.perform(get("/trips")
+                        .param("status", "UNKNOWN")
+                        .principal(AUTHENTICATION))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message")
+                        .value("O parâmetro 'status' contém um valor inválido."))
+                .andExpect(jsonPath("$.errors").isEmpty());
+    }
+
+    @Test
+    void shouldReturnStandardErrorForInvalidPathParameter() throws Exception {
+        mockMvc.perform(get("/trips/not-an-id").principal(AUTHENTICATION))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message")
+                        .value("O parâmetro 'id' contém um valor inválido."))
+                .andExpect(jsonPath("$.errors").isEmpty());
+    }
+
+    @Test
+    void shouldReturnStandardErrorForUnknownEndpoint() throws Exception {
+        mockMvc.perform(get("/unknown-endpoint").principal(AUTHENTICATION))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Endpoint não encontrado."))
+                .andExpect(jsonPath("$.errors").isEmpty());
+    }
+
+    @Test
+    void shouldReturnStandardErrorForUnsupportedMethod() throws Exception {
+        mockMvc.perform(put("/trips/1").principal(AUTHENTICATION))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().exists(HttpHeaders.ALLOW))
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.error").value("Method Not Allowed"))
+                .andExpect(jsonPath("$.message")
+                        .value("Método HTTP não permitido para este endpoint."))
+                .andExpect(jsonPath("$.errors").isEmpty());
+    }
+
+    @Test
+    void shouldReturnStandardErrorForUnsupportedRequestMediaType() throws Exception {
+        mockMvc.perform(post("/trips")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("not json"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.status").value(415))
+                .andExpect(jsonPath("$.error").value("Unsupported Media Type"))
+                .andExpect(jsonPath("$.message")
+                        .value("Tipo de conteúdo não suportado."))
+                .andExpect(jsonPath("$.errors").isEmpty());
+    }
+
+    @Test
+    void shouldReturnStandardErrorForUnsupportedResponseMediaType() throws Exception {
+        when(tripService.findTripsByOwnerId(CURRENT_USER.getId()))
+                .thenReturn(List.of());
+
+        mockMvc.perform(get("/trips")
+                        .principal(AUTHENTICATION)
+                        .accept(MediaType.APPLICATION_XML))
+                .andExpect(status().isNotAcceptable())
+                .andExpect(jsonPath("$.status").value(406))
+                .andExpect(jsonPath("$.error").value("Not Acceptable"))
+                .andExpect(jsonPath("$.message")
+                        .value("Formato de resposta solicitado não é suportado."))
+                .andExpect(jsonPath("$.errors").isEmpty());
     }
 
     @Test
@@ -528,6 +611,7 @@ class TripControllerTest {
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
                 .andExpect(jsonPath("$.message").value(INVALID_REQUEST_BODY_MESSAGE))
+                .andExpect(jsonPath("$.errors").isEmpty())
                 .andExpect(content().string(not(containsString("Jackson"))))
                 .andExpect(content().string(not(containsString("InvalidFormatException"))))
                 .andExpect(content().string(not(containsString("TerrainType"))));

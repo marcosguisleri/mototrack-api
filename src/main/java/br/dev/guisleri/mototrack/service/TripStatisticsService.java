@@ -165,4 +165,55 @@ public class TripStatisticsService {
     public Map<Motorcycle, Long> countTripsByMotorcycle(Long ownerId) {
         return tripStatisticsRepository.countByOwnerIdAndMotorcycle(ownerId);
     }
+
+    public long countCompletedTripsByMotorcycle(
+            Long ownerId,
+            Motorcycle motorcycle
+    ) {
+        return tripStatisticsRepository
+                .countByOwnerIdAndMotorcycleAndStatus(
+                        ownerId,
+                        motorcycle,
+                        TripStatus.COMPLETED
+                );
+    }
+
+    public Double calculateAverageCompletedDistanceKmByMotorcycle(
+            Long ownerId,
+            Motorcycle motorcycle
+    ) {
+        long completedTrips = countCompletedTripsByMotorcycle(ownerId, motorcycle);
+
+        if (completedTrips == 0) {
+            return null;
+        }
+
+        Double totalCompletedDistanceKm = calculateCompletedDistanceKmByMotorcycle(ownerId, motorcycle);
+
+        return totalCompletedDistanceKm / completedTrips;
+    }
+
+    public Optional<Trip> findLongestCompletedTripByMotorcycle(
+            Long ownerId,
+            Motorcycle motorcycle
+    ) {
+        return tripStatisticsRepository.findLongestCompletedTripByOwnerIdAndMotorcycle(ownerId, motorcycle);
+    }
+
+    public Optional<Trip> findLastCompletedTripByMotorcycle(
+            Long ownerId,
+            Motorcycle motorcycle
+    ) {
+        return tripStatisticsRepository.findLastCompletedTripByOwnerIdAndMotorcycle(ownerId, motorcycle);
+    }
+
+    public Map<TerrainType, TerrainStatistics> findTerrainStatisticsByMotorcycle(
+            Long ownerId,
+            Motorcycle motorcycle
+    ) {
+        return tripStatisticsRepository.findTerrainStatisticsByOwnerIdAndMotorcycle(
+                ownerId,
+                motorcycle
+        );
+    }
 }

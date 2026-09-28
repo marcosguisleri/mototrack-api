@@ -11,6 +11,7 @@ import br.dev.guisleri.mototrack.persistence.mapper.TripMapper;
 import br.dev.guisleri.mototrack.persistence.projection.MotorcycleTripCountProjection;
 import br.dev.guisleri.mototrack.persistence.projection.TerrainTripStatisticsProjection;
 import br.dev.guisleri.mototrack.repository.TripStatisticsRepository;
+import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Repository;
 
@@ -206,4 +207,73 @@ public class JpaTripStatisticsRepositoryAdapter
                 .map(MotorcycleTripCountProjection::getMotorcycle)
                 .map(motorcycleMapper::toDomain);
     }
+
+    @Override
+    public Long countByOwnerIdAndMotorcycleAndStatus(
+            Long ownerId,
+            Motorcycle motorcycle,
+            TripStatus status
+    ) {
+        return springDataTripStatisticsRepository
+                .countByMotorcycle_IdAndMotorcycle_Owner_IdAndStatus(
+                        motorcycle.getId(),
+                        ownerId,
+                        status
+                );
+    }
+
+    @Override
+    public Optional<Trip> findLongestCompletedTripByOwnerIdAndMotorcycle(Long ownerId, Motorcycle motorcycle) {
+        return springDataTripStatisticsRepository
+                .findFirstByMotorcycle_IdAndMotorcycle_Owner_IdAndStatusOrderByDistanceKmDescTripDateDescIdDesc(
+                        motorcycle.getId(),
+                        ownerId,
+                        TripStatus.COMPLETED
+                )
+                .map(tripMapper::toDomain);
+    }
+
+    @Override
+    public Optional<Trip> findLastCompletedTripByOwnerIdAndMotorcycle(Long ownerId, Motorcycle motorcycle) {
+        return springDataTripStatisticsRepository
+                .findFirstByMotorcycle_IdAndMotorcycle_Owner_IdAndStatusOrderByTripDateDescIdDesc(
+                        motorcycle.getId(),
+                        ownerId,
+                        TripStatus.COMPLETED
+                )
+                .map(tripMapper::toDomain);
+    }
+
+    @Override
+    public Map<TerrainType, TerrainStatistics> findTerrainStatisticsByOwnerIdAndMotorcycle(
+            Long ownerId,
+            Motorcycle motorcycle
+    ) {
+        Map<TerrainType, TerrainStatistics> statistics =
+                new EnumMap<>(TerrainType.class);
+
+        for (TerrainType terrain : TerrainType.values()) {
+            statistics.put(
+                    terrain,
+                    new TerrainStatistics(0L, 0.0)
+            );
+        }
+
+        springDataTripStatisticsRepository
+                .findTerrainStatisticsByMotorcycleIdAndOwnerIdAndStatus(
+                        motorcycle.getId(),
+                        ownerId,
+                        TripStatus.COMPLETED
+                )
+                .forEach(result -> statistics.put(
+                        result.getTerrain(),
+                        new TerrainStatistics(
+                                result.getTripCount(),
+                                result.getTotalDistanceKm()
+                        )
+                ));
+
+        return statistics;
+    }
+
 }

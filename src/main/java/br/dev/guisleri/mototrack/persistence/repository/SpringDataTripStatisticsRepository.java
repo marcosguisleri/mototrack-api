@@ -131,4 +131,42 @@ public interface SpringDataTripStatisticsRepository
             @Param("ownerId") Long ownerId,
             @Param("status") TripStatus status
     );
+
+    @Query("""
+    SELECT
+        t.terrain AS terrain,
+        COUNT(t) AS tripCount,
+        COALESCE(SUM(t.distanceKm), 0) AS totalDistanceKm
+    FROM TripEntity t
+    WHERE t.motorcycle.id = :motorcycleId
+    AND t.motorcycle.owner.id = :ownerId
+    AND t.status = :status
+    GROUP BY t.terrain
+    """)
+    List<TerrainTripStatisticsProjection> findTerrainStatisticsByMotorcycleIdAndOwnerIdAndStatus(
+            @Param("motorcycleId") Long motorcycleId,
+            @Param("ownerId") Long ownerId,
+            @Param("status") TripStatus status
+    );
+
+    long countByMotorcycle_IdAndMotorcycle_Owner_IdAndStatus(
+            Long motorcycleId,
+            Long ownerId,
+            TripStatus status
+    );
+
+    Optional<TripEntity>
+    findFirstByMotorcycle_IdAndMotorcycle_Owner_IdAndStatusOrderByDistanceKmDescTripDateDescIdDesc(
+            Long motorcycleId,
+            Long ownerId,
+            TripStatus status
+    );
+
+    Optional<TripEntity>
+    findFirstByMotorcycle_IdAndMotorcycle_Owner_IdAndStatusOrderByTripDateDescIdDesc(
+            Long motorcycleId,
+            Long ownerId,
+            TripStatus status
+    );
+
 }

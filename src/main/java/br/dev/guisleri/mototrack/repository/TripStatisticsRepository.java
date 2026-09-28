@@ -53,4 +53,25 @@ public interface TripStatisticsRepository {
             Long ownerId
     );
 
+    Long countByOwnerIdAndMotorcycleAndStatus(
+            Long ownerId,
+            Motorcycle motorcycle,
+            TripStatus status
+    );
+
+    Optional<Trip> findLongestCompletedTripByOwnerIdAndMotorcycle(
+            Long ownerId,
+            Motorcycle motorcycle
+    );
+
+    Optional<Trip> findLastCompletedTripByOwnerIdAndMotorcycle(
+            Long ownerId,
+            Motorcycle motorcycle
+    );
+
+    Map<TerrainType, TerrainStatistics> findTerrainStatisticsByOwnerIdAndMotorcycle(
+            Long ownerId,
+            Motorcycle motorcycle
+    );
+
 }

@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
@@ -77,7 +78,16 @@ class UserSecurityTest {
     @Test
     void shouldRejectCurrentUserRequestWithoutAuthentication() throws Exception {
         mockMvc.perform(get("/users/me"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string(
+                        HttpHeaders.WWW_AUTHENTICATE,
+                        "Basic realm=\"Realm\""
+                ))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message")
+                        .value("Autenticação necessária ou credenciais inválidas."))
+                .andExpect(jsonPath("$.errors").isEmpty());
 
         verifyNoInteractions(userService, userRepository);
     }
@@ -110,7 +120,28 @@ class UserSecurityTest {
                                 HttpHeaders.AUTHORIZATION,
                                 basicAuthorization(EMAIL, "incorrect-password")
                         ))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.errors").isEmpty());
+
+        verify(userRepository).findByEmail(EMAIL);
+        verifyNoInteractions(userService);
+    }
+
+    @Test
+    void shouldReturnStandardNotFoundForAuthenticatedUnknownEndpoint() throws Exception {
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(USER));
+
+        mockMvc.perform(get("/unknown-endpoint")
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                basicAuthorization(EMAIL, PASSWORD)
+                        ))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Endpoint não encontrado."))
+                .andExpect(jsonPath("$.errors").isEmpty());
 
         verify(userRepository).findByEmail(EMAIL);
         verifyNoInteractions(userService);

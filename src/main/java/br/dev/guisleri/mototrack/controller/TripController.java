@@ -142,8 +142,13 @@ public class TripController {
 
         if (status == null) {
             trips = tripService.findTripsByOwnerId(currentUser.getId());
+        } else if (status == TripStatus.COMPLETED) {
+            trips = tripService.findCompletedTripsByOwnerId(currentUser.getId());
         } else {
-            trips = tripService.findTripsByOwnerIdAndStatus(currentUser.getId(), status);
+            trips = tripService.findTripsByOwnerIdAndStatus(
+                    currentUser.getId(),
+                    status
+            );
         }
 
         List<TripResponseDTO> tripResponses = trips.stream()

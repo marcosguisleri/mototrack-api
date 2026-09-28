@@ -154,4 +154,8 @@ public class TripService {
         return tripRepository.findByOwnerIdAndTripDate(ownerId, tripDate);
     }
 
+    public List<Trip> findCompletedTripsByOwnerId(Long ownerId) {
+        return tripRepository.findCompletedByOwnerIdOrderByTripDateDesc(ownerId);
+    }
+
 }

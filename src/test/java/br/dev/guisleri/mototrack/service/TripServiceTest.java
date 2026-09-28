@@ -297,6 +297,34 @@ class TripServiceTest {
     }
 
     @Test
+    void shouldFindCompletedTripsByOwnerId() {
+        List<Trip> completedTrips = List.of(
+                trip(
+                        1L,
+                        TerrainType.ASPHALT,
+                        LocalDate.of(2026, 9, 20),
+                        honda,
+                        TripStatus.COMPLETED
+                ),
+                trip(
+                        2L,
+                        TerrainType.MIXED,
+                        LocalDate.of(2026, 8, 15),
+                        yamaha,
+                        TripStatus.COMPLETED
+                )
+        );
+        when(tripRepository.findCompletedByOwnerIdOrderByTripDateDesc(OWNER_ID))
+                .thenReturn(completedTrips);
+
+        List<Trip> result = service.findCompletedTripsByOwnerId(OWNER_ID);
+
+        assertSame(completedTrips, result);
+        verify(tripRepository)
+                .findCompletedByOwnerIdOrderByTripDateDesc(OWNER_ID);
+    }
+
+    @Test
     void shouldCalculateDaysUntilPlannedTripForOwner() {
         Trip trip = plannedTrip(1L, 12, honda);
         when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));

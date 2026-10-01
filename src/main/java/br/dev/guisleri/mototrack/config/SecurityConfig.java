@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.config;
 
 import br.dev.guisleri.mototrack.dto.ApiErrorResponseDTO;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -15,9 +16,12 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import tools.jackson.databind.ObjectMapper;
 
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -38,7 +42,11 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/users",
+                                "/auth/login"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
 
@@ -81,6 +89,20 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public JwtEncoder jwtEncoder(
+            @Value("${security.jwt.secret}") String secret
+    ) {
+        SecretKeySpec secretKey = new SecretKeySpec(
+                secret.getBytes(StandardCharsets.UTF_8),
+                "HmacSHA256"
+        );
+
+        return NimbusJwtEncoder
+                .withSecretKey(secretKey)
+                .build();
     }
 
     private void writeErrorResponse(

@@ -10,14 +10,19 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import tools.jackson.databind.ObjectMapper;
 
@@ -34,6 +39,9 @@ public class SecurityConfig {
             HttpSecurity http,
             ObjectMapper objectMapper
     ) throws Exception {
+        BearerTokenAuthenticationEntryPoint bearerAuthenticationEntryPoint =
+                new BearerTokenAuthenticationEntryPoint();
+
         http
                 .csrf(AbstractHttpConfigurer::disable)
 
@@ -59,6 +67,24 @@ public class SecurityConfig {
                                         objectMapper
                                 )
                         )
+                )
+
+                .oauth2ResourceServer(resourceServer -> resourceServer
+                        .jwt(Customizer.withDefaults())
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            bearerAuthenticationEntryPoint.commence(
+                                    request,
+                                    response,
+                                    authException
+                            );
+
+                            writeErrorResponse(
+                                    response,
+                                    HttpStatus.UNAUTHORIZED,
+                                    "Autenticação necessária ou credenciais inválidas.",
+                                    objectMapper
+                            );
+                        })
                 )
 
                 .httpBasic(basic -> basic
@@ -102,6 +128,21 @@ public class SecurityConfig {
 
         return NimbusJwtEncoder
                 .withSecretKey(secretKey)
+                .build();
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder(
+            @Value("${security.jwt.secret}") String secret
+    ) {
+        SecretKeySpec secretKey = new SecretKeySpec(
+                secret.getBytes(StandardCharsets.UTF_8),
+                "HmacSHA256"
+        );
+
+        return NimbusJwtDecoder
+                .withSecretKey(secretKey)
+                .macAlgorithm(MacAlgorithm.HS256)
                 .build();
     }
 

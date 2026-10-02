@@ -16,13 +16,19 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Optional;
 
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -53,6 +59,9 @@ class UserSecurityTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private JwtEncoder jwtEncoder;
+
     @MockitoBean
     private UserService userService;
 
@@ -81,7 +90,7 @@ class UserSecurityTest {
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().string(
                         HttpHeaders.WWW_AUTHENTICATE,
-                        "Basic realm=\"Realm\""
+                        startsWith("Bearer")
                 ))
                 .andExpect(jsonPath("$.status").value(401))
                 .andExpect(jsonPath("$.error").value("Unauthorized"))
@@ -90,6 +99,26 @@ class UserSecurityTest {
                 .andExpect(jsonPath("$.errors").isEmpty());
 
         verifyNoInteractions(userService, userRepository);
+    }
+
+    @Test
+    void shouldUseJwtSubjectAsAuthenticationNameWhenGettingCurrentUser() throws Exception {
+        when(userService.findUserByEmail(EMAIL)).thenReturn(USER);
+
+        mockMvc.perform(get("/users/me")
+                        .header(
+                                HttpHeaders.AUTHORIZATION,
+                                "Bearer " + validJwtWithSubject(EMAIL)
+                        ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.name").value("Marcos"))
+                .andExpect(jsonPath("$.email").value(EMAIL))
+                .andExpect(jsonPath("$.password").doesNotExist())
+                .andExpect(jsonPath("$.passwordHash").doesNotExist());
+
+        verify(userService).findUserByEmail(EMAIL);
+        verifyNoInteractions(userRepository);
     }
 
     @Test
@@ -153,6 +182,19 @@ class UserSecurityTest {
                 credentials.getBytes(StandardCharsets.UTF_8)
         );
         return "Basic " + encoded;
+    }
+
+    private String validJwtWithSubject(String subject) {
+        Instant issuedAt = Instant.now();
+
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuedAt(issuedAt)
+                .expiresAt(issuedAt.plus(15, ChronoUnit.MINUTES))
+                .subject(subject)
+                .build();
+
+        return jwtEncoder.encode(JwtEncoderParameters.from(claims))
+                .getTokenValue();
     }
 
     private String userJson() {

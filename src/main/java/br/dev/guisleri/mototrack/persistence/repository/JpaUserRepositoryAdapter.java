@@ -41,4 +41,12 @@ public class JpaUserRepositoryAdapter implements UserRepository {
                 .map(userMapper::toDomain);
     }
 
+    @Override
+    public Optional<User> findById(Long id) {
+        return springDataUserRepository
+                .findById(id)
+                .map(userMapper::toDomain);
+    }
+
+
 }

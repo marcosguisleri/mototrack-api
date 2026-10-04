@@ -48,6 +48,11 @@ public class RefreshToken {
         );
     }
 
+
+    public boolean isExpired(Instant currentInstant) {
+        return !expiresAt.isAfter(currentInstant);
+    }
+
     public Long getId() {
         return id;
     }

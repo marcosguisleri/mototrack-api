@@ -3,6 +3,7 @@ package br.dev.guisleri.mototrack.security;
 import br.dev.guisleri.mototrack.config.SecurityConfig;
 import br.dev.guisleri.mototrack.controller.UserController;
 import br.dev.guisleri.mototrack.model.User;
+import br.dev.guisleri.mototrack.repository.UserRepository;
 import br.dev.guisleri.mototrack.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ServletWebSecurityAutoConfiguration.class,
         SecurityFilterAutoConfiguration.class
 })
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, CustomUserDetailsService.class})
 class UserSecurityTest {
 
     private static final String EMAIL = "marcos@example.com";
@@ -60,6 +61,9 @@ class UserSecurityTest {
 
     @MockitoBean
     private UserService userService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @Test
     void shouldAllowPublicUserRegistration() throws Exception {
@@ -91,6 +95,26 @@ class UserSecurityTest {
                 .andExpect(jsonPath("$.errors").isEmpty());
 
         verifyNoInteractions(userService);
+        verifyNoInteractions(userRepository);
+    }
+
+    @Test
+    void shouldRejectInvalidBearerTokenWithStandardError() throws Exception {
+        mockMvc.perform(get("/users/me")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer invalid-jwt"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string(
+                        HttpHeaders.WWW_AUTHENTICATE,
+                        startsWith("Bearer")
+                ))
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message")
+                        .value("Autenticação necessária ou credenciais inválidas."))
+                .andExpect(jsonPath("$.errors").isEmpty());
+
+        verifyNoInteractions(userService);
+        verifyNoInteractions(userRepository);
     }
 
     @Test
@@ -110,6 +134,7 @@ class UserSecurityTest {
                 .andExpect(jsonPath("$.passwordHash").doesNotExist());
 
         verify(userService).findUserByEmail(EMAIL);
+        verifyNoInteractions(userRepository);
     }
 
     @Test

@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.dto.AuthTokenResponseDTO;
 import br.dev.guisleri.mototrack.dto.LoginRequestDTO;
+import br.dev.guisleri.mototrack.dto.RefreshTokenRequestDTO;
 import br.dev.guisleri.mototrack.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +29,25 @@ public class AuthController {
                 authService.login(authenticationRequestDTO);
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthTokenResponseDTO> refreshToken(
+            @Valid @RequestBody RefreshTokenRequestDTO refreshTokenRequestDTO
+    ) {
+        AuthTokenResponseDTO response =
+                authService.refresh(refreshTokenRequestDTO);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @Valid @RequestBody RefreshTokenRequestDTO request
+    ) {
+        authService.logout(request);
+
+        return ResponseEntity.noContent().build();
     }
 
 }

@@ -11,15 +11,18 @@ apenas para desenvolvimento local; use HTTPS quando a API estiver acessível pel
 - `TerrainType`: `ASPHALT`, `MIXED`, `OFF_ROAD`.
 - `TripStatus`: `PLANNED`, `IN_PROGRESS`, `COMPLETED`.
 - Identificadores são números inteiros positivos nos requests que os validam.
-- `POST /users` é público. Todos os demais endpoints exigem HTTP Basic com
-  e-mail e senha em cada requisição. O e-mail é normalizado (espaços nas pontas
-  removidos e letras minúsculas); a senha não é retornada pela API.
+- `POST /users`, `POST /auth/login`, `POST /auth/refresh` e `POST /auth/logout`
+  são públicos. Os demais endpoints exigem `Authorization: Bearer <accessToken>`.
+  O e-mail é normalizado (espaços nas pontas removidos e letras minúsculas);
+  a senha não é retornada pela API.
 - O proprietário é sempre obtido da autenticação, nunca de um `ownerId` no
   request. Recursos existentes de outro usuário retornam `403`; IDs inexistentes
   retornam `404`. Listagens e estatísticas incluem apenas dados do usuário.
 
+Nos exemplos, `ACCESS_TOKEN` representa o `accessToken` recebido no login.
+
 ```bash
-curl -u marcos@example.com:secret123 http://localhost:8080/users/me
+curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/users/me
 ```
 
 ## Formatos de resposta
@@ -62,6 +65,56 @@ curl -X POST http://localhost:8080/users \
 
 Sem parâmetros ou corpo. Retorna `200` com `User`; `401` sem credenciais válidas.
 
+## Autenticação
+
+### `POST /auth/login` — entrar
+
+Público. Recebe `email` e `password` não vazios. O e-mail é normalizado antes
+da autenticação. Retorna `200` com `accessToken` JWT HS256 (subject = e-mail,
+validade de 15 minutos) e `refreshToken` opaco (validade de 30 dias). Apenas
+o hash SHA-256 do refresh token é armazenado. Credenciais incorretas retornam
+`401`; campos ausentes ou inválidos retornam `400`.
+
+```bash
+curl -X POST http://localhost:8080/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"marcos@example.com","password":"secret123"}'
+```
+
+```json
+{"accessToken":"<jwt>","refreshToken":"<token-opaco>"}
+```
+
+### `POST /auth/refresh` — renovar tokens
+
+Público. Recebe o refresh token bruto. Retorna `200` com um novo par
+`accessToken` e `refreshToken`. O refresh token anterior é removido durante a
+rotação e não pode ser reutilizado. Token desconhecido ou expirado retorna
+`401`; o expirado também é removido. Campo ausente ou vazio retorna `400`.
+
+```bash
+curl -X POST http://localhost:8080/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"<token-opaco-atual>"}'
+```
+
+```json
+{"accessToken":"<novo-jwt>","refreshToken":"<novo-token-opaco>"}
+```
+
+### `POST /auth/logout` — sair
+
+Público. Recebe `{"refreshToken":"<token-opaco-atual>"}`. Remove o refresh
+token se existir e retorna `204` sem corpo em ambos os casos. Campo ausente
+ou vazio retorna `400`. O access token já emitido continua válido até expirar;
+não há blacklist de access tokens.
+
+```bash
+curl -X POST http://localhost:8080/auth/logout \
+  -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"<token-opaco-atual>"}'
+```
+
 ## Motocicletas
 
 | Método e rota | Parâmetros / request | Sucesso | Outros status relevantes |
@@ -74,7 +127,7 @@ Sem parâmetros ou corpo. Retorna `200` com `User`; `401` sem credenciais válid
 Exemplo de criação:
 
 ```bash
-curl -u marcos@example.com:secret123 -X POST http://localhost:8080/motorcycles \
+curl -H "Authorization: Bearer $ACCESS_TOKEN" -X POST http://localhost:8080/motorcycles \
   -H 'Content-Type: application/json' \
   -d '{"brand":"Honda","model":"NX 500","color":"Black","year":2025,"engineCapacity":471}'
 ```
@@ -105,7 +158,7 @@ distância zero, média e destaques `null`. Erros: `400` para ID malformado, `40
 para moto de outro usuário, `404` para moto inexistente.
 
 ```bash
-curl -u marcos@example.com:secret123 \
+curl -H "Authorization: Bearer $ACCESS_TOKEN" \
   http://localhost:8080/motorcycles/1/statistics
 ```
 
@@ -256,7 +309,18 @@ Não há parâmetros de filtro em `/home` ou `/statistics`.
 
 Todos os erros tratados pela API usam o mesmo corpo. `errors` é um objeto
 vazio exceto em falhas de Bean Validation, quando mapeia nome do campo para
-uma mensagem. O `401` também inclui `WWW-Authenticate: Basic realm="Realm"`.
+uma mensagem. Para Bearer ausente ou inválido em rota protegida, o `401`
+inclui `WWW-Authenticate: Bearer` (com detalhes adicionais quando aplicável).
+Os `401` de login e refresh seguem o mesmo corpo, sem exigir esse cabeçalho.
+
+```json
+{
+  "status": 401,
+  "error": "Unauthorized",
+  "message": "Autenticação necessária ou credenciais inválidas.",
+  "errors": {}
+}
+```
 
 ```json
 {

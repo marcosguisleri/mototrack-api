@@ -52,7 +52,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/users",
-                                "/auth/login"
+                                "/auth/login",
+                                "/auth/refresh",
+                                "/auth/logout"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

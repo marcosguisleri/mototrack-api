@@ -4,13 +4,13 @@
 
 **Planeje, acompanhe e meça suas viagens de moto.**
 
-API REST construída com domínio isolado de framework, persistência plugável e 205 testes automatizados.
+API REST construída com domínio isolado de framework, persistência plugável e 229 testes automatizados.
 
 [![Java](https://img.shields.io/badge/Java-25-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-[![Tests](https://img.shields.io/badge/tests-205%20passing-success?style=for-the-badge&logo=junit5&logoColor=white)](#-testes)
+[![Tests](https://img.shields.io/badge/tests-229%20passing-success?style=for-the-badge&logo=junit5&logoColor=white)](#-testes)
 [![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow?style=for-the-badge)](#-roadmap)
 
 </div>
@@ -37,7 +37,7 @@ O resultado é uma API que evoluiu de um app de console para uma aplicação com
 | ⏰ **`Clock` injetável** | Regras de data usam explicitamente `America/Sao_Paulo`; os testes usam relógio fixo e resultado determinístico. |
 | 🏭 **Factory methods nomeados** | `Trip.schedule(...)`, `Trip.registerCompleted(...)` e `Trip.restore(...)` — cada um com suas próprias invariantes. Construtor privado. |
 | 📊 **Agregações no banco** | Contagens e somatórios usam JPQL com *projections*. Nada de carregar tudo em memória para fazer `stream().count()`. |
-| 🔐 **Isolamento por usuário** | Spring Security + HTTP Basic, senhas com BCrypt e consultas filtradas pelo proprietário autenticado. |
+| 🔐 **Isolamento por usuário** | Spring Security + Bearer JWT, senhas com BCrypt e consultas filtradas pelo proprietário autenticado. |
 | 🧪 **Testes por camada** | Unitário puro no domínio, Mockito nos services, `@WebMvcTest` nos controllers, `@DataJpaTest` + H2 nos adapters. |
 
 ---
@@ -109,16 +109,16 @@ O efeito prático disso aparece nos testes: `TripServiceTest` roda com o contrat
 ```
 br.dev.guisleri.mototrack
 ├── config/                 ClockConfig · SecurityConfig
-├── controller/             User · Motorcycle · Trip · Home · TripStatistics · MotorcycleStatistics
+├── controller/             Auth · User · Motorcycle · Trip · Home · TripStatistics · MotorcycleStatistics
 ├── dto/                    Records de request e response
 ├── exception/              Exceções de negócio + GlobalExceptionHandler
-├── model/                  💛 User · Trip · Motorcycle · TripStatus · TerrainType
-├── repository/             🔌 Ports (interfaces)
-├── security/               CustomUserDetailsService
-├── service/                User · Motorcycle · Trip · Home · TripStatistics · MotorcycleStatistics
+├── model/                  💛 User · RefreshToken · Trip · Motorcycle · TripStatus · TerrainType
+├── repository/             🔌 Ports (inclui RefreshTokenRepository)
+├── security/               CustomUserDetailsService · RefreshTokenGenerator
+├── service/                Auth · User · Motorcycle · Trip · Home · TripStatistics · MotorcycleStatistics
 └── persistence/
-    ├── entity/             UserEntity · MotorcycleEntity · TripEntity
-    ├── mapper/             Entity ⇄ Domain
+    ├── entity/             UserEntity · RefreshTokenEntity · MotorcycleEntity · TripEntity
+    ├── mapper/             Entity ⇄ Domain (inclui RefreshTokenMapper)
     ├── projection/         Projections para agregações JPQL
     └── repository/         Adapters + interfaces Spring Data
 ```
@@ -161,13 +161,23 @@ status e exemplos, está em [docs/API.md](docs/API.md).
 
 ### 🔐 Autenticação
 
-O cadastro (`POST /users`) é público. Todos os demais endpoints exigem HTTP Basic com o e-mail e a senha cadastrados. A API é stateless, então as credenciais devem acompanhar cada requisição:
+O cadastro (`POST /users`), login, refresh e logout são públicos. O login
+retorna um access token JWT válido por 15 minutos e um refresh token válido
+por 30 dias. Os endpoints protegidos exigem o access token em cada requisição:
 
 ```bash
-curl -u marcos@example.com:secret123 http://localhost:8080/users/me
+curl -X POST http://localhost:8080/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"marcos@example.com","password":"secret123"}'
+
+export ACCESS_TOKEN='<accessToken retornado no login>'
+curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/users/me
 ```
 
-As senhas são persistidas somente como hash BCrypt. Em produção, HTTP Basic deve ser usado exclusivamente atrás de HTTPS.
+O refresh token é rotacionado em `POST /auth/refresh` e invalidado em
+`POST /auth/logout`. As senhas são persistidas somente como hash BCrypt.
+Use HTTPS quando a API estiver acessível pela rede. Veja os corpos e respostas
+em [docs/API.md](docs/API.md#autenticação).
 
 ### 👤 Usuário
 
@@ -224,11 +234,16 @@ curl -X POST http://localhost:8080/users \
   }'
 ```
 
-### 2. Colocar uma moto na garagem
+### 2. Entrar
+
+Faça `POST /auth/login` como no exemplo de autenticação acima e use o
+`accessToken` retornado nos próximos comandos (`ACCESS_TOKEN`).
+
+### 3. Colocar uma moto na garagem
 
 ```bash
 curl -X POST http://localhost:8080/motorcycles \
-  -u marcos@example.com:secret123 \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "brand": "Honda",
@@ -255,11 +270,11 @@ curl -X POST http://localhost:8080/motorcycles \
 }
 ```
 
-### 3. Agendar uma viagem
+### 4. Agendar uma viagem
 
 ```bash
 curl -X POST http://localhost:8080/trips \
-  -u marcos@example.com:secret123 \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "origin": "Florianopolis",
@@ -296,19 +311,19 @@ curl -X POST http://localhost:8080/trips \
 }
 ```
 
-### 4. Botar o pé na estrada
+### 5. Botar o pé na estrada
 
 ```bash
 curl -X PATCH http://localhost:8080/trips/1/status \
-  -u marcos@example.com:secret123 \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{ "status": "IN_PROGRESS" }'
 ```
 
-### 5. Ver o resumo
+### 6. Ver o resumo
 
 ```bash
-curl -u marcos@example.com:secret123 http://localhost:8080/statistics
+curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/statistics
 ```
 
 ```json
@@ -437,7 +452,7 @@ totais para a tela inicial. Veja os exemplos completos em [docs/API.md](docs/API
 
 Erros tratados pela API seguem `{ "status", "error", "message", "errors" }`.
 Em validações, `errors` contém mensagens por campo; nos demais casos, é `{}`.
-O `401` conserva o cabeçalho `WWW-Authenticate` do HTTP Basic. Consulte
+O `401` por Bearer ausente ou inválido conserva `WWW-Authenticate: Bearer`. Consulte
 [docs/API.md](docs/API.md#erros-http) para exemplos e detalhes.
 
 | Situação | Exceção | Status |
@@ -462,10 +477,10 @@ O `401` conserva o cabeçalho `WWW-Authenticate` do HTTP Basic. Consulte
 ./mvnw test
 ```
 
-O projeto tinha **197 testes** antes da padronização do contrato de erros e
-do timezone; agora são **205 testes, 0 falhas**. A suíte cobre domínio (JUnit), services (Mockito), controllers
-(`@WebMvcTest`/MockMvc), segurança, adapters JPA (`@DataJpaTest`/H2) e mappers.
-Os novos testes também verificam o formato de erro HTTP e o timezone explícito.
+A suíte atual tem **229 testes, 0 falhas**. Ela cobre domínio (JUnit), services
+(Mockito), controllers (`@WebMvcTest`/MockMvc), segurança, adapters JPA
+(`@DataJpaTest`/H2) e mappers. Os testes também verificam autenticação JWT,
+rotação de refresh token, logout, formato de erro HTTP e timezone explícito.
 
 Dois detalhes que valem o destaque:
 
@@ -490,11 +505,13 @@ git clone https://github.com/marcosguisleri/mototrack-api.git
 cd mototrack-api
 
 docker compose up -d      # PostgreSQL 17 na porta 5432
+export JWT_SECRET=$(openssl rand -base64 48)
 ./mvnw spring-boot:run    # API na porta 8080
 ```
 
-Os valores padrão servem apenas ao desenvolvimento local. Antes de expor a API
-ou o banco na rede, configure credenciais próprias e HTTPS para HTTP Basic.
+Os valores padrão do banco servem apenas ao desenvolvimento local. Defina
+`JWT_SECRET` com um segredo aleatório de pelo menos 32 bytes antes de iniciar
+a API. Use HTTPS para a API e credenciais próprias antes de expor serviços na rede.
 
 ### Credenciais customizadas
 
@@ -507,6 +524,7 @@ ou em um arquivo `.env` local. Os valores dos dois lados precisam coincidir.
 | `DB_URL` | Aplicação | `jdbc:postgresql://localhost:5432/mototrack` |
 | `DB_USER` | Aplicação | `mototrack` |
 | `DB_PASSWORD` | Aplicação | `mototrack123` |
+| `JWT_SECRET` | Aplicação | Obrigatória, sem valor padrão |
 | `POSTGRES_DB` | Docker Compose | `mototrack` |
 | `POSTGRES_USER` | Docker Compose | `mototrack` |
 | `POSTGRES_PASSWORD` | Docker Compose | `mototrack123` |

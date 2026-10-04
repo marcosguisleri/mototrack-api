@@ -91,6 +91,13 @@ public class GlobalExceptionHandler {
         return createErrorResponse(HttpStatus.FORBIDDEN, exception);
     }
 
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<ApiErrorResponseDTO> handleInvalidRefreshToken(
+            InvalidRefreshTokenException exception
+    ) {
+        return createErrorResponse(HttpStatus.UNAUTHORIZED, exception);
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiErrorResponseDTO> handleHttpMessageNotReadable(
             HttpMessageNotReadableException exception

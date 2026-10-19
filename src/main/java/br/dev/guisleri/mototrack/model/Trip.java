@@ -117,6 +117,24 @@ public class Trip {
         );
     }
 
+    public void changeStatus(
+            TripStatus newStatus,
+            LocalDate currentDate
+    ) {
+        if (!status.canTransitionTo(newStatus)) {
+            throw new InvalidTripStatusException("Status inválido!");
+        }
+
+        if (newStatus == TripStatus.COMPLETED
+                && tripDate.isAfter(currentDate)) {
+            throw new InvalidTripDateException(
+                    "Uma viagem futura não pode ser concluída."
+            );
+        }
+
+        status = newStatus;
+    }
+
     public Long getId() {
         return id;
     }
@@ -135,24 +153,6 @@ public class Trip {
 
     public TripStatus getStatus() {
         return status;
-    }
-
-    public void changeStatus(
-            TripStatus newStatus,
-            LocalDate currentDate
-    ) {
-        if (!status.canTransitionTo(newStatus)) {
-            throw new InvalidTripStatusException("Status inválido!");
-        }
-
-        if (newStatus == TripStatus.COMPLETED
-                && tripDate.isAfter(currentDate)) {
-            throw new InvalidTripDateException(
-                    "Uma viagem futura não pode ser concluída."
-            );
-        }
-
-        status = newStatus;
     }
 
     public TerrainType getTerrain() {

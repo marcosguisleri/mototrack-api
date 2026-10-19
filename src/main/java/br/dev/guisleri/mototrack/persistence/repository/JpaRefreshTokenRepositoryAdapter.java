@@ -36,9 +36,9 @@ public class JpaRefreshTokenRepositoryAdapter
         UserEntity userEntity = userRepository
                 .findById(refreshToken.getUserId())
                 .orElseThrow(() -> new UserNotFoundException(
-                "Usuário com id %d não encontrado"
-                        .formatted(refreshToken.getUserId())
-        ));
+                        "Usuário com id %d não encontrado"
+                                .formatted(refreshToken.getUserId())
+                ));
 
         RefreshTokenEntity entity =
                 refreshTokenMapper.toEntity(refreshToken, userEntity);
@@ -50,9 +50,10 @@ public class JpaRefreshTokenRepositoryAdapter
     }
 
     @Override
-    public Optional<RefreshToken> findByTokenHash(String tokenHash) {
+    @Transactional(readOnly = false)
+    public Optional<RefreshToken> findByTokenHashForUpdate(String tokenHash) {
         return refreshTokenRepository
-                .findByTokenHash(tokenHash)
+                .findByTokenHashForUpdate(tokenHash)
                 .map(refreshTokenMapper::toDomain);
     }
 

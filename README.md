@@ -4,13 +4,13 @@
 
 **Planeje, acompanhe e meça suas viagens de moto.**
 
-API REST construída com domínio isolado de framework, persistência plugável e 229 testes automatizados.
+API REST construída com domínio isolado de framework, persistência plugável e 235 testes automatizados.
 
 [![Java](https://img.shields.io/badge/Java-25-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Docker](https://img.shields.io/badge/Docker%20Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://docs.docker.com/compose/)
-[![Tests](https://img.shields.io/badge/tests-229%20passing-success?style=for-the-badge&logo=junit5&logoColor=white)](#-testes)
+[![Tests](https://img.shields.io/badge/tests-235%20passing-success?style=for-the-badge&logo=junit5&logoColor=white)](#-testes)
 [![Status](https://img.shields.io/badge/status-em%20desenvolvimento-yellow?style=for-the-badge)](#-roadmap)
 
 </div>
@@ -100,7 +100,7 @@ flowchart TD
 
 ### Por que as ports ficam na camada de aplicação?
 
-Porque quem dita o contrato é quem precisa dele. O `TripService` não se adapta ao que o Spring Data oferece — ele declara o que precisa (`findUpcomingFromByOwnerId`, `countByOwnerIdAndStatus`, `sumDistanceKmByOwnerIdAndStatus`) e a infraestrutura que se vire. O `JpaTripRepositoryAdapter` traduz esse contrato para Spring Data e converte `TripEntity` em `Trip` pelo caminho.
+Porque quem dita o contrato é quem precisa dele. O `TripService` não se adapta ao que o Spring Data oferece — ele declara o que precisa (`findUpcomingByOwnerIdFromDate`, `countTripsByStatus`, `sumDistanceKmByOwnerIdAndStatus`) e a infraestrutura que se vire. O `JpaTripRepositoryAdapter` traduz esse contrato para Spring Data e converte `TripEntity` em `Trip` pelo caminho.
 
 O efeito prático disso aparece nos testes: `TripServiceTest` roda com o contrato `TripRepository` isolado por Mockito, sem contexto Spring e sem banco.
 
@@ -477,7 +477,7 @@ O `401` por Bearer ausente ou inválido conserva `WWW-Authenticate: Bearer`. Con
 ./mvnw test
 ```
 
-A suíte atual tem **229 testes, 0 falhas**. Ela cobre domínio (JUnit), services
+A suíte atual tem **235 testes, 0 falhas**. Ela cobre domínio (JUnit), services
 (Mockito), controllers (`@WebMvcTest`/MockMvc), segurança, adapters JPA
 (`@DataJpaTest`/H2) e mappers. Os testes também verificam autenticação JWT,
 rotação de refresh token, logout, formato de erro HTTP e timezone explícito.
@@ -525,6 +525,9 @@ ou em um arquivo `.env` local. Os valores dos dois lados precisam coincidir.
 | `DB_USER` | Aplicação | `mototrack` |
 | `DB_PASSWORD` | Aplicação | `mototrack123` |
 | `JWT_SECRET` | Aplicação | Obrigatória, sem valor padrão |
+| `JPA_DDL_AUTO` | Aplicação | `update` |
+| `JPA_SHOW_SQL` | Aplicação | `false` |
+| `JPA_FORMAT_SQL` | Aplicação | `false` |
 | `POSTGRES_DB` | Docker Compose | `mototrack` |
 | `POSTGRES_USER` | Docker Compose | `mototrack` |
 | `POSTGRES_PASSWORD` | Docker Compose | `mototrack123` |

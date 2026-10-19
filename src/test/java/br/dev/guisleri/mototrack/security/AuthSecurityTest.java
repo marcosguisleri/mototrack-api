@@ -183,7 +183,7 @@ class AuthSecurityTest {
         );
         when(refreshTokenGenerator.hash(RAW_REFRESH_TOKEN))
                 .thenReturn(HASHED_REFRESH_TOKEN);
-        when(refreshTokenRepository.findByTokenHash(HASHED_REFRESH_TOKEN))
+        when(refreshTokenRepository.findByTokenHashForUpdate(HASHED_REFRESH_TOKEN))
                 .thenReturn(Optional.of(existingRefreshToken));
         when(userRepository.findById(USER.getId())).thenReturn(Optional.of(USER));
         when(refreshTokenGenerator.generate()).thenReturn(NEW_RAW_REFRESH_TOKEN);
@@ -204,7 +204,7 @@ class AuthSecurityTest {
                 ArgumentCaptor.forClass(RefreshToken.class);
 
         verify(refreshTokenGenerator).hash(RAW_REFRESH_TOKEN);
-        verify(refreshTokenRepository).findByTokenHash(HASHED_REFRESH_TOKEN);
+        verify(refreshTokenRepository).findByTokenHashForUpdate(HASHED_REFRESH_TOKEN);
         verify(userRepository).findById(USER.getId());
         verify(refreshTokenRepository).deleteById(42L);
         verify(refreshTokenGenerator).generate();
@@ -226,7 +226,7 @@ class AuthSecurityTest {
     void shouldRejectUnknownRefreshToken() throws Exception {
         when(refreshTokenGenerator.hash(RAW_REFRESH_TOKEN))
                 .thenReturn(HASHED_REFRESH_TOKEN);
-        when(refreshTokenRepository.findByTokenHash(HASHED_REFRESH_TOKEN))
+        when(refreshTokenRepository.findByTokenHashForUpdate(HASHED_REFRESH_TOKEN))
                 .thenReturn(Optional.empty());
 
         mockMvc.perform(post("/auth/refresh")
@@ -238,7 +238,7 @@ class AuthSecurityTest {
                 .andExpect(jsonPath("$.message").value("Refresh token inválido."))
                 .andExpect(jsonPath("$.errors").isEmpty());
 
-        verify(refreshTokenRepository).findByTokenHash(HASHED_REFRESH_TOKEN);
+        verify(refreshTokenRepository).findByTokenHashForUpdate(HASHED_REFRESH_TOKEN);
         verify(refreshTokenGenerator, never()).generate();
         verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
         verify(refreshTokenRepository, never()).deleteById(any());
@@ -254,7 +254,7 @@ class AuthSecurityTest {
         );
         when(refreshTokenGenerator.hash(RAW_REFRESH_TOKEN))
                 .thenReturn(HASHED_REFRESH_TOKEN);
-        when(refreshTokenRepository.findByTokenHash(HASHED_REFRESH_TOKEN))
+        when(refreshTokenRepository.findByTokenHashForUpdate(HASHED_REFRESH_TOKEN))
                 .thenReturn(Optional.of(expiredRefreshToken));
 
         mockMvc.perform(post("/auth/refresh")
@@ -282,7 +282,7 @@ class AuthSecurityTest {
         );
         when(refreshTokenGenerator.hash(RAW_REFRESH_TOKEN))
                 .thenReturn(HASHED_REFRESH_TOKEN);
-        when(refreshTokenRepository.findByTokenHash(HASHED_REFRESH_TOKEN))
+        when(refreshTokenRepository.findByTokenHashForUpdate(HASHED_REFRESH_TOKEN))
                 .thenReturn(Optional.of(existingRefreshToken));
         when(userRepository.findById(USER.getId())).thenReturn(Optional.empty());
 
@@ -298,7 +298,7 @@ class AuthSecurityTest {
         verify(userRepository).findById(USER.getId());
         verify(refreshTokenGenerator, never()).generate();
         verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
-        verify(refreshTokenRepository, never()).deleteById(any());
+        verify(refreshTokenRepository).deleteById(42L);
     }
 
     @Test
@@ -315,7 +315,7 @@ class AuthSecurityTest {
                         .value("O refresh token é obrigatório."));
 
         verify(refreshTokenGenerator, never()).hash(any());
-        verify(refreshTokenRepository, never()).findByTokenHash(any());
+        verify(refreshTokenRepository, never()).findByTokenHashForUpdate(any());
     }
 
     @Test
@@ -328,7 +328,7 @@ class AuthSecurityTest {
         );
         when(refreshTokenGenerator.hash(RAW_REFRESH_TOKEN))
                 .thenReturn(HASHED_REFRESH_TOKEN);
-        when(refreshTokenRepository.findByTokenHash(HASHED_REFRESH_TOKEN))
+        when(refreshTokenRepository.findByTokenHashForUpdate(HASHED_REFRESH_TOKEN))
                 .thenReturn(Optional.of(existingRefreshToken));
         when(userRepository.findById(USER.getId())).thenReturn(Optional.of(USER));
         when(refreshTokenGenerator.generate()).thenReturn(NEW_RAW_REFRESH_TOKEN);
@@ -353,7 +353,7 @@ class AuthSecurityTest {
         );
         when(refreshTokenGenerator.hash(RAW_REFRESH_TOKEN))
                 .thenReturn(HASHED_REFRESH_TOKEN);
-        when(refreshTokenRepository.findByTokenHash(HASHED_REFRESH_TOKEN))
+        when(refreshTokenRepository.findByTokenHashForUpdate(HASHED_REFRESH_TOKEN))
                 .thenReturn(Optional.of(existingRefreshToken));
 
         mockMvc.perform(post("/auth/logout")
@@ -362,7 +362,7 @@ class AuthSecurityTest {
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        verify(refreshTokenRepository).findByTokenHash(HASHED_REFRESH_TOKEN);
+        verify(refreshTokenRepository).findByTokenHashForUpdate(HASHED_REFRESH_TOKEN);
         verify(refreshTokenRepository).deleteById(42L);
     }
 
@@ -370,7 +370,7 @@ class AuthSecurityTest {
     void shouldReturnNoContentWhenLoggingOutUnknownRefreshToken() throws Exception {
         when(refreshTokenGenerator.hash(RAW_REFRESH_TOKEN))
                 .thenReturn(HASHED_REFRESH_TOKEN);
-        when(refreshTokenRepository.findByTokenHash(HASHED_REFRESH_TOKEN))
+        when(refreshTokenRepository.findByTokenHashForUpdate(HASHED_REFRESH_TOKEN))
                 .thenReturn(Optional.empty());
 
         mockMvc.perform(post("/auth/logout")
@@ -379,7 +379,7 @@ class AuthSecurityTest {
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
 
-        verify(refreshTokenRepository).findByTokenHash(HASHED_REFRESH_TOKEN);
+        verify(refreshTokenRepository).findByTokenHashForUpdate(HASHED_REFRESH_TOKEN);
         verify(refreshTokenRepository, never()).deleteById(any());
     }
 
@@ -397,7 +397,7 @@ class AuthSecurityTest {
                         .value("O refresh token é obrigatório."));
 
         verify(refreshTokenGenerator, never()).hash(any());
-        verify(refreshTokenRepository, never()).findByTokenHash(any());
+        verify(refreshTokenRepository, never()).findByTokenHashForUpdate(any());
     }
 
     private String loginJson(String email, String password) {

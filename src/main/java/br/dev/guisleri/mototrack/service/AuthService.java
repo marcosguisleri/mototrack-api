@@ -20,11 +20,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 
 @Service
 public class AuthService {
+
+    private static final Duration ACCESS_TOKEN_VALIDITY = Duration.ofMinutes(15);
+    private static final Duration REFRESH_TOKEN_VALIDITY = Duration.ofDays(30);
 
     private final AuthenticationManager authenticationManager;
     private final JwtEncoder jwtEncoder;
@@ -34,7 +37,14 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final RefreshTokenGenerator refreshTokenGenerator;
 
-    public AuthService(AuthenticationManager authenticationManager, JwtEncoder jwtEncoder, Clock clock, UserRepository userRepository, RefreshTokenRepository refreshTokenRepository, RefreshTokenGenerator refreshTokenGenerator) {
+    public AuthService(
+            AuthenticationManager authenticationManager,
+            JwtEncoder jwtEncoder,
+            Clock clock,
+            UserRepository userRepository,
+            RefreshTokenRepository refreshTokenRepository,
+            RefreshTokenGenerator refreshTokenGenerator
+    ) {
         this.authenticationManager = authenticationManager;
         this.jwtEncoder = jwtEncoder;
         this.clock = clock;
@@ -44,12 +54,14 @@ public class AuthService {
     }
 
     public AuthTokenResponseDTO login(LoginRequestDTO loginRequestDTO) {
-        UsernamePasswordAuthenticationToken authenticationRequest = UsernamePasswordAuthenticationToken.unauthenticated(
-                loginRequestDTO.email(),
-                loginRequestDTO.password()
-        );
+        UsernamePasswordAuthenticationToken authenticationRequest =
+                UsernamePasswordAuthenticationToken.unauthenticated(
+                        loginRequestDTO.email(),
+                        loginRequestDTO.password()
+                );
 
-        Authentication authentication = authenticationManager.authenticate(authenticationRequest);
+        Authentication authentication =
+                authenticationManager.authenticate(authenticationRequest);
 
         User user = userRepository
                 .findByEmail(authentication.getName())
@@ -59,21 +71,10 @@ public class AuthService {
 
         String accessToken = generateAccessToken(user.getEmail());
 
-        String rawRefreshToken = refreshTokenGenerator.generate();
-
-        String tokenHash =
-                refreshTokenGenerator.hash(rawRefreshToken);
-
-        Instant refreshTokenExpiresAt =
-                Instant.now(clock).plus(30, ChronoUnit.DAYS);
-
-        RefreshToken refreshToken = RefreshToken.create(
+        String rawRefreshToken = issueRefreshToken(
                 user.getId(),
-                tokenHash,
-                refreshTokenExpiresAt
+                Instant.now(clock)
         );
-
-        refreshTokenRepository.save(refreshToken);
 
         return new AuthTokenResponseDTO(
                 accessToken,
@@ -88,7 +89,7 @@ public class AuthService {
                 refreshTokenGenerator.hash(request.refreshToken());
 
         RefreshToken refreshToken = refreshTokenRepository
-                .findByTokenHash(tokenHash)
+                .findByTokenHashForUpdate(tokenHash)
                 .orElseThrow(() -> new InvalidRefreshTokenException(
                         "Refresh token inválido."
                 ));
@@ -105,28 +106,19 @@ public class AuthService {
 
         User user = userRepository
                 .findById(refreshToken.getUserId())
-                .orElseThrow(() -> new InvalidRefreshTokenException(
-                        "Refresh token inválido."
-                ));
+                .orElseGet(() -> {
+                    refreshTokenRepository.deleteById(refreshToken.getId());
+                    throw new InvalidRefreshTokenException(
+                            "Refresh token inválido."
+                    );
+                });
 
         refreshTokenRepository.deleteById(refreshToken.getId());
 
-        String newRawRefreshToken =
-                refreshTokenGenerator.generate();
-
-        String newTokenHash =
-                refreshTokenGenerator.hash(newRawRefreshToken);
-
-        Instant newRefreshTokenExpiresAt =
-                currentInstant.plus(30, ChronoUnit.DAYS);
-
-        RefreshToken newRefreshToken = RefreshToken.create(
+        String newRawRefreshToken = issueRefreshToken(
                 user.getId(),
-                newTokenHash,
-                newRefreshTokenExpiresAt
+                currentInstant
         );
-
-        refreshTokenRepository.save(newRefreshToken);
 
         String accessToken =
                 generateAccessToken(user.getEmail());
@@ -143,7 +135,7 @@ public class AuthService {
                 refreshTokenGenerator.hash(request.refreshToken());
 
         refreshTokenRepository
-                .findByTokenHash(tokenHash)
+                .findByTokenHashForUpdate(tokenHash)
                 .ifPresent(refreshToken ->
                         refreshTokenRepository.deleteById(refreshToken.getId())
                 );
@@ -151,7 +143,7 @@ public class AuthService {
 
     private String generateAccessToken(String subject) {
         Instant issuedAt = Instant.now(clock);
-        Instant expiresAt = issuedAt.plus(15, ChronoUnit.MINUTES);
+        Instant expiresAt = issuedAt.plus(ACCESS_TOKEN_VALIDITY);
 
         return jwtEncoder.encode(
                 JwtEncoderParameters.from(
@@ -162,6 +154,20 @@ public class AuthService {
                                 .build()
                 )
         ).getTokenValue();
+    }
+
+    private String issueRefreshToken(Long userId, Instant issuedAt) {
+        String rawRefreshToken = refreshTokenGenerator.generate();
+        String tokenHash = refreshTokenGenerator.hash(rawRefreshToken);
+        RefreshToken refreshToken = RefreshToken.create(
+                userId,
+                tokenHash,
+                issuedAt.plus(REFRESH_TOKEN_VALIDITY)
+        );
+
+        refreshTokenRepository.save(refreshToken);
+
+        return rawRefreshToken;
     }
 
 }

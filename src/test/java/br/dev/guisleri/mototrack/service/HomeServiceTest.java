@@ -13,13 +13,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -70,10 +69,14 @@ class HomeServiceTest {
                 LocalDate.of(2026, 9, 10),
                 TripStatus.COMPLETED
         );
-        Motorcycle yamaha = motorcycle(2L, "Yamaha", "Tenere 700");
-        when(tripService.findUpcomingTripsByOwnerId(OWNER_ID))
-                .thenReturn(List.of(nextTrip));
-        when(tripService.calculateDaysUntilTripForOwner(nextTrip.getId(), OWNER_ID))
+        Trip inProgressTrip = trip(
+                3L,
+                LocalDate.of(2026, 9, 14),
+                TripStatus.IN_PROGRESS
+        );
+        when(tripService.findNextUpcomingTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.of(nextTrip));
+        when(tripService.calculateDaysUntilTrip(nextTrip))
                 .thenReturn(8L);
         when(tripStatisticsService.findLastCompletedTrip(OWNER_ID))
                 .thenReturn(Optional.of(lastCompletedTrip));
@@ -81,60 +84,70 @@ class HomeServiceTest {
                 .thenReturn(1_250.5);
         when(tripStatisticsService.countCompletedTrips(OWNER_ID))
                 .thenReturn(4L);
-        when(motorcycleService.findMotorcyclesByOwnerId(OWNER_ID))
-                .thenReturn(List.of(honda, yamaha));
+        when(tripService.findInProgressTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.of(inProgressTrip));
+        when(tripStatisticsService.calculateCompletedDistanceKmForCurrentYear(OWNER_ID))
+                .thenReturn(980.0);
+        when(motorcycleService.countMotorcyclesByOwnerId(OWNER_ID))
+                .thenReturn(2L);
 
         HomeResponseDTO home = homeService.getHome(OWNER_ID);
 
         assertNotNull(home.nextTrip());
         assertEquals(nextTrip.getId(), home.nextTrip().id());
         assertEquals(8L, home.nextTrip().daysUntil());
+        assertNotNull(home.inProgressTrip());
+        assertEquals(inProgressTrip.getId(), home.inProgressTrip().id());
         assertNotNull(home.lastCompletedTrip());
         assertEquals(lastCompletedTrip.getId(), home.lastCompletedTrip().id());
         assertEquals(1_250.5, home.totalCompletedDistanceKm(), 0.001);
+        assertEquals(980.0, home.distanceThisYearKm(), 0.001);
         assertEquals(4L, home.completedTrips());
         assertEquals(2L, home.motorcycleCount());
-        verify(tripService).findUpcomingTripsByOwnerId(OWNER_ID);
-        verify(tripService).calculateDaysUntilTripForOwner(nextTrip.getId(), OWNER_ID);
+        verify(tripService).findNextUpcomingTripByOwnerId(OWNER_ID);
+        verify(tripService).calculateDaysUntilTrip(nextTrip);
         verify(tripStatisticsService).findLastCompletedTrip(OWNER_ID);
         verify(tripStatisticsService).calculateTotalCompletedDistanceKm(OWNER_ID);
         verify(tripStatisticsService).countCompletedTrips(OWNER_ID);
-        verify(motorcycleService).findMotorcyclesByOwnerId(OWNER_ID);
+        verify(tripService).findInProgressTripByOwnerId(OWNER_ID);
+        verify(tripStatisticsService)
+                .calculateCompletedDistanceKmForCurrentYear(OWNER_ID);
+        verify(motorcycleService).countMotorcyclesByOwnerId(OWNER_ID);
     }
 
     @Test
     void shouldReturnNullNextTripWhenThereAreNoUpcomingTrips() {
-        when(tripService.findUpcomingTripsByOwnerId(OWNER_ID))
-                .thenReturn(List.of());
+        when(tripService.findNextUpcomingTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.empty());
         when(tripStatisticsService.findLastCompletedTrip(OWNER_ID))
                 .thenReturn(Optional.empty());
         when(tripStatisticsService.calculateTotalCompletedDistanceKm(OWNER_ID))
                 .thenReturn(0.0);
         when(tripStatisticsService.countCompletedTrips(OWNER_ID))
                 .thenReturn(0L);
-        when(motorcycleService.findMotorcyclesByOwnerId(OWNER_ID))
-                .thenReturn(List.of());
+        when(motorcycleService.countMotorcyclesByOwnerId(OWNER_ID))
+                .thenReturn(0L);
 
         HomeResponseDTO home = homeService.getHome(OWNER_ID);
 
         assertNull(home.nextTrip());
-        verify(tripService).findUpcomingTripsByOwnerId(OWNER_ID);
+        verify(tripService).findNextUpcomingTripByOwnerId(OWNER_ID);
         verify(tripService, never())
-                .calculateDaysUntilTripForOwner(anyLong(), anyLong());
+                .calculateDaysUntilTrip(any(Trip.class));
     }
 
     @Test
     void shouldReturnNullLastCompletedTripWhenThereAreNoCompletedTrips() {
-        when(tripService.findUpcomingTripsByOwnerId(OWNER_ID))
-                .thenReturn(List.of());
+        when(tripService.findNextUpcomingTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.empty());
         when(tripStatisticsService.findLastCompletedTrip(OWNER_ID))
                 .thenReturn(Optional.empty());
         when(tripStatisticsService.calculateTotalCompletedDistanceKm(OWNER_ID))
                 .thenReturn(0.0);
         when(tripStatisticsService.countCompletedTrips(OWNER_ID))
                 .thenReturn(0L);
-        when(motorcycleService.findMotorcyclesByOwnerId(OWNER_ID))
-                .thenReturn(List.of());
+        when(motorcycleService.countMotorcyclesByOwnerId(OWNER_ID))
+                .thenReturn(0L);
 
         HomeResponseDTO home = homeService.getHome(OWNER_ID);
 
@@ -144,20 +157,15 @@ class HomeServiceTest {
     }
 
     @Test
-    void shouldUseFirstUpcomingTripAsNextTrip() {
+    void shouldUseNextUpcomingTrip() {
         Trip nearestTrip = trip(
                 1L,
                 LocalDate.of(2026, 10, 5),
                 TripStatus.PLANNED
         );
-        Trip farthestTrip = trip(
-                2L,
-                LocalDate.of(2026, 10, 20),
-                TripStatus.PLANNED
-        );
-        when(tripService.findUpcomingTripsByOwnerId(OWNER_ID))
-                .thenReturn(List.of(nearestTrip, farthestTrip));
-        when(tripService.calculateDaysUntilTripForOwner(nearestTrip.getId(), OWNER_ID))
+        when(tripService.findNextUpcomingTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.of(nearestTrip));
+        when(tripService.calculateDaysUntilTrip(nearestTrip))
                 .thenReturn(8L);
         when(tripStatisticsService.findLastCompletedTrip(OWNER_ID))
                 .thenReturn(Optional.empty());
@@ -165,38 +173,33 @@ class HomeServiceTest {
                 .thenReturn(0.0);
         when(tripStatisticsService.countCompletedTrips(OWNER_ID))
                 .thenReturn(0L);
-        when(motorcycleService.findMotorcyclesByOwnerId(OWNER_ID))
-                .thenReturn(List.of(honda));
+        when(motorcycleService.countMotorcyclesByOwnerId(OWNER_ID))
+                .thenReturn(1L);
 
         HomeResponseDTO home = homeService.getHome(OWNER_ID);
 
         assertNotNull(home.nextTrip());
         assertEquals(nearestTrip.getId(), home.nextTrip().id());
-        verify(tripService)
-                .calculateDaysUntilTripForOwner(nearestTrip.getId(), OWNER_ID);
-        verify(tripService, never())
-                .calculateDaysUntilTripForOwner(farthestTrip.getId(), OWNER_ID);
+        verify(tripService).calculateDaysUntilTrip(nearestTrip);
     }
 
     @Test
     void shouldCountMotorcycles() {
-        Motorcycle yamaha = motorcycle(2L, "Yamaha", "Tenere 700");
-        Motorcycle bmw = motorcycle(3L, "BMW", "F 900 GS");
-        when(tripService.findUpcomingTripsByOwnerId(OWNER_ID))
-                .thenReturn(List.of());
+        when(tripService.findNextUpcomingTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.empty());
         when(tripStatisticsService.findLastCompletedTrip(OWNER_ID))
                 .thenReturn(Optional.empty());
         when(tripStatisticsService.calculateTotalCompletedDistanceKm(OWNER_ID))
                 .thenReturn(0.0);
         when(tripStatisticsService.countCompletedTrips(OWNER_ID))
                 .thenReturn(0L);
-        when(motorcycleService.findMotorcyclesByOwnerId(OWNER_ID))
-                .thenReturn(List.of(honda, yamaha, bmw));
+        when(motorcycleService.countMotorcyclesByOwnerId(OWNER_ID))
+                .thenReturn(3L);
 
         HomeResponseDTO home = homeService.getHome(OWNER_ID);
 
         assertEquals(3L, home.motorcycleCount());
-        verify(motorcycleService).findMotorcyclesByOwnerId(OWNER_ID);
+        verify(motorcycleService).countMotorcyclesByOwnerId(OWNER_ID);
     }
 
     private Trip trip(

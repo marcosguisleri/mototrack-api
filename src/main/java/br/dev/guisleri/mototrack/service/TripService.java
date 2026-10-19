@@ -7,9 +7,9 @@ import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
-import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.repository.TripRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -70,12 +70,13 @@ public class TripService {
         return tripRepository.save(trip);
     }
 
+    @Transactional
     public void changeTripStatusForOwner(
             long tripId,
             Long ownerId,
             TripStatus newStatus
     ) {
-        Trip trip = findTripByIdForOwner(tripId, ownerId);
+        Trip trip = findTripByIdForUpdateForOwner(tripId, ownerId);
 
         trip.changeStatus(newStatus,
                 LocalDate.now(clock));
@@ -85,6 +86,10 @@ public class TripService {
     public long calculateDaysUntilTripForOwner(long tripId, Long ownerId) {
         Trip trip = findTripByIdForOwner(tripId, ownerId);
 
+        return calculateDaysUntilTrip(trip);
+    }
+
+    long calculateDaysUntilTrip(Trip trip) {
         if (trip.getStatus() != TripStatus.PLANNED) {
             throw new InvalidTripStatusException(
                     "Só é possível calcular os dias restantes de uma viagem planejada."
@@ -97,8 +102,9 @@ public class TripService {
         );
     }
 
+    @Transactional
     public void deleteTripByIdForOwner(Long tripId, Long ownerId) {
-        findTripByIdForOwner(tripId, ownerId);
+        findTripByIdForUpdateForOwner(tripId, ownerId);
         tripRepository.deleteById(tripId);
     }
 
@@ -106,24 +112,11 @@ public class TripService {
             Long tripId,
             Long ownerId
     ) {
-
-        Trip trip = tripRepository.findById(tripId)
-                .orElseThrow(() -> new TripNotFoundException(
-                        "Viagem com id %d não encontrada".formatted(tripId)
-                ));
-
-        Motorcycle motorcycle = trip.getMotorcycle();
-
-        User user = motorcycle.getOwner();
-
-        if (!user.getId().equals(ownerId)) {
-            throw new TripAccessDeniedException(
-                    "Você não possui permissão para acessar esta viagem."
-            );
-        }
-
-        return trip;
-
+        return requireOwnedTrip(
+                tripRepository.findById(tripId),
+                tripId,
+                ownerId
+        );
     }
 
     public List<Trip> findTripsByOwnerId(Long ownerId) {
@@ -144,7 +137,14 @@ public class TripService {
     }
 
     public List<Trip> findUpcomingTripsByOwnerId(Long ownerId) {
-        return tripRepository.findUpcomingFromByOwnerId(
+        return tripRepository.findUpcomingByOwnerIdFromDate(
+                ownerId,
+                LocalDate.now(clock)
+        );
+    }
+
+    public Optional<Trip> findNextUpcomingTripByOwnerId(Long ownerId) {
+        return tripRepository.findFirstUpcomingByOwnerIdFromDate(
                 ownerId,
                 LocalDate.now(clock)
         );
@@ -166,6 +166,36 @@ public class TripService {
 
     public List<Trip> findCompletedTripsByOwnerId(Long ownerId) {
         return tripRepository.findCompletedByOwnerIdOrderByTripDateDesc(ownerId);
+    }
+
+    private Trip findTripByIdForUpdateForOwner(
+            Long tripId,
+            Long ownerId
+    ) {
+        return requireOwnedTrip(
+                tripRepository.findByIdForUpdate(tripId),
+                tripId,
+                ownerId
+        );
+    }
+
+    private Trip requireOwnedTrip(
+            Optional<Trip> tripResult,
+            Long tripId,
+            Long ownerId
+    ) {
+        Trip trip = tripResult
+                .orElseThrow(() -> new TripNotFoundException(
+                        "Viagem com id %d não encontrada".formatted(tripId)
+                ));
+
+        if (!trip.getMotorcycle().getOwner().getId().equals(ownerId)) {
+            throw new TripAccessDeniedException(
+                    "Você não possui permissão para acessar esta viagem."
+            );
+        }
+
+        return trip;
     }
 
 }

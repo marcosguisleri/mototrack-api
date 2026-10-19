@@ -410,6 +410,20 @@ class TripControllerTest {
     }
 
     @Test
+    void shouldRejectOriginLongerThanPersistenceLimit() throws Exception {
+        mockMvc.perform(post("/trips")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createTripJson("2026-09-20")
+                                .replace("Florianopolis", "a".repeat(256))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.origin")
+                        .value("A origem deve ter no máximo 255 caracteres."));
+
+        verifyNoInteractions(tripService);
+    }
+
+    @Test
     void shouldRejectNonPositiveMotorcycleIdBeforeCallingService() throws Exception {
         mockMvc.perform(post("/trips")
                         .principal(AUTHENTICATION)

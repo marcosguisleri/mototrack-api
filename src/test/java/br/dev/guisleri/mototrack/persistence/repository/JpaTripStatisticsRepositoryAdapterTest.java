@@ -27,7 +27,6 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest(showSql = false, properties = {
@@ -129,39 +128,12 @@ class JpaTripStatisticsRepositoryAdapterTest {
         Long ownerId = savedTrip.getMotorcycle().getOwner().getId();
 
         Map<TripStatus, Long> result =
-                tripStatisticsRepositoryAdapter.countByOwnerIdAndStatus(ownerId);
+                tripStatisticsRepositoryAdapter.countTripsByStatus(ownerId);
 
         assertAll(
                 () -> assertEquals(1L, result.get(TripStatus.PLANNED)),
                 () -> assertEquals(0L, result.get(TripStatus.IN_PROGRESS)),
                 () -> assertEquals(0L, result.get(TripStatus.COMPLETED))
-        );
-    }
-
-    @Test
-    void shouldCountTripsByMotorcycle() {
-        Motorcycle savedHonda = save(plannedTrip(
-                100,
-                TerrainType.ASPHALT,
-                TODAY.plusDays(1),
-                HONDA
-        )).getMotorcycle();
-        save(completedTrip(200, TerrainType.MIXED, TODAY.minusDays(1), savedHonda));
-        Motorcycle savedYamaha = save(plannedTrip(
-                300,
-                TerrainType.OFF_ROAD,
-                TODAY.plusDays(2),
-                YAMAHA
-        )).getMotorcycle();
-
-        Long ownerId = savedHonda.getOwner().getId();
-        Map<Motorcycle, Long> result =
-                tripStatisticsRepositoryAdapter.countByOwnerIdAndMotorcycle(ownerId);
-
-        assertAll(
-                () -> assertEquals(2L, result.get(savedHonda)),
-                () -> assertEquals(1, result.size()),
-                () -> assertFalse(result.containsKey(savedYamaha))
         );
     }
 

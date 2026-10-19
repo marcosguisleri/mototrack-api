@@ -28,65 +28,43 @@ public class GlobalExceptionHandler {
     private static final String VALIDATION_FAILED_MESSAGE =
             "A requisição contém campos inválidos.";
 
-    @ExceptionHandler(TripNotFoundException.class)
-    public ResponseEntity<ApiErrorResponseDTO> handleTripNotFound(
-            TripNotFoundException exception
+    @ExceptionHandler({
+            TripNotFoundException.class,
+            MotorcycleNotFoundException.class,
+            UserNotFoundException.class
+    })
+    public ResponseEntity<ApiErrorResponseDTO> handleNotFound(
+            RuntimeException exception
     ) {
         return createErrorResponse(HttpStatus.NOT_FOUND, exception);
     }
 
-    @ExceptionHandler(InvalidTripDateException.class)
-    public ResponseEntity<ApiErrorResponseDTO> handleInvalidTripDate(
-            InvalidTripDateException exception
+    @ExceptionHandler({
+            InvalidTripDateException.class,
+            InvalidTripStatusException.class
+    })
+    public ResponseEntity<ApiErrorResponseDTO> handleInvalidTrip(
+            RuntimeException exception
     ) {
         return createErrorResponse(HttpStatus.BAD_REQUEST, exception);
     }
 
-    @ExceptionHandler(InvalidTripStatusException.class)
-    public ResponseEntity<ApiErrorResponseDTO> handleInvalidTripStatus(
-            InvalidTripStatusException exception
-    ) {
-        return createErrorResponse(HttpStatus.BAD_REQUEST, exception);
-    }
-
-    @ExceptionHandler(MotorcycleNotFoundException.class)
-    public ResponseEntity<ApiErrorResponseDTO> handleMotorcycleNotFound(
-            MotorcycleNotFoundException exception
-    ) {
-        return createErrorResponse(HttpStatus.NOT_FOUND, exception);
-    }
-
-    @ExceptionHandler(MotorcycleInUseException.class)
-    public ResponseEntity<ApiErrorResponseDTO> handleMotorcycleInUse(
-            MotorcycleInUseException exception
+    @ExceptionHandler({
+            MotorcycleInUseException.class,
+            UserAlreadyExistsException.class
+    })
+    public ResponseEntity<ApiErrorResponseDTO> handleConflict(
+            RuntimeException exception
     ) {
         return createErrorResponse(HttpStatus.CONFLICT, exception);
     }
 
-    @ExceptionHandler(UserNotFoundException.class)
-    public ResponseEntity<ApiErrorResponseDTO> handleUserNotFound(
-            UserNotFoundException exception
-    ) {
-        return createErrorResponse(HttpStatus.NOT_FOUND, exception);
-    }
-
-    @ExceptionHandler(UserAlreadyExistsException.class)
-    public ResponseEntity<ApiErrorResponseDTO> handleUserAlreadyExists(
-            UserAlreadyExistsException exception
-    ) {
-        return createErrorResponse(HttpStatus.CONFLICT, exception);
-    }
-
-    @ExceptionHandler(MotorcycleAccessDeniedException.class)
-    public ResponseEntity<ApiErrorResponseDTO> handleMotorcycleAccessDenied(
-            MotorcycleAccessDeniedException exception
-    ) {
-        return createErrorResponse(HttpStatus.FORBIDDEN, exception);
-    }
-
-    @ExceptionHandler(TripAccessDeniedException.class)
-    public ResponseEntity<ApiErrorResponseDTO> handleTripAccessDenied(
-            TripAccessDeniedException exception
+    @ExceptionHandler({
+            MotorcycleAccessDeniedException.class,
+            TripAccessDeniedException.class
+    })
+    public ResponseEntity<ApiErrorResponseDTO> handleAccessDenied(
+            RuntimeException exception
     ) {
         return createErrorResponse(HttpStatus.FORBIDDEN, exception);
     }

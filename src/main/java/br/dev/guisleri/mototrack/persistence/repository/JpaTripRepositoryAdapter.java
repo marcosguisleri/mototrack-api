@@ -1,5 +1,6 @@
 package br.dev.guisleri.mototrack.persistence.repository;
 
+import br.dev.guisleri.mototrack.exception.MotorcycleNotFoundException;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -41,10 +42,13 @@ public class JpaTripRepositoryAdapter implements TripRepository {
     public Trip save(Trip trip) {
 
         MotorcycleEntity motorcycleEntity =
-                springDataMotorcycleRepository.findById(
+                        springDataMotorcycleRepository.findById(
                                 trip.getMotorcycle().getId()
                         )
-                        .orElseThrow();
+                        .orElseThrow(() -> new MotorcycleNotFoundException(
+                                "Motocicleta com id %d não encontrada"
+                                        .formatted(trip.getMotorcycle().getId())
+                        ));
 
         TripEntity tripEntity =
                 tripMapper.toEntity(
@@ -62,6 +66,13 @@ public class JpaTripRepositoryAdapter implements TripRepository {
     @Override
     public Optional<Trip> findById(long tripId) {
         return springDataTripRepository.findById(tripId)
+                .map(tripMapper::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = false)
+    public Optional<Trip> findByIdForUpdate(long tripId) {
+        return springDataTripRepository.findByIdForUpdate(tripId)
                 .map(tripMapper::toDomain);
     }
 
@@ -95,14 +106,33 @@ public class JpaTripRepositoryAdapter implements TripRepository {
     }
 
     @Override
-    public List<Trip> findUpcomingFromByOwnerId(Long ownerId, LocalDate startDate) {
-        return springDataTripRepository.findByMotorcycle_Owner_IdAndTripDateGreaterThanEqualAndStatusOrderByTripDateAsc(
+    public List<Trip> findUpcomingByOwnerIdFromDate(
+            Long ownerId,
+            LocalDate startDate
+    ) {
+        return springDataTripRepository
+                .findByMotorcycle_Owner_IdAndTripDateGreaterThanEqualAndStatusOrderByTripDateAsc(
                         ownerId,
                         startDate,
                         TripStatus.PLANNED
-                ).stream()
+                )
+                .stream()
                 .map(tripMapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public Optional<Trip> findFirstUpcomingByOwnerIdFromDate(
+            Long ownerId,
+            LocalDate startDate
+    ) {
+        return springDataTripRepository
+                .findFirstByMotorcycle_Owner_IdAndTripDateGreaterThanEqualAndStatusOrderByTripDateAsc(
+                        ownerId,
+                        startDate,
+                        TripStatus.PLANNED
+                )
+                .map(tripMapper::toDomain);
     }
 
     @Override

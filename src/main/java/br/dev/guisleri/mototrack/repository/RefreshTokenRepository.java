@@ -8,7 +8,7 @@ public interface RefreshTokenRepository {
 
     RefreshToken save(RefreshToken refreshToken);
 
-    Optional<RefreshToken> findByTokenHash(String tokenHash);
+    Optional<RefreshToken> findByTokenHashForUpdate(String tokenHash);
 
     void deleteById(Long id);
 

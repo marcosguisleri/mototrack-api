@@ -33,8 +33,10 @@ import java.util.Map;
 @Configuration
 public class SecurityConfig {
 
+    private static final int MINIMUM_JWT_SECRET_BYTES = 32;
+
     @Bean
-    public SecurityFilterChain createFilterChain(
+    public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             ObjectMapper objectMapper
     ) throws Exception {
@@ -107,13 +109,8 @@ public class SecurityConfig {
     public JwtEncoder jwtEncoder(
             @Value("${security.jwt.secret}") String secret
     ) {
-        SecretKeySpec secretKey = new SecretKeySpec(
-                secret.getBytes(StandardCharsets.UTF_8),
-                "HmacSHA256"
-        );
-
         return NimbusJwtEncoder
-                .withSecretKey(secretKey)
+                .withSecretKey(createJwtSecretKey(secret))
                 .build();
     }
 
@@ -121,15 +118,22 @@ public class SecurityConfig {
     public JwtDecoder jwtDecoder(
             @Value("${security.jwt.secret}") String secret
     ) {
-        SecretKeySpec secretKey = new SecretKeySpec(
-                secret.getBytes(StandardCharsets.UTF_8),
-                "HmacSHA256"
-        );
-
         return NimbusJwtDecoder
-                .withSecretKey(secretKey)
+                .withSecretKey(createJwtSecretKey(secret))
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
+    }
+
+    private SecretKeySpec createJwtSecretKey(String secret) {
+        byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+
+        if (secretBytes.length < MINIMUM_JWT_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "security.jwt.secret must contain at least 32 UTF-8 bytes."
+            );
+        }
+
+        return new SecretKeySpec(secretBytes, "HmacSHA256");
     }
 
     private void writeErrorResponse(

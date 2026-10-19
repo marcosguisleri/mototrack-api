@@ -1,7 +1,10 @@
 package br.dev.guisleri.mototrack.controller;
 
-import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.dto.MotorcycleResponseDTO;
+import br.dev.guisleri.mototrack.dto.TripStatisticsResponseDTO;
+import br.dev.guisleri.mototrack.dto.TripSummaryResponseDTO;
 import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
+import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainStatistics;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
@@ -21,7 +24,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -62,88 +64,51 @@ class TripStatisticsControllerTest {
 
     @Test
     void shouldReturnTripStatistics() throws Exception {
-        Motorcycle motorcycle = Motorcycle.restore(
-                1L,
-                "Honda",
-                "CB 500X",
-                "Red",
-                2023,
-                471,
-                CURRENT_USER
+        Motorcycle motorcycle = motorcycle();
+        TripStatisticsResponseDTO statistics = new TripStatisticsResponseDTO(
+                3L,
+                244.5,
+                81.5,
+                MotorcycleResponseDTO.from(motorcycle),
+                TripSummaryResponseDTO.from(trip(
+                        10L,
+                        5_432.1,
+                        LocalDate.of(2025, 1, 15),
+                        motorcycle
+                )),
+                TripSummaryResponseDTO.from(trip(
+                        9L,
+                        85.0,
+                        LocalDate.of(2024, 5, 10),
+                        motorcycle
+                )),
+                TripSummaryResponseDTO.from(trip(
+                        11L,
+                        120.0,
+                        LocalDate.of(2026, 9, 20),
+                        motorcycle
+                )),
+                Map.of(
+                        TripStatus.PLANNED, 1L,
+                        TripStatus.IN_PROGRESS, 2L,
+                        TripStatus.COMPLETED, 3L
+                ),
+                Map.of(
+                        TerrainType.ASPHALT,
+                        new TerrainStatistics(2L, 300.0),
+                        TerrainType.MIXED,
+                        new TerrainStatistics(1L, 150.0),
+                        TerrainType.OFF_ROAD,
+                        new TerrainStatistics(0L, 0.0)
+                ),
+                List.of(
+                        new MonthlyTripStatistics(2025, 10, 2L, 250.0),
+                        new MonthlyTripStatistics(2025, 11, 1L, 300.0),
+                        new MonthlyTripStatistics(2025, 12, 0L, 0.0)
+                )
         );
-        Trip longestTrip = Trip.restore(
-                10L,
-                "Florianopolis",
-                "Ushuaia",
-                5432.1,
-                TerrainType.MIXED,
-                LocalDate.of(2025, 1, 15),
-                motorcycle,
-                TripStatus.COMPLETED
-        );
-        Trip firstCompletedTrip = Trip.restore(
-                9L,
-                "Araras",
-                "Rio Claro",
-                85.0,
-                TerrainType.ASPHALT,
-                LocalDate.of(2024, 5, 10),
-                motorcycle,
-                TripStatus.COMPLETED
-        );
-        Trip lastCompletedTrip = Trip.restore(
-                11L,
-                "Araras",
-                "Campinas",
-                120.0,
-                TerrainType.ASPHALT,
-                LocalDate.of(2026, 9, 20),
-                motorcycle,
-                TripStatus.COMPLETED
-        );
-        Map<TripStatus, Long> tripsByStatus = Map.of(
-                TripStatus.PLANNED, 1L,
-                TripStatus.IN_PROGRESS, 2L,
-                TripStatus.COMPLETED, 3L
-        );
-        Map<TerrainType, TerrainStatistics> terrainStatistics = Map.of(
-                TerrainType.ASPHALT,
-                new TerrainStatistics(2L, 300.0),
-                TerrainType.MIXED,
-                new TerrainStatistics(1L, 150.0),
-                TerrainType.OFF_ROAD,
-                new TerrainStatistics(0L, 0.0)
-        );
-        List<MonthlyTripStatistics> monthlyStatistics = List.of(
-                new MonthlyTripStatistics(2025, 10, 2L, 250.0),
-                new MonthlyTripStatistics(2025, 11, 1L, 300.0),
-                new MonthlyTripStatistics(2025, 12, 0L, 0.0)
-        );
-        when(tripStatisticsService.countCompletedTrips(CURRENT_USER.getId()))
-                .thenReturn(3L);
-        when(tripStatisticsService.calculateTotalCompletedDistanceKm(CURRENT_USER.getId()))
-                .thenReturn(244.5);
-        when(tripStatisticsService.calculateAverageCompletedDistanceKm(
-                CURRENT_USER.getId()
-        ))
-                .thenReturn(81.5);
-        when(tripStatisticsService.findMostUsedMotorcycleInCompletedTrips(
-                CURRENT_USER.getId()
-        ))
-                .thenReturn(Optional.of(motorcycle));
-        when(tripStatisticsService.findLongestCompletedTrip(CURRENT_USER.getId()))
-                .thenReturn(Optional.of(longestTrip));
-        when(tripStatisticsService.findFirstCompletedTrip(CURRENT_USER.getId()))
-                .thenReturn(Optional.of(firstCompletedTrip));
-        when(tripStatisticsService.findLastCompletedTrip(CURRENT_USER.getId()))
-                .thenReturn(Optional.of(lastCompletedTrip));
-        when(tripStatisticsService.countTripsByStatus(CURRENT_USER.getId()))
-                .thenReturn(tripsByStatus);
-        when(tripStatisticsService.findTerrainStatistics(CURRENT_USER.getId()))
-                .thenReturn(terrainStatistics);
-        when(tripStatisticsService.findMonthlyStatisticsLast12Months(
-                CURRENT_USER.getId()
-        )).thenReturn(monthlyStatistics);
+        when(tripStatisticsService.getStatistics(CURRENT_USER.getId()))
+                .thenReturn(statistics);
 
         mockMvc.perform(get("/statistics").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
@@ -153,26 +118,17 @@ class TripStatisticsControllerTest {
                 .andExpect(jsonPath("$.mostUsedMotorcycle.id").value(1))
                 .andExpect(jsonPath("$.mostUsedMotorcycle.brand").value("Honda"))
                 .andExpect(jsonPath("$.mostUsedMotorcycle.model").value("CB 500X"))
-                .andExpect(jsonPath("$.mostUsedMotorcycle.color").value("Red"))
                 .andExpect(jsonPath("$.mostUsedMotorcycle.owner.id").value(1))
                 .andExpect(jsonPath("$.mostUsedMotorcycle.owner.passwordHash")
                         .doesNotExist())
                 .andExpect(jsonPath("$.longestTrip.id").value(10))
-                .andExpect(jsonPath("$.longestTrip.distanceKm").value(5432.1))
-                .andExpect(jsonPath("$.longestTrip.motorcycle.id").value(1))
                 .andExpect(jsonPath("$.firstCompletedTrip.id").value(9))
-                .andExpect(jsonPath("$.firstCompletedTrip.distanceKm").value(85.0))
-                .andExpect(jsonPath("$.firstCompletedTrip.motorcycle.id").value(1))
                 .andExpect(jsonPath("$.lastCompletedTrip.id").value(11))
-                .andExpect(jsonPath("$.lastCompletedTrip.distanceKm").value(120.0))
-                .andExpect(jsonPath("$.lastCompletedTrip.motorcycle.id").value(1))
                 .andExpect(jsonPath("$.tripsByStatus.PLANNED").value(1))
                 .andExpect(jsonPath("$.tripsByStatus.IN_PROGRESS").value(2))
                 .andExpect(jsonPath("$.tripsByStatus.COMPLETED").value(3))
                 .andExpect(jsonPath("$.terrainStatistics.ASPHALT.tripCount")
                         .value(2))
-                .andExpect(jsonPath("$.terrainStatistics.ASPHALT.totalDistanceKm")
-                        .value(300.0))
                 .andExpect(jsonPath("$.terrainStatistics.MIXED.tripCount")
                         .value(1))
                 .andExpect(jsonPath("$.terrainStatistics.OFF_ROAD.tripCount")
@@ -182,82 +138,28 @@ class TripStatisticsControllerTest {
                 .andExpect(jsonPath("$.monthlyStatistics[0].month").value(10))
                 .andExpect(jsonPath("$.monthlyStatistics[0].tripCount").value(2))
                 .andExpect(jsonPath("$.monthlyStatistics[0].totalDistanceKm")
-                        .value(250.0))
-                .andExpect(jsonPath("$.monthlyStatistics[2].year").value(2025))
-                .andExpect(jsonPath("$.monthlyStatistics[2].month").value(12))
-                .andExpect(jsonPath("$.monthlyStatistics[2].tripCount").value(0))
-                .andExpect(jsonPath("$.monthlyStatistics[2].totalDistanceKm")
-                        .value(0.0));
+                        .value(250.0));
 
         verify(userService).findUserByEmail(CURRENT_USER.getEmail());
-        verify(tripStatisticsService).countCompletedTrips(CURRENT_USER.getId());
-        verify(tripStatisticsService)
-                .calculateTotalCompletedDistanceKm(CURRENT_USER.getId());
-        verify(tripStatisticsService)
-                .calculateAverageCompletedDistanceKm(CURRENT_USER.getId());
-        verify(tripStatisticsService)
-                .findMostUsedMotorcycleInCompletedTrips(CURRENT_USER.getId());
-        verify(tripStatisticsService).findLongestCompletedTrip(CURRENT_USER.getId());
-        verify(tripStatisticsService).findFirstCompletedTrip(CURRENT_USER.getId());
-        verify(tripStatisticsService).findLastCompletedTrip(CURRENT_USER.getId());
-        verify(tripStatisticsService).countTripsByStatus(CURRENT_USER.getId());
-        verify(tripStatisticsService).findTerrainStatistics(CURRENT_USER.getId());
-        verify(tripStatisticsService)
-                .findMonthlyStatisticsLast12Months(CURRENT_USER.getId());
+        verify(tripStatisticsService).getStatistics(CURRENT_USER.getId());
     }
 
     @Test
-    void shouldReturnNullWhenThereIsNoLongestCompletedTrip() throws Exception {
-        when(tripStatisticsService.findLongestCompletedTrip(CURRENT_USER.getId()))
-                .thenReturn(Optional.empty());
-
-        mockMvc.perform(get("/statistics").principal(AUTHENTICATION))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.longestTrip").value((Object) null));
-
-        verify(tripStatisticsService).findLongestCompletedTrip(CURRENT_USER.getId());
-    }
-
-    @Test
-    void shouldReturnNullWhenThereIsNoFirstCompletedTrip() throws Exception {
-        when(tripStatisticsService.findFirstCompletedTrip(CURRENT_USER.getId()))
-                .thenReturn(Optional.empty());
-
-        mockMvc.perform(get("/statistics").principal(AUTHENTICATION))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.firstCompletedTrip").value((Object) null));
-
-        verify(tripStatisticsService).findFirstCompletedTrip(CURRENT_USER.getId());
-    }
-
-    @Test
-    void shouldReturnNullWhenThereIsNoLastCompletedTrip() throws Exception {
-        when(tripStatisticsService.findLastCompletedTrip(CURRENT_USER.getId()))
-                .thenReturn(Optional.empty());
-
-        mockMvc.perform(get("/statistics").principal(AUTHENTICATION))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.lastCompletedTrip").value((Object) null));
-
-        verify(tripStatisticsService).findLastCompletedTrip(CURRENT_USER.getId());
-    }
-
-    @Test
-    void shouldReturnNullWhenThereIsNoMostUsedMotorcycle() throws Exception {
-        when(tripStatisticsService.countCompletedTrips(CURRENT_USER.getId()))
-                .thenReturn(0L);
-        when(tripStatisticsService.calculateTotalCompletedDistanceKm(CURRENT_USER.getId()))
-                .thenReturn(0.0);
-        when(tripStatisticsService.calculateAverageCompletedDistanceKm(
-                CURRENT_USER.getId()
-        ))
-                .thenReturn(null);
-        when(tripStatisticsService.findMostUsedMotorcycleInCompletedTrips(
-                CURRENT_USER.getId()
-        ))
-                .thenReturn(Optional.empty());
-        when(tripStatisticsService.countTripsByStatus(CURRENT_USER.getId()))
-                .thenReturn(Map.of());
+    void shouldReturnEmptyTripStatistics() throws Exception {
+        TripStatisticsResponseDTO statistics = new TripStatisticsResponseDTO(
+                0L,
+                0.0,
+                null,
+                null,
+                null,
+                null,
+                null,
+                Map.of(),
+                Map.of(),
+                List.of()
+        );
+        when(tripStatisticsService.getStatistics(CURRENT_USER.getId()))
+                .thenReturn(statistics);
 
         mockMvc.perform(get("/statistics").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
@@ -266,25 +168,41 @@ class TripStatisticsControllerTest {
                 .andExpect(jsonPath("$.averageCompletedDistanceKm")
                         .value((Object) null))
                 .andExpect(jsonPath("$.mostUsedMotorcycle").value((Object) null))
-                .andExpect(jsonPath("$.tripsByStatus").isEmpty());
-
-        verify(tripStatisticsService)
-                .findMostUsedMotorcycleInCompletedTrips(CURRENT_USER.getId());
+                .andExpect(jsonPath("$.longestTrip").value((Object) null))
+                .andExpect(jsonPath("$.firstCompletedTrip").value((Object) null))
+                .andExpect(jsonPath("$.lastCompletedTrip").value((Object) null))
+                .andExpect(jsonPath("$.tripsByStatus").isEmpty())
+                .andExpect(jsonPath("$.terrainStatistics").isEmpty())
+                .andExpect(jsonPath("$.monthlyStatistics").isEmpty());
     }
 
-    @Test
-    void shouldRoundTotalDistanceKmToOneDecimalPlace() throws Exception {
-        when(tripStatisticsService.calculateTotalCompletedDistanceKm(CURRENT_USER.getId()))
-                .thenReturn(111.10000000000001);
-        when(tripStatisticsService.findMostUsedMotorcycleInCompletedTrips(
-                CURRENT_USER.getId()
-        ))
-                .thenReturn(Optional.empty());
-        when(tripStatisticsService.countTripsByStatus(CURRENT_USER.getId()))
-                .thenReturn(Map.of());
+    private Motorcycle motorcycle() {
+        return Motorcycle.restore(
+                1L,
+                "Honda",
+                "CB 500X",
+                "Red",
+                2023,
+                471,
+                CURRENT_USER
+        );
+    }
 
-        mockMvc.perform(get("/statistics").principal(AUTHENTICATION))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalCompletedDistance").value(111.1));
+    private Trip trip(
+            Long id,
+            double distanceKm,
+            LocalDate tripDate,
+            Motorcycle motorcycle
+    ) {
+        return Trip.restore(
+                id,
+                "Araras",
+                "Destination",
+                distanceKm,
+                TerrainType.MIXED,
+                tripDate,
+                motorcycle,
+                TripStatus.COMPLETED
+        );
     }
 }

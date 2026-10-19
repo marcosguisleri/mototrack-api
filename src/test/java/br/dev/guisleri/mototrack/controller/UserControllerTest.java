@@ -119,6 +119,18 @@ class UserControllerTest {
     }
 
     @Test
+    void shouldRejectNameLongerThanPersistenceLimit() throws Exception {
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(userJson("a".repeat(256), "marcos@example.com", PASSWORD)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.name")
+                        .value("O nome deve ter no máximo 255 caracteres."));
+
+        verifyNoInteractions(userService);
+    }
+
+    @Test
     void shouldRejectShortPassword() throws Exception {
         mockMvc.perform(post("/users")
                 .contentType(MediaType.APPLICATION_JSON)

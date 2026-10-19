@@ -7,6 +7,7 @@ import br.dev.guisleri.mototrack.persistence.entity.UserEntity;
 import br.dev.guisleri.mototrack.persistence.mapper.MotorcycleMapper;
 import br.dev.guisleri.mototrack.persistence.mapper.UserMapper;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -127,6 +128,34 @@ class JpaMotorcycleRepositoryAdapterTest {
     }
 
     @Test
+    void shouldFindMotorcycleByIdForUpdateWithPessimisticLock() {
+        Motorcycle savedMotorcycle = save(motorcycle(
+                "Honda",
+                "NX 500",
+                "Black",
+                2025,
+                471
+        ));
+        entityManager.clear();
+
+        Motorcycle result = motorcycleRepositoryAdapter
+                .findByIdForUpdate(savedMotorcycle.getId())
+                .orElseThrow();
+        MotorcycleEntity lockedEntity = entityManager.find(
+                MotorcycleEntity.class,
+                savedMotorcycle.getId()
+        );
+
+        assertAll(
+                () -> assertEquals(savedMotorcycle.getId(), result.getId()),
+                () -> assertEquals(
+                        LockModeType.PESSIMISTIC_WRITE,
+                        entityManager.getLockMode(lockedEntity)
+                )
+        );
+    }
+
+    @Test
     void shouldFindMotorcyclesByOwnerId() {
         Motorcycle firstOwnerMotorcycle = save(motorcycle(
                 "Honda",
@@ -178,6 +207,27 @@ class JpaMotorcycleRepositoryAdapterTest {
         assertTrue(motorcycleRepositoryAdapter
                 .findByOwnerId(owner.getId())
                 .isEmpty());
+    }
+
+    @Test
+    void shouldCountMotorcyclesByOwnerId() {
+        save(motorcycle("Honda", "NX 500", "Black", 2025, 471));
+        save(motorcycle("Honda", "CRF 1100L", "Red", 2024, 1084));
+        User anotherOwner = saveUser("Ana", "ana@example.com");
+        save(motorcycle(
+                "Dafra",
+                "NH 300",
+                "Red",
+                2025,
+                291,
+                anotherOwner
+        ));
+
+        assertEquals(2L, motorcycleRepositoryAdapter.countByOwnerId(owner.getId()));
+        assertEquals(
+                1L,
+                motorcycleRepositoryAdapter.countByOwnerId(anotherOwner.getId())
+        );
     }
 
     @Test

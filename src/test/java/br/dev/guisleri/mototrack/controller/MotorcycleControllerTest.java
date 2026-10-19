@@ -159,6 +159,27 @@ class MotorcycleControllerTest {
     }
 
     @Test
+    void shouldRejectBrandLongerThanPersistenceLimit() throws Exception {
+        mockMvc.perform(post("/motorcycles")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "brand": "%s",
+                                  "model": "NX 500",
+                                  "color": "Black",
+                                  "year": 2025,
+                                  "engineCapacity": 471
+                                }
+                                """.formatted("a".repeat(256))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.brand")
+                        .value("A marca deve ter no máximo 255 caracteres."));
+
+        verifyNoInteractions(motorcycleService);
+    }
+
+    @Test
     void shouldListOnlyAuthenticatedUsersMotorcycles() throws Exception {
         Motorcycle honda = motorcycle(1L, "Honda", "NX 500");
         Motorcycle yamaha = motorcycle(2L, "Yamaha", "Tenere 700");

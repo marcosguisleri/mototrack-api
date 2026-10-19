@@ -1,5 +1,6 @@
 package br.dev.guisleri.mototrack.service;
 
+import br.dev.guisleri.mototrack.dto.TripStatisticsResponseDTO;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
 import br.dev.guisleri.mototrack.model.TerrainStatistics;
@@ -44,7 +45,6 @@ class TripStatisticsServiceTest {
 
     private TripStatisticsService statisticsService;
     private Motorcycle honda;
-    private Motorcycle yamaha;
 
     @BeforeEach
     void setUp() {
@@ -61,9 +61,110 @@ class TripStatisticsServiceTest {
         honda = Motorcycle.restore(
                 1L, "Honda", "NX 500", "Black", 2025, 471, owner
         );
-        yamaha = Motorcycle.restore(
-                2L, "Yamaha", "Tenere 700", "Blue", 2024, 689, owner
+    }
+
+    @Test
+    void shouldBuildTripStatisticsResponse() {
+        Trip longestTrip = completedTrip(
+                10L,
+                5_432.1,
+                LocalDate.of(2025, 1, 15)
         );
+        Trip firstCompletedTrip = completedTrip(
+                9L,
+                85.0,
+                LocalDate.of(2024, 5, 10)
+        );
+        Trip lastCompletedTrip = completedTrip(
+                11L,
+                120.0,
+                LocalDate.of(2026, 9, 20)
+        );
+        Map<TripStatus, Long> tripsByStatus = Map.of(
+                TripStatus.PLANNED, 1L,
+                TripStatus.IN_PROGRESS, 2L,
+                TripStatus.COMPLETED, 3L
+        );
+        Map<TerrainType, TerrainStatistics> terrainStatistics = Map.of(
+                TerrainType.ASPHALT,
+                new TerrainStatistics(2L, 300.0)
+        );
+        when(tripStatisticsRepository.countTripsByStatus(OWNER_ID))
+                .thenReturn(tripsByStatus);
+        when(tripStatisticsRepository.sumDistanceKmByOwnerIdAndStatus(
+                OWNER_ID,
+                TripStatus.COMPLETED
+        )).thenReturn(244.50000000000003);
+        when(tripStatisticsRepository
+                .findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID))
+                .thenReturn(Optional.of(honda));
+        when(tripStatisticsRepository.findLongestCompletedTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.of(longestTrip));
+        when(tripStatisticsRepository.findFirstCompletedTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.of(firstCompletedTrip));
+        when(tripStatisticsRepository.findLastCompletedTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.of(lastCompletedTrip));
+        when(tripStatisticsRepository.findTerrainStatisticsByOwnerId(OWNER_ID))
+                .thenReturn(terrainStatistics);
+        when(tripStatisticsRepository.findMonthlyStatisticsByOwnerIdFromDate(
+                OWNER_ID,
+                LocalDate.of(2025, 10, 1)
+        )).thenReturn(List.of(
+                new MonthlyTripStatistics(2026, 9, 1L, 120.0)
+        ));
+
+        TripStatisticsResponseDTO result =
+                statisticsService.getStatistics(OWNER_ID);
+
+        assertEquals(3L, result.totalCompletedTrips());
+        assertEquals(244.5, result.totalCompletedDistance(), 0.001);
+        assertEquals(81.5, result.averageCompletedDistanceKm(), 0.001);
+        assertEquals(honda.getId(), result.mostUsedMotorcycle().id());
+        assertEquals(longestTrip.getId(), result.longestTrip().id());
+        assertEquals(firstCompletedTrip.getId(), result.firstCompletedTrip().id());
+        assertEquals(lastCompletedTrip.getId(), result.lastCompletedTrip().id());
+        assertSame(tripsByStatus, result.tripsByStatus());
+        assertSame(terrainStatistics, result.terrainStatistics());
+        assertEquals(12, result.monthlyStatistics().size());
+    }
+
+    @Test
+    void shouldBuildEmptyTripStatisticsResponse() {
+        when(tripStatisticsRepository.countTripsByStatus(OWNER_ID))
+                .thenReturn(Map.of());
+        when(tripStatisticsRepository.sumDistanceKmByOwnerIdAndStatus(
+                OWNER_ID,
+                TripStatus.COMPLETED
+        )).thenReturn(0.0);
+        when(tripStatisticsRepository
+                .findMostUsedMotorcycleInCompletedTripsByOwnerId(OWNER_ID))
+                .thenReturn(Optional.empty());
+        when(tripStatisticsRepository.findLongestCompletedTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.empty());
+        when(tripStatisticsRepository.findFirstCompletedTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.empty());
+        when(tripStatisticsRepository.findLastCompletedTripByOwnerId(OWNER_ID))
+                .thenReturn(Optional.empty());
+        when(tripStatisticsRepository.findTerrainStatisticsByOwnerId(OWNER_ID))
+                .thenReturn(Map.of());
+        when(tripStatisticsRepository.findMonthlyStatisticsByOwnerIdFromDate(
+                OWNER_ID,
+                LocalDate.of(2025, 10, 1)
+        )).thenReturn(List.of());
+
+        TripStatisticsResponseDTO result =
+                statisticsService.getStatistics(OWNER_ID);
+
+        assertEquals(0L, result.totalCompletedTrips());
+        assertEquals(0.0, result.totalCompletedDistance(), 0.001);
+        assertNull(result.averageCompletedDistanceKm());
+        assertNull(result.mostUsedMotorcycle());
+        assertNull(result.longestTrip());
+        assertNull(result.firstCompletedTrip());
+        assertNull(result.lastCompletedTrip());
+        assertTrue(result.tripsByStatus().isEmpty());
+        assertTrue(result.terrainStatistics().isEmpty());
+        assertEquals(12, result.monthlyStatistics().size());
     }
 
     @Test
@@ -73,34 +174,34 @@ class TripStatisticsServiceTest {
                 TripStatus.IN_PROGRESS, 1L,
                 TripStatus.COMPLETED, 1L
         );
-        when(tripStatisticsRepository.countByOwnerIdAndStatus(OWNER_ID)).thenReturn(counts);
+        when(tripStatisticsRepository.countTripsByStatus(OWNER_ID)).thenReturn(counts);
 
         Map<TripStatus, Long> result = statisticsService.countTripsByStatus(OWNER_ID);
 
         assertSame(counts, result);
-        verify(tripStatisticsRepository).countByOwnerIdAndStatus(OWNER_ID);
+        verify(tripStatisticsRepository).countTripsByStatus(OWNER_ID);
     }
 
     @Test
     void shouldCountCompletedTrips() {
-        when(tripStatisticsRepository.countByOwnerIdAndStatus(OWNER_ID))
+        when(tripStatisticsRepository.countTripsByStatus(OWNER_ID))
                 .thenReturn(Map.of(TripStatus.COMPLETED, 1L));
 
         long result = statisticsService.countCompletedTrips(OWNER_ID);
 
         assertEquals(1L, result);
-        verify(tripStatisticsRepository).countByOwnerIdAndStatus(OWNER_ID);
+        verify(tripStatisticsRepository).countTripsByStatus(OWNER_ID);
     }
 
     @Test
     void shouldReturnZeroWhenThereAreNoCompletedTrips() {
-        when(tripStatisticsRepository.countByOwnerIdAndStatus(OWNER_ID))
+        when(tripStatisticsRepository.countTripsByStatus(OWNER_ID))
                 .thenReturn(Map.of(TripStatus.PLANNED, 2L));
 
         long result = statisticsService.countCompletedTrips(OWNER_ID);
 
         assertEquals(0L, result);
-        verify(tripStatisticsRepository).countByOwnerIdAndStatus(OWNER_ID);
+        verify(tripStatisticsRepository).countTripsByStatus(OWNER_ID);
     }
 
     @Test
@@ -118,54 +219,6 @@ class TripStatisticsServiceTest {
                 OWNER_ID,
                 TripStatus.COMPLETED
         );
-    }
-
-    @Test
-    void shouldCalculateAverageCompletedDistanceKm() {
-        when(tripStatisticsRepository.countByOwnerIdAndStatus(OWNER_ID))
-                .thenReturn(Map.of(TripStatus.COMPLETED, 2L));
-        when(tripStatisticsRepository.sumDistanceKmByOwnerIdAndStatus(
-                OWNER_ID,
-                TripStatus.COMPLETED
-        )).thenReturn(250.0);
-
-        Double result = statisticsService.calculateAverageCompletedDistanceKm(OWNER_ID);
-
-        assertEquals(125.0, result, 0.001);
-        verify(tripStatisticsRepository).countByOwnerIdAndStatus(OWNER_ID);
-        verify(tripStatisticsRepository).sumDistanceKmByOwnerIdAndStatus(
-                OWNER_ID,
-                TripStatus.COMPLETED
-        );
-    }
-
-    @Test
-    void shouldReturnNullAverageWhenThereAreNoCompletedTrips() {
-        when(tripStatisticsRepository.countByOwnerIdAndStatus(OWNER_ID))
-                .thenReturn(Map.of());
-
-        Double result = statisticsService.calculateAverageCompletedDistanceKm(OWNER_ID);
-
-        assertNull(result);
-        verify(tripStatisticsRepository).countByOwnerIdAndStatus(OWNER_ID);
-        verify(tripStatisticsRepository, never()).sumDistanceKmByOwnerIdAndStatus(
-                OWNER_ID,
-                TripStatus.COMPLETED
-        );
-    }
-
-    @Test
-    void shouldCountTripsByMotorcycle() {
-        Map<Motorcycle, Long> counts = Map.of(
-                honda, 2L,
-                yamaha, 1L
-        );
-        when(tripStatisticsRepository.countByOwnerIdAndMotorcycle(OWNER_ID)).thenReturn(counts);
-
-        Map<Motorcycle, Long> result = statisticsService.countTripsByMotorcycle(OWNER_ID);
-
-        assertSame(counts, result);
-        verify(tripStatisticsRepository).countByOwnerIdAndMotorcycle(OWNER_ID);
     }
 
     @Test
@@ -252,6 +305,27 @@ class TripStatisticsServiceTest {
     }
 
     @Test
+    void shouldCalculateCompletedDistanceForCurrentYear() {
+        when(tripStatisticsRepository.findMonthlyStatisticsByOwnerIdFromDate(
+                OWNER_ID,
+                LocalDate.of(2025, 10, 1)
+        )).thenReturn(List.of(
+                new MonthlyTripStatistics(2025, 12, 1L, 500.0),
+                new MonthlyTripStatistics(2026, 1, 2L, 250.0),
+                new MonthlyTripStatistics(2026, 9, 1L, 125.5)
+        ));
+
+        double result = statisticsService
+                .calculateCompletedDistanceKmForCurrentYear(OWNER_ID);
+
+        assertEquals(375.5, result, 0.001);
+        verify(tripStatisticsRepository).findMonthlyStatisticsByOwnerIdFromDate(
+                OWNER_ID,
+                LocalDate.of(2025, 10, 1)
+        );
+    }
+
+    @Test
     void shouldCalculateCompletedDistanceKmByMotorcycle() {
         when(tripStatisticsRepository.sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
                 OWNER_ID,
@@ -287,67 +361,6 @@ class TripStatisticsServiceTest {
                 honda,
                 TripStatus.COMPLETED
         );
-    }
-
-    @Test
-    void shouldCalculateAverageCompletedDistanceKmByMotorcycle() {
-        when(tripStatisticsRepository.countByOwnerIdAndMotorcycleAndStatus(
-                OWNER_ID,
-                honda,
-                TripStatus.COMPLETED
-        )).thenReturn(2L);
-        when(tripStatisticsRepository.sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
-                OWNER_ID,
-                honda,
-                TripStatus.COMPLETED
-        )).thenReturn(500.0);
-
-        Double result = statisticsService
-                .calculateAverageCompletedDistanceKmByMotorcycle(
-                        OWNER_ID,
-                        honda
-                );
-
-        assertEquals(250.0, result, 0.001);
-        verify(tripStatisticsRepository).countByOwnerIdAndMotorcycleAndStatus(
-                OWNER_ID,
-                honda,
-                TripStatus.COMPLETED
-        );
-        verify(tripStatisticsRepository)
-                .sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
-                        OWNER_ID,
-                        honda,
-                        TripStatus.COMPLETED
-                );
-    }
-
-    @Test
-    void shouldReturnNullAverageWhenMotorcycleHasNoCompletedTrips() {
-        when(tripStatisticsRepository.countByOwnerIdAndMotorcycleAndStatus(
-                OWNER_ID,
-                honda,
-                TripStatus.COMPLETED
-        )).thenReturn(0L);
-
-        Double result = statisticsService
-                .calculateAverageCompletedDistanceKmByMotorcycle(
-                        OWNER_ID,
-                        honda
-                );
-
-        assertNull(result);
-        verify(tripStatisticsRepository).countByOwnerIdAndMotorcycleAndStatus(
-                OWNER_ID,
-                honda,
-                TripStatus.COMPLETED
-        );
-        verify(tripStatisticsRepository, never())
-                .sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
-                        OWNER_ID,
-                        honda,
-                        TripStatus.COMPLETED
-                );
     }
 
     @Test
@@ -530,5 +543,22 @@ class TripStatisticsServiceTest {
 
         assertTrue(result.isEmpty());
         verify(tripStatisticsRepository).findFirstCompletedTripByOwnerId(OWNER_ID);
+    }
+
+    private Trip completedTrip(
+            Long id,
+            double distanceKm,
+            LocalDate tripDate
+    ) {
+        return Trip.restore(
+                id,
+                "Araras",
+                "Destination",
+                distanceKm,
+                TerrainType.MIXED,
+                tripDate,
+                honda,
+                TripStatus.COMPLETED
+        );
     }
 }

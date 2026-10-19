@@ -8,8 +8,10 @@ import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.repository.MotorcycleRepository;
 import br.dev.guisleri.mototrack.repository.TripRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class MotorcycleService {
@@ -41,8 +43,13 @@ public class MotorcycleService {
         return motorcycleRepository.save(motorcycle);
     }
 
+    @Transactional
     public void deleteMotorcycleByIdForOwner(Long motorcycleId, Long ownerId) {
-        findMotorcycleByIdForOwner(motorcycleId, ownerId);
+        requireOwnedMotorcycle(
+                motorcycleRepository.findByIdForUpdate(motorcycleId),
+                motorcycleId,
+                ownerId
+        );
 
         if (tripRepository.existsByMotorcycleId(motorcycleId)) {
             throw new MotorcycleInUseException(
@@ -57,11 +64,27 @@ public class MotorcycleService {
         return motorcycleRepository.findByOwnerId(ownerId);
     }
 
+    public long countMotorcyclesByOwnerId(Long ownerId) {
+        return motorcycleRepository.countByOwnerId(ownerId);
+    }
+
     public Motorcycle findMotorcycleByIdForOwner(
             Long motorcycleId,
             Long ownerId
     ) {
-        Motorcycle motorcycle = motorcycleRepository.findById(motorcycleId)
+        return requireOwnedMotorcycle(
+                motorcycleRepository.findById(motorcycleId),
+                motorcycleId,
+                ownerId
+        );
+    }
+
+    private Motorcycle requireOwnedMotorcycle(
+            Optional<Motorcycle> motorcycleResult,
+            Long motorcycleId,
+            Long ownerId
+    ) {
+        Motorcycle motorcycle = motorcycleResult
                 .orElseThrow(() -> new MotorcycleNotFoundException(
                         "Motocicleta com id %d não encontrada".formatted(motorcycleId)
                 ));

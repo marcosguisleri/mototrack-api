@@ -61,12 +61,25 @@ public class JpaMotorcycleRepositoryAdapter implements MotorcycleRepository {
     }
 
     @Override
+    @Transactional(readOnly = false)
+    public Optional<Motorcycle> findByIdForUpdate(Long motorcycleId) {
+        return springDataMotorcycleRepository
+                .findByIdForUpdate(motorcycleId)
+                .map(motorcycleMapper::toDomain);
+    }
+
+    @Override
     public List<Motorcycle> findByOwnerId(Long ownerId) {
         return springDataMotorcycleRepository
                 .findByOwner_Id(ownerId)
                 .stream()
                 .map(motorcycleMapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    public long countByOwnerId(Long ownerId) {
+        return springDataMotorcycleRepository.countByOwner_Id(ownerId);
     }
 
     @Override

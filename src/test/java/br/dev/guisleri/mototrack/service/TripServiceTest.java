@@ -190,19 +190,19 @@ class TripServiceTest {
     @Test
     void shouldChangeTripStatusForOwner() {
         Trip trip = plannedTrip(1L, 1, honda);
-        when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
         when(tripRepository.save(trip)).thenReturn(trip);
 
         service.changeTripStatusForOwner(1L, OWNER_ID, TripStatus.IN_PROGRESS);
 
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
-        verify(tripRepository).findById(1L);
+        verify(tripRepository).findByIdForUpdate(1L);
         verify(tripRepository).save(trip);
     }
 
     @Test
     void shouldThrowWhenChangingStatusOfUnknownTripForOwner() {
-        when(tripRepository.findById(99L)).thenReturn(Optional.empty());
+        when(tripRepository.findByIdForUpdate(99L)).thenReturn(Optional.empty());
 
         assertThrows(
                 TripNotFoundException.class,
@@ -213,14 +213,14 @@ class TripServiceTest {
                 )
         );
 
-        verify(tripRepository).findById(99L);
+        verify(tripRepository).findByIdForUpdate(99L);
         verify(tripRepository, never()).save(any(Trip.class));
     }
 
     @Test
     void shouldDenyChangingStatusOfTripOwnedByAnotherUser() {
         Trip trip = plannedTrip(1L, 1, foreignMotorcycle);
-        when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
 
         assertThrows(
                 TripAccessDeniedException.class,
@@ -232,7 +232,7 @@ class TripServiceTest {
         );
 
         assertEquals(TripStatus.PLANNED, trip.getStatus());
-        verify(tripRepository).findById(1L);
+        verify(tripRepository).findByIdForUpdate(1L);
         verify(tripRepository, never()).save(any(Trip.class));
     }
 
@@ -267,6 +267,52 @@ class TripServiceTest {
     }
 
     @Test
+    void shouldFindFirstInProgressTripByOwner() {
+        Trip firstTrip = trip(
+                1L,
+                TerrainType.ASPHALT,
+                today,
+                honda,
+                TripStatus.IN_PROGRESS
+        );
+        Trip secondTrip = trip(
+                2L,
+                TerrainType.MIXED,
+                today,
+                yamaha,
+                TripStatus.IN_PROGRESS
+        );
+        when(tripRepository.findByOwnerIdAndStatus(
+                OWNER_ID,
+                TripStatus.IN_PROGRESS
+        )).thenReturn(List.of(firstTrip, secondTrip));
+
+        Optional<Trip> result = service.findInProgressTripByOwnerId(OWNER_ID);
+
+        assertSame(firstTrip, result.orElseThrow());
+        verify(tripRepository).findByOwnerIdAndStatus(
+                OWNER_ID,
+                TripStatus.IN_PROGRESS
+        );
+    }
+
+    @Test
+    void shouldReturnEmptyWhenOwnerHasNoInProgressTrip() {
+        when(tripRepository.findByOwnerIdAndStatus(
+                OWNER_ID,
+                TripStatus.IN_PROGRESS
+        )).thenReturn(List.of());
+
+        Optional<Trip> result = service.findInProgressTripByOwnerId(OWNER_ID);
+
+        assertEquals(Optional.empty(), result);
+        verify(tripRepository).findByOwnerIdAndStatus(
+                OWNER_ID,
+                TripStatus.IN_PROGRESS
+        );
+    }
+
+    @Test
     void shouldFindTripsByOwnerAndDate() {
         LocalDate searchedDate = today.plusDays(5);
         List<Trip> trips = List.of(
@@ -287,13 +333,26 @@ class TripServiceTest {
                 plannedTrip(1L, 0, honda),
                 plannedTrip(2L, 2, yamaha)
         );
-        when(tripRepository.findUpcomingFromByOwnerId(OWNER_ID, today))
+        when(tripRepository.findUpcomingByOwnerIdFromDate(OWNER_ID, today))
                 .thenReturn(trips);
 
         List<Trip> result = service.findUpcomingTripsByOwnerId(OWNER_ID);
 
         assertSame(trips, result);
-        verify(tripRepository).findUpcomingFromByOwnerId(OWNER_ID, today);
+        verify(tripRepository).findUpcomingByOwnerIdFromDate(OWNER_ID, today);
+    }
+
+    @Test
+    void shouldFindNextUpcomingTripByOwnerUsingClock() {
+        Trip nextTrip = plannedTrip(1L, 2, honda);
+        when(tripRepository.findFirstUpcomingByOwnerIdFromDate(OWNER_ID, today))
+                .thenReturn(Optional.of(nextTrip));
+
+        Optional<Trip> result = service.findNextUpcomingTripByOwnerId(OWNER_ID);
+
+        assertSame(nextTrip, result.orElseThrow());
+        verify(tripRepository)
+                .findFirstUpcomingByOwnerIdFromDate(OWNER_ID, today);
     }
 
     @Test
@@ -370,7 +429,7 @@ class TripServiceTest {
     @Test
     void shouldRejectCompletingFutureTrip() {
         Trip trip = plannedTrip(1L, 10, honda);
-        when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
         when(tripRepository.save(trip)).thenReturn(trip);
 
         service.changeTripStatusForOwner(1L, OWNER_ID, TripStatus.IN_PROGRESS);
@@ -384,45 +443,45 @@ class TripServiceTest {
                 )
         );
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
-        verify(tripRepository, times(2)).findById(1L);
+        verify(tripRepository, times(2)).findByIdForUpdate(1L);
         verify(tripRepository).save(trip);
     }
 
     @Test
     void shouldDeleteTripByIdForOwner() {
         Trip trip = plannedTrip(1L, 1, honda);
-        when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
 
         service.deleteTripByIdForOwner(1L, OWNER_ID);
 
-        verify(tripRepository).findById(1L);
+        verify(tripRepository).findByIdForUpdate(1L);
         verify(tripRepository).deleteById(1L);
     }
 
     @Test
     void shouldThrowWhenDeletingUnknownTripForOwner() {
-        when(tripRepository.findById(99L)).thenReturn(Optional.empty());
+        when(tripRepository.findByIdForUpdate(99L)).thenReturn(Optional.empty());
 
         assertThrows(
                 TripNotFoundException.class,
                 () -> service.deleteTripByIdForOwner(99L, OWNER_ID)
         );
 
-        verify(tripRepository).findById(99L);
+        verify(tripRepository).findByIdForUpdate(99L);
         verify(tripRepository, never()).deleteById(99L);
     }
 
     @Test
     void shouldDenyDeletingTripOwnedByAnotherUser() {
         Trip trip = plannedTrip(1L, 1, foreignMotorcycle);
-        when(tripRepository.findById(1L)).thenReturn(Optional.of(trip));
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
 
         assertThrows(
                 TripAccessDeniedException.class,
                 () -> service.deleteTripByIdForOwner(1L, OWNER_ID)
         );
 
-        verify(tripRepository).findById(1L);
+        verify(tripRepository).findByIdForUpdate(1L);
         verify(tripRepository, never()).deleteById(1L);
     }
 

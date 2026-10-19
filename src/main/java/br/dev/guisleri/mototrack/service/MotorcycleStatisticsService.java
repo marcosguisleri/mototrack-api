@@ -7,6 +7,7 @@ import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainStatistics;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 
@@ -16,11 +17,15 @@ public class MotorcycleStatisticsService {
     private final MotorcycleService motorcycleService;
     private final TripStatisticsService tripStatisticsService;
 
-    public MotorcycleStatisticsService(MotorcycleService motorcycleService, TripStatisticsService tripStatisticsService) {
+    public MotorcycleStatisticsService(
+            MotorcycleService motorcycleService,
+            TripStatisticsService tripStatisticsService
+    ) {
         this.motorcycleService = motorcycleService;
         this.tripStatisticsService = tripStatisticsService;
     }
 
+    @Transactional(readOnly = true)
     public MotorcycleStatisticsResponseDTO getStatistics(
             Long ownerId,
             Long motorcycleId

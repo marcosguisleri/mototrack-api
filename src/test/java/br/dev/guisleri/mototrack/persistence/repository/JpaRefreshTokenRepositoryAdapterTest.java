@@ -6,6 +6,7 @@ import br.dev.guisleri.mototrack.persistence.entity.RefreshTokenEntity;
 import br.dev.guisleri.mototrack.persistence.entity.UserEntity;
 import br.dev.guisleri.mototrack.persistence.mapper.RefreshTokenMapper;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -96,26 +97,34 @@ class JpaRefreshTokenRepositoryAdapterTest {
     }
 
     @Test
-    void shouldFindRefreshTokenByTokenHash() {
+    void shouldFindRefreshTokenByTokenHashForUpdate() {
         RefreshToken savedRefreshToken = saveRefreshToken(TOKEN_HASH, EXPIRES_AT);
         entityManager.clear();
 
         RefreshToken result = refreshTokenRepositoryAdapter
-                .findByTokenHash(TOKEN_HASH)
+                .findByTokenHashForUpdate(TOKEN_HASH)
                 .orElseThrow();
+        RefreshTokenEntity lockedEntity = entityManager.find(
+                RefreshTokenEntity.class,
+                savedRefreshToken.getId()
+        );
 
         assertAll(
                 () -> assertEquals(savedRefreshToken.getId(), result.getId()),
                 () -> assertEquals(userEntity.getId(), result.getUserId()),
                 () -> assertEquals(TOKEN_HASH, result.getTokenHash()),
-                () -> assertEquals(EXPIRES_AT, result.getExpiresAt())
+                () -> assertEquals(EXPIRES_AT, result.getExpiresAt()),
+                () -> assertEquals(
+                        LockModeType.PESSIMISTIC_WRITE,
+                        entityManager.getLockMode(lockedEntity)
+                )
         );
     }
 
     @Test
     void shouldReturnEmptyWhenTokenHashDoesNotExist() {
         assertTrue(refreshTokenRepositoryAdapter
-                .findByTokenHash("unknown-token-hash")
+                .findByTokenHashForUpdate("unknown-token-hash")
                 .isEmpty());
     }
 
@@ -143,10 +152,10 @@ class JpaRefreshTokenRepositoryAdapterTest {
         entityManager.clear();
 
         RefreshToken firstResult = refreshTokenRepositoryAdapter
-                .findByTokenHash(TOKEN_HASH)
+                .findByTokenHashForUpdate(TOKEN_HASH)
                 .orElseThrow();
         RefreshToken secondResult = refreshTokenRepositoryAdapter
-                .findByTokenHash("refresh-token-hash-2")
+                .findByTokenHashForUpdate("refresh-token-hash-2")
                 .orElseThrow();
 
         assertAll(

@@ -143,15 +143,25 @@ class MotorcycleServiceTest {
     }
 
     @Test
+    void shouldCountMotorcyclesByOwnerId() {
+        when(motorcycleRepository.countByOwnerId(OWNER_ID)).thenReturn(3L);
+
+        long result = service.countMotorcyclesByOwnerId(OWNER_ID);
+
+        assertEquals(3L, result);
+        verify(motorcycleRepository).countByOwnerId(OWNER_ID);
+    }
+
+    @Test
     void shouldDeleteOwnersMotorcycleWithoutTrips() {
         Motorcycle motorcycle = motorcycle(1L, "Honda", "NX 500", owner());
-        when(motorcycleRepository.findById(1L))
+        when(motorcycleRepository.findByIdForUpdate(1L))
                 .thenReturn(Optional.of(motorcycle));
         when(tripRepository.existsByMotorcycleId(1L)).thenReturn(false);
 
         service.deleteMotorcycleByIdForOwner(1L, OWNER_ID);
 
-        verify(motorcycleRepository).findById(1L);
+        verify(motorcycleRepository).findByIdForUpdate(1L);
         verify(tripRepository).existsByMotorcycleId(1L);
         verify(motorcycleRepository).deleteById(1L);
     }
@@ -159,7 +169,7 @@ class MotorcycleServiceTest {
     @Test
     void shouldRejectDeletingOwnersMotorcycleWithTrips() {
         Motorcycle motorcycle = motorcycle(1L, "Honda", "NX 500", owner());
-        when(motorcycleRepository.findById(1L))
+        when(motorcycleRepository.findByIdForUpdate(1L))
                 .thenReturn(Optional.of(motorcycle));
         when(tripRepository.existsByMotorcycleId(1L)).thenReturn(true);
 
@@ -172,21 +182,22 @@ class MotorcycleServiceTest {
                 "A motocicleta não pode ser excluída enquanto possuir viagens associadas.",
                 exception.getMessage()
         );
-        verify(motorcycleRepository).findById(1L);
+        verify(motorcycleRepository).findByIdForUpdate(1L);
         verify(tripRepository).existsByMotorcycleId(1L);
         verify(motorcycleRepository, never()).deleteById(1L);
     }
 
     @Test
     void shouldThrowWhenDeletingUnknownMotorcycleForOwner() {
-        when(motorcycleRepository.findById(99L)).thenReturn(Optional.empty());
+        when(motorcycleRepository.findByIdForUpdate(99L))
+                .thenReturn(Optional.empty());
 
         assertThrows(
                 MotorcycleNotFoundException.class,
                 () -> service.deleteMotorcycleByIdForOwner(99L, OWNER_ID)
         );
 
-        verify(motorcycleRepository).findById(99L);
+        verify(motorcycleRepository).findByIdForUpdate(99L);
         verifyNoInteractions(tripRepository);
         verify(motorcycleRepository, never()).deleteById(99L);
     }
@@ -194,7 +205,7 @@ class MotorcycleServiceTest {
     @Test
     void shouldDenyDeletingMotorcycleOwnedByAnotherUser() {
         Motorcycle motorcycle = motorcycle(1L, "Honda", "NX 500", otherOwner());
-        when(motorcycleRepository.findById(1L))
+        when(motorcycleRepository.findByIdForUpdate(1L))
                 .thenReturn(Optional.of(motorcycle));
 
         assertThrows(
@@ -202,7 +213,7 @@ class MotorcycleServiceTest {
                 () -> service.deleteMotorcycleByIdForOwner(1L, OWNER_ID)
         );
 
-        verify(motorcycleRepository).findById(1L);
+        verify(motorcycleRepository).findByIdForUpdate(1L);
         verifyNoInteractions(tripRepository);
         verify(motorcycleRepository, never()).deleteById(1L);
     }

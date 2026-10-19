@@ -5,8 +5,7 @@ import br.dev.guisleri.mototrack.dto.NextTripResponseDTO;
 import br.dev.guisleri.mototrack.dto.TripSummaryResponseDTO;
 import br.dev.guisleri.mototrack.model.Trip;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class HomeService {
@@ -25,30 +24,32 @@ public class HomeService {
         this.motorcycleService = motorcycleService;
     }
 
+    @Transactional(readOnly = true)
     public HomeResponseDTO getHome(Long ownerId) {
+        TripSummaryResponseDTO inProgressTrip =
+                tripService.findInProgressTripByOwnerId(ownerId)
+                        .map(TripSummaryResponseDTO::from)
+                        .orElse(null);
 
-        NextTripResponseDTO nextTrip =
-                findNextTrip(ownerId);
+        NextTripResponseDTO nextTrip = findNextTrip(ownerId);
 
         TripSummaryResponseDTO lastCompletedTrip =
                 tripStatisticsService.findLastCompletedTrip(ownerId)
                         .map(TripSummaryResponseDTO::from)
                         .orElse(null);
 
-        Double totalCompletedDistanceKm =
+        double totalCompletedDistanceKm =
                 tripStatisticsService.calculateTotalCompletedDistanceKm(ownerId);
 
-        Long completedTrips =
-                tripStatisticsService.countCompletedTrips(ownerId);
-
-        TripSummaryResponseDTO inProgressTrip =
-                tripService.findInProgressTripByOwnerId(ownerId)
-                        .map(TripSummaryResponseDTO::from)
-                        .orElse(null);
-
-        Double distanceThisYearKm =
+        double distanceThisYearKm =
                 tripStatisticsService
                         .calculateCompletedDistanceKmForCurrentYear(ownerId);
+
+        long completedTrips =
+                tripStatisticsService.countCompletedTrips(ownerId);
+
+        long motorcycleCount =
+                motorcycleService.countMotorcyclesByOwnerId(ownerId);
 
         return new HomeResponseDTO(
                 inProgressTrip,
@@ -57,35 +58,16 @@ public class HomeService {
                 totalCompletedDistanceKm,
                 distanceThisYearKm,
                 completedTrips,
-                countMotorcycles(ownerId)
+                motorcycleCount
         );
     }
 
     private NextTripResponseDTO findNextTrip(Long ownerId) {
-        Optional<Trip> trip =
-                tripService.findUpcomingTripsByOwnerId(ownerId)
-                        .stream()
-                        .findFirst();
-
-        if (trip.isEmpty()) {
-            return null;
-        }
-
-        long daysUntil =
-                tripService.calculateDaysUntilTripForOwner(
-                        trip.get().getId(),
-                        ownerId
-                );
-
-        return NextTripResponseDTO.from(
-                trip.get(),
-                daysUntil
-        );
-    }
-
-    private long countMotorcycles(Long ownerId) {
-        return motorcycleService
-                .findMotorcyclesByOwnerId(ownerId)
-                .size();
+        return tripService.findNextUpcomingTripByOwnerId(ownerId)
+                .map(trip -> NextTripResponseDTO.from(
+                        trip,
+                        tripService.calculateDaysUntilTrip(trip)
+                ))
+                .orElse(null);
     }
 }

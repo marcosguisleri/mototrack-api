@@ -1,5 +1,6 @@
 package br.dev.guisleri.mototrack.persistence.repository;
 
+import br.dev.guisleri.mototrack.exception.MotorcycleNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
@@ -12,6 +13,7 @@ import br.dev.guisleri.mototrack.persistence.mapper.MotorcycleMapper;
 import br.dev.guisleri.mototrack.persistence.mapper.TripMapper;
 import br.dev.guisleri.mototrack.persistence.mapper.UserMapper;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest(showSql = false, properties = {
@@ -124,6 +127,44 @@ class JpaTripRepositoryAdapterTest {
     }
 
     @Test
+    void shouldReportMissingMotorcycleWhenPersistingTrip() {
+        User missingOwner = User.restore(
+                999L,
+                "Missing owner",
+                "missing@example.com",
+                "password-hash"
+        );
+        Motorcycle missingMotorcycle = Motorcycle.restore(
+                999L,
+                "Honda",
+                "NX 500",
+                "Black",
+                2025,
+                471,
+                missingOwner
+        );
+        Trip trip = Trip.schedule(
+                "Origem",
+                "Destino",
+                100,
+                TerrainType.ASPHALT,
+                TODAY.plusDays(1),
+                missingMotorcycle,
+                FIXED_CLOCK
+        );
+
+        MotorcycleNotFoundException exception = assertThrows(
+                MotorcycleNotFoundException.class,
+                () -> tripRepositoryAdapter.save(trip)
+        );
+
+        assertEquals(
+                "Motocicleta com id 999 não encontrada",
+                exception.getMessage()
+        );
+    }
+
+    @Test
     void shouldFindTripByIdWithMotorcycleOwner() {
         Trip savedTrip = save(plannedTrip(
                 100,
@@ -156,6 +197,33 @@ class JpaTripRepositoryAdapterTest {
     @Test
     void shouldReturnEmptyWhenTripDoesNotExist() {
         assertTrue(tripRepositoryAdapter.findById(999).isEmpty());
+    }
+
+    @Test
+    void shouldFindTripByIdForUpdateWithPessimisticLock() {
+        Trip savedTrip = save(plannedTrip(
+                100,
+                TerrainType.ASPHALT,
+                TODAY.plusDays(1),
+                HONDA
+        ));
+        entityManager.clear();
+
+        Trip result = tripRepositoryAdapter
+                .findByIdForUpdate(savedTrip.getId())
+                .orElseThrow();
+        TripEntity lockedEntity = entityManager.find(
+                TripEntity.class,
+                savedTrip.getId()
+        );
+
+        assertAll(
+                () -> assertEquals(savedTrip.getId(), result.getId()),
+                () -> assertEquals(
+                        LockModeType.PESSIMISTIC_WRITE,
+                        entityManager.getLockMode(lockedEntity)
+                )
+        );
     }
 
     @Test
@@ -282,7 +350,7 @@ class JpaTripRepositoryAdapterTest {
         ));
         Long ownerId = closestTrip.getMotorcycle().getOwner().getId();
 
-        List<Trip> result = tripRepositoryAdapter.findUpcomingFromByOwnerId(
+        List<Trip> result = tripRepositoryAdapter.findUpcomingByOwnerIdFromDate(
                 ownerId,
                 referenceDate
         );
@@ -300,6 +368,42 @@ class JpaTripRepositoryAdapterTest {
         assertTrue(result.stream().allMatch(
                 trip -> trip.getMotorcycle().getOwner().getId().equals(ownerId)
         ));
+    }
+
+    @Test
+    void shouldFindOnlyNextOwnersPlannedUpcomingTrip() {
+        LocalDate referenceDate = TODAY.plusDays(5);
+        save(plannedTrip(100, TerrainType.ASPHALT, referenceDate.minusDays(1), HONDA));
+        save(plannedTrip(200, TerrainType.MIXED, referenceDate.plusDays(3), HONDA));
+        Trip closestTrip = save(plannedTrip(
+                300,
+                TerrainType.OFF_ROAD,
+                referenceDate,
+                HONDA
+        ));
+        save(plannedTrip(
+                400,
+                TerrainType.ASPHALT,
+                referenceDate.plusDays(1),
+                YAMAHA
+        ));
+        save(inProgressTrip(
+                500,
+                TerrainType.MIXED,
+                referenceDate.plusDays(2),
+                HONDA
+        ));
+        Long ownerId = closestTrip.getMotorcycle().getOwner().getId();
+        entityManager.clear();
+
+        Trip result = tripRepositoryAdapter.findFirstUpcomingByOwnerIdFromDate(
+                ownerId,
+                referenceDate
+        ).orElseThrow();
+
+        assertEquals(closestTrip.getId(), result.getId());
+        assertEquals(TripStatus.PLANNED, result.getStatus());
+        assertEquals(ownerId, result.getMotorcycle().getOwner().getId());
     }
 
     @Test

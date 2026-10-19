@@ -1,5 +1,8 @@
 package br.dev.guisleri.mototrack.service;
 
+import br.dev.guisleri.mototrack.dto.MotorcycleResponseDTO;
+import br.dev.guisleri.mototrack.dto.TripStatisticsResponseDTO;
+import br.dev.guisleri.mototrack.dto.TripSummaryResponseDTO;
 import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainStatistics;
@@ -8,6 +11,7 @@ import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
 import br.dev.guisleri.mototrack.repository.TripStatisticsRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -32,38 +36,67 @@ public class TripStatisticsService {
         this.clock = clock;
     }
 
-    // Resumo geral
+    @Transactional(readOnly = true)
+    public TripStatisticsResponseDTO getStatistics(Long ownerId) {
+        Map<TripStatus, Long> tripsByStatus = countTripsByStatus(ownerId);
+        long totalCompletedTrips =
+                tripsByStatus.getOrDefault(TripStatus.COMPLETED, 0L);
+        double totalCompletedDistanceKm =
+                calculateTotalCompletedDistanceKm(ownerId);
+        Double averageCompletedDistance =
+                totalCompletedTrips == 0
+                        ? null
+                        : totalCompletedDistanceKm / totalCompletedTrips;
+        MotorcycleResponseDTO mostUsedMotorcycle =
+                findMostUsedMotorcycleInCompletedTrips(ownerId)
+                        .map(MotorcycleResponseDTO::from)
+                        .orElse(null);
+        TripSummaryResponseDTO longestTrip =
+                findLongestCompletedTrip(ownerId)
+                        .map(TripSummaryResponseDTO::from)
+                        .orElse(null);
+        TripSummaryResponseDTO firstCompletedTrip =
+                findFirstCompletedTrip(ownerId)
+                        .map(TripSummaryResponseDTO::from)
+                        .orElse(null);
+        TripSummaryResponseDTO lastCompletedTrip =
+                findLastCompletedTrip(ownerId)
+                        .map(TripSummaryResponseDTO::from)
+                        .orElse(null);
 
-    public Long countCompletedTrips(Long ownerId) {
-        return tripStatisticsRepository.countByOwnerIdAndStatus(ownerId)
+        return new TripStatisticsResponseDTO(
+                totalCompletedTrips,
+                roundToOneDecimal(totalCompletedDistanceKm),
+                averageCompletedDistance,
+                mostUsedMotorcycle,
+                longestTrip,
+                firstCompletedTrip,
+                lastCompletedTrip,
+                tripsByStatus,
+                findTerrainStatistics(ownerId),
+                findMonthlyStatisticsLast12Months(ownerId)
+        );
+    }
+
+    // Overall statistics
+
+    public long countCompletedTrips(Long ownerId) {
+        return tripStatisticsRepository.countTripsByStatus(ownerId)
                 .getOrDefault(TripStatus.COMPLETED, 0L);
     }
 
-    public Double calculateTotalCompletedDistanceKm(Long ownerId) {
+    public double calculateTotalCompletedDistanceKm(Long ownerId) {
         return tripStatisticsRepository.sumDistanceKmByOwnerIdAndStatus(
                 ownerId,
                 TripStatus.COMPLETED
         );
     }
 
-    public Double calculateAverageCompletedDistanceKm(Long ownerId) {
-        long completedTrips = countCompletedTrips(ownerId);
-
-        // Sem viagens concluídas, não existe uma média.
-        if (completedTrips == 0) {
-            return null;
-        }
-
-        double totalKm = calculateTotalCompletedDistanceKm(ownerId);
-
-        return totalKm / completedTrips;
-    }
-
     public Map<TripStatus, Long> countTripsByStatus(Long ownerId) {
-        return tripStatisticsRepository.countByOwnerIdAndStatus(ownerId);
+        return tripStatisticsRepository.countTripsByStatus(ownerId);
     }
 
-    // Destaques
+    // Trip highlights
 
     public Optional<Motorcycle> findMostUsedMotorcycleInCompletedTrips(
             Long ownerId
@@ -87,7 +120,7 @@ public class TripStatisticsService {
                 .findFirstCompletedTripByOwnerId(ownerId);
     }
 
-    // Distribuições
+    // Distributions
 
     public Map<TerrainType, TerrainStatistics> findTerrainStatistics(
             Long ownerId
@@ -111,7 +144,7 @@ public class TripStatisticsService {
                 );
 
         Map<YearMonth, MonthlyTripStatistics> statisticsByMonth =
-                new HashMap<>();
+                new HashMap<>(12);
 
         for (MonthlyTripStatistics statistic : monthlyStatistics) {
             statisticsByMonth.put(
@@ -124,7 +157,7 @@ public class TripStatisticsService {
         }
 
         List<MonthlyTripStatistics> result =
-                new ArrayList<>();
+                new ArrayList<>(12);
 
         YearMonth startMonth = YearMonth.from(startDate);
 
@@ -148,21 +181,7 @@ public class TripStatisticsService {
         return result;
     }
 
-    // Estatísticas por motocicleta
-
-    public Double calculateCompletedDistanceKmByMotorcycle(
-            Long ownerId,
-            Motorcycle motorcycle
-    ) {
-        return tripStatisticsRepository
-                .sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
-                        ownerId,
-                        motorcycle,
-                        TripStatus.COMPLETED
-                );
-    }
-
-    public Double calculateCompletedDistanceKmForCurrentYear(Long ownerId) {
+    public double calculateCompletedDistanceKmForCurrentYear(Long ownerId) {
         int currentYear = LocalDate.now(clock).getYear();
 
         return findMonthlyStatisticsLast12Months(ownerId)
@@ -172,8 +191,18 @@ public class TripStatisticsService {
                 .sum();
     }
 
-    public Map<Motorcycle, Long> countTripsByMotorcycle(Long ownerId) {
-        return tripStatisticsRepository.countByOwnerIdAndMotorcycle(ownerId);
+    // Motorcycle statistics
+
+    public double calculateCompletedDistanceKmByMotorcycle(
+            Long ownerId,
+            Motorcycle motorcycle
+    ) {
+        return tripStatisticsRepository
+                .sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
+                        ownerId,
+                        motorcycle,
+                        TripStatus.COMPLETED
+                );
     }
 
     public long countCompletedTripsByMotorcycle(
@@ -188,33 +217,26 @@ public class TripStatisticsService {
                 );
     }
 
-    public Double calculateAverageCompletedDistanceKmByMotorcycle(
-            Long ownerId,
-            Motorcycle motorcycle
-    ) {
-        long completedTrips = countCompletedTripsByMotorcycle(ownerId, motorcycle);
-
-        if (completedTrips == 0) {
-            return null;
-        }
-
-        Double totalCompletedDistanceKm = calculateCompletedDistanceKmByMotorcycle(ownerId, motorcycle);
-
-        return totalCompletedDistanceKm / completedTrips;
-    }
-
     public Optional<Trip> findLongestCompletedTripByMotorcycle(
             Long ownerId,
             Motorcycle motorcycle
     ) {
-        return tripStatisticsRepository.findLongestCompletedTripByOwnerIdAndMotorcycle(ownerId, motorcycle);
+        return tripStatisticsRepository
+                .findLongestCompletedTripByOwnerIdAndMotorcycle(
+                        ownerId,
+                        motorcycle
+                );
     }
 
     public Optional<Trip> findLastCompletedTripByMotorcycle(
             Long ownerId,
             Motorcycle motorcycle
     ) {
-        return tripStatisticsRepository.findLastCompletedTripByOwnerIdAndMotorcycle(ownerId, motorcycle);
+        return tripStatisticsRepository
+                .findLastCompletedTripByOwnerIdAndMotorcycle(
+                        ownerId,
+                        motorcycle
+                );
     }
 
     public Map<TerrainType, TerrainStatistics> findTerrainStatisticsByMotorcycle(
@@ -225,5 +247,9 @@ public class TripStatisticsService {
                 ownerId,
                 motorcycle
         );
+    }
+
+    private double roundToOneDecimal(double distanceKm) {
+        return Math.round(distanceKm * 10.0) / 10.0;
     }
 }

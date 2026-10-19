@@ -16,6 +16,8 @@ public interface TripRepository {
 
     Optional<Trip> findById(long tripId);
 
+    Optional<Trip> findByIdForUpdate(long tripId);
+
     boolean existsByMotorcycleId(Long motorcycleId);
 
     void deleteById(Long tripId);
@@ -24,7 +26,12 @@ public interface TripRepository {
 
     List<Trip> findByOwnerIdAndStatus(Long ownerId, TripStatus status);
 
-    List<Trip> findUpcomingFromByOwnerId(
+    List<Trip> findUpcomingByOwnerIdFromDate(
+            Long ownerId,
+            LocalDate startDate
+    );
+
+    Optional<Trip> findFirstUpcomingByOwnerIdFromDate(
             Long ownerId,
             LocalDate startDate
     );

@@ -16,7 +16,7 @@ public interface TripStatisticsRepository {
 
     // Agregações gerais
 
-    Map<TripStatus, Long> countByOwnerIdAndStatus(Long ownerId);
+    Map<TripStatus, Long> countTripsByStatus(Long ownerId);
 
     double sumDistanceKmByOwnerIdAndStatus(
             Long ownerId,
@@ -41,8 +41,6 @@ public interface TripStatisticsRepository {
 
     // Estatísticas por motocicleta
 
-    Map<Motorcycle, Long> countByOwnerIdAndMotorcycle(Long ownerId);
-
     double sumDistanceKmByOwnerIdAndMotorcycleAndStatus(
             Long ownerId,
             Motorcycle motorcycle,
@@ -53,7 +51,7 @@ public interface TripStatisticsRepository {
             Long ownerId
     );
 
-    Long countByOwnerIdAndMotorcycleAndStatus(
+    long countByOwnerIdAndMotorcycleAndStatus(
             Long ownerId,
             Motorcycle motorcycle,
             TripStatus status

@@ -46,7 +46,8 @@ dos enums, com zero para categorias sem viagens.
 
 ### `POST /users` — cadastrar usuário
 
-Público. Request: `name` (não vazio), `email` (válido, não vazio) e `password`
+Público. Request: `name` (não vazio, máximo de 255 caracteres), `email`
+(válido, não vazio, máximo de 255 caracteres) e `password`
 (não vazia, mínimo de 8 caracteres). O e-mail é salvo em minúsculas. Retorna
 `201` com `User`, sem senha/hash. Erros: `400` por validação/JSON inválido,
 `409` para e-mail já cadastrado.
@@ -119,7 +120,7 @@ curl -X POST http://localhost:8080/auth/logout \
 
 | Método e rota | Parâmetros / request | Sucesso | Outros status relevantes |
 |---|---|---|---|
-| `POST /motorcycles` | JSON: `brand`, `model`, `color` não vazios; `year >= 1900`; `engineCapacity > 0`. Não aceita owner escolhido pelo cliente. | `201` + `Motorcycle` | `400` |
+| `POST /motorcycles` | JSON: `brand`, `model`, `color` não vazios e com até 255 caracteres; `year >= 1900`; `engineCapacity > 0`. Não aceita owner escolhido pelo cliente. | `201` + `Motorcycle` | `400` |
 | `GET /motorcycles` | Sem parâmetros. | `200` + `Motorcycle[]` | — |
 | `GET /motorcycles/{id}` | `id`: ID da moto. | `200` + `Motorcycle` | `400` ID inválido; `403` outro owner; `404` inexistente |
 | `DELETE /motorcycles/{id}` | `id`: ID da moto; sem corpo. | `204` sem corpo | `400` ID inválido; `403` outro owner; `404` inexistente; `409` moto com qualquer viagem vinculada |
@@ -191,7 +192,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" \
 ## Viagens
 
 Para `POST /trips` e `POST /trips/completed`, o request é o mesmo:
-`origin` e `destination` não vazios, `distanceKm > 0`, `terrain` válido,
+`origin` e `destination` não vazios e com até 255 caracteres, `distanceKm > 0`, `terrain` válido,
 `tripDate` ISO e `motorcycleId > 0` de uma moto própria. Nenhum dos dois
 requests aceita `status` ou owner escolhidos pelo cliente.
 
@@ -235,20 +236,25 @@ Exemplo de resposta `Trip` de uma viagem planejada:
 
 ### `GET /home`
 
-Sem parâmetros. Retorna `200` com `nextTrip: NextTrip | null`,
-`lastCompletedTrip: TripSummary | null`, `totalCompletedDistanceKm: number`,
-`completedTrips: number`, `motorcycleCount: number`.
+Sem parâmetros. Retorna `200` com `inProgressTrip: TripSummary | null`,
+`nextTrip: NextTrip | null`, `lastCompletedTrip: TripSummary | null`,
+`totalCompletedDistanceKm: number`, `distanceThisYearKm: number`,
+`completedTrips: number` e `motorcycleCount: number`.
 
 `NextTrip` tem `id`, `origin`, `destination`, `distanceKm`, `terrain`,
-`tripDate`, `daysUntil` e `motorcycle: Motorcycle`. É a primeira viagem futura
-`PLANNED` por data. Se não houver, `nextTrip` é `null`. Apenas viagens
-`COMPLETED` entram em `lastCompletedTrip`, distância e contagem.
+`tripDate`, `daysUntil` e `motorcycle: Motorcycle`. É a primeira viagem
+`PLANNED` por data a partir de hoje. Se não houver, `nextTrip` é `null`.
+`inProgressTrip` contém a primeira viagem `IN_PROGRESS` retornada pela
+persistência. Apenas viagens `COMPLETED` entram em `lastCompletedTrip`,
+distâncias e contagem; `distanceThisYearKm` considera o ano civil atual.
 
 ```json
 {
+  "inProgressTrip": null,
   "nextTrip": null,
   "lastCompletedTrip": null,
   "totalCompletedDistanceKm": 0.0,
+  "distanceThisYearKm": 0.0,
   "completedTrips": 0,
   "motorcycleCount": 1
 }

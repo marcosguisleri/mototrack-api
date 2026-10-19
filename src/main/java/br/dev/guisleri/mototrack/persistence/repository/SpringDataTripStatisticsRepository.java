@@ -6,6 +6,7 @@ import br.dev.guisleri.mototrack.persistence.projection.MonthlyTripStatisticsPro
 import br.dev.guisleri.mototrack.persistence.projection.MotorcycleTripCountProjection;
 import br.dev.guisleri.mototrack.persistence.projection.TerrainTripStatisticsProjection;
 import br.dev.guisleri.mototrack.persistence.projection.TripStatusCountProjection;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -77,18 +78,21 @@ public interface SpringDataTripStatisticsRepository
 
     // Destaques de viagens
 
+    @EntityGraph(attributePaths = {"motorcycle", "motorcycle.owner"})
     Optional<TripEntity>
     findFirstByMotorcycle_Owner_IdAndStatusOrderByDistanceKmDescTripDateDescIdDesc(
             Long ownerId,
             TripStatus status
     );
 
+    @EntityGraph(attributePaths = {"motorcycle", "motorcycle.owner"})
     Optional<TripEntity>
     findFirstByMotorcycle_Owner_IdAndStatusOrderByTripDateDescIdDesc(
             Long ownerId,
             TripStatus status
     );
 
+    @EntityGraph(attributePaths = {"motorcycle", "motorcycle.owner"})
     Optional<TripEntity>
     findFirstByMotorcycle_Owner_IdAndStatusOrderByTripDateAscIdAsc(
             Long ownerId,
@@ -96,16 +100,6 @@ public interface SpringDataTripStatisticsRepository
     );
 
     // Estatísticas por motocicleta
-
-    @Query("""
-        SELECT t.motorcycle AS motorcycle, COUNT(t) AS tripCount
-        FROM TripEntity t
-        WHERE t.motorcycle.owner.id = :ownerId
-        GROUP BY t.motorcycle
-        """)
-    List<MotorcycleTripCountProjection> countTripsGroupedByMotorcycleForOwner(
-            @Param("ownerId") Long ownerId
-    );
 
     @Query("""
         SELECT COALESCE(SUM(t.distanceKm), 0)
@@ -155,6 +149,7 @@ public interface SpringDataTripStatisticsRepository
             TripStatus status
     );
 
+    @EntityGraph(attributePaths = {"motorcycle", "motorcycle.owner"})
     Optional<TripEntity>
     findFirstByMotorcycle_IdAndMotorcycle_Owner_IdAndStatusOrderByDistanceKmDescTripDateDescIdDesc(
             Long motorcycleId,
@@ -162,6 +157,7 @@ public interface SpringDataTripStatisticsRepository
             TripStatus status
     );
 
+    @EntityGraph(attributePaths = {"motorcycle", "motorcycle.owner"})
     Optional<TripEntity>
     findFirstByMotorcycle_IdAndMotorcycle_Owner_IdAndStatusOrderByTripDateDescIdDesc(
             Long motorcycleId,

@@ -79,6 +79,15 @@ class HomeControllerTest {
                 8L,
                 motorcycle
         );
+        TripSummaryResponseDTO inProgressTrip = new TripSummaryResponseDTO(
+                12L,
+                "Florianopolis",
+                "Curitiba",
+                300.0,
+                TerrainType.ASPHALT,
+                LocalDate.of(2026, 10, 1),
+                motorcycle
+        );
         TripSummaryResponseDTO lastCompletedTrip = new TripSummaryResponseDTO(
                 11L,
                 "Araras",
@@ -89,9 +98,11 @@ class HomeControllerTest {
                 motorcycle
         );
         HomeResponseDTO home = new HomeResponseDTO(
+                inProgressTrip,
                 nextTrip,
                 lastCompletedTrip,
                 1_250.5,
+                980.0,
                 4L,
                 2L
         );
@@ -105,6 +116,9 @@ class HomeControllerTest {
                 .andExpect(jsonPath("$.nextTrip.terrain").value("MIXED"))
                 .andExpect(jsonPath("$.nextTrip.daysUntil").value(8))
                 .andExpect(jsonPath("$.nextTrip.motorcycle.id").value(1))
+                .andExpect(jsonPath("$.inProgressTrip.id").value(12))
+                .andExpect(jsonPath("$.inProgressTrip.destination").value("Curitiba"))
+                .andExpect(jsonPath("$.inProgressTrip.motorcycle.id").value(1))
                 .andExpect(jsonPath("$.lastCompletedTrip.id").value(11))
                 .andExpect(jsonPath("$.lastCompletedTrip.destination")
                         .value("Campinas"))
@@ -114,6 +128,7 @@ class HomeControllerTest {
                         .value("ASPHALT"))
                 .andExpect(jsonPath("$.lastCompletedTrip.motorcycle.id").value(1))
                 .andExpect(jsonPath("$.totalCompletedDistanceKm").value(1_250.5))
+                .andExpect(jsonPath("$.distanceThisYearKm").value(980.0))
                 .andExpect(jsonPath("$.completedTrips").value(4))
                 .andExpect(jsonPath("$.motorcycleCount").value(2));
 
@@ -126,6 +141,8 @@ class HomeControllerTest {
         HomeResponseDTO home = new HomeResponseDTO(
                 null,
                 null,
+                null,
+                0.0,
                 0.0,
                 0L,
                 0L
@@ -134,9 +151,11 @@ class HomeControllerTest {
 
         mockMvc.perform(get("/home").principal(AUTHENTICATION))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.inProgressTrip").value((Object) null))
                 .andExpect(jsonPath("$.nextTrip").value((Object) null))
                 .andExpect(jsonPath("$.lastCompletedTrip").value((Object) null))
                 .andExpect(jsonPath("$.totalCompletedDistanceKm").value(0.0))
+                .andExpect(jsonPath("$.distanceThisYearKm").value(0.0))
                 .andExpect(jsonPath("$.completedTrips").value(0))
                 .andExpect(jsonPath("$.motorcycleCount").value(0));
 

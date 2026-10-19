@@ -41,10 +41,21 @@ public class HomeService {
         Long completedTrips =
                 tripStatisticsService.countCompletedTrips(ownerId);
 
+        TripSummaryResponseDTO inProgressTrip =
+                tripService.findInProgressTripByOwnerId(ownerId)
+                        .map(TripSummaryResponseDTO::from)
+                        .orElse(null);
+
+        Double distanceThisYearKm =
+                tripStatisticsService
+                        .calculateCompletedDistanceKmForCurrentYear(ownerId);
+
         return new HomeResponseDTO(
+                inProgressTrip,
                 nextTrip,
                 lastCompletedTrip,
                 totalCompletedDistanceKm,
+                distanceThisYearKm,
                 completedTrips,
                 countMotorcycles(ownerId)
         );

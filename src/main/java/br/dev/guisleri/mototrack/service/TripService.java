@@ -15,6 +15,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TripService {
@@ -131,6 +132,15 @@ public class TripService {
 
     public List<Trip> findTripsByOwnerIdAndStatus(Long ownerId, TripStatus status) {
         return tripRepository.findByOwnerIdAndStatus(ownerId, status);
+    }
+
+    public Optional<Trip> findInProgressTripByOwnerId(Long ownerId) {
+        return findTripsByOwnerIdAndStatus(
+                ownerId,
+                TripStatus.IN_PROGRESS
+        )
+                .stream()
+                .findFirst();
     }
 
     public List<Trip> findUpcomingTripsByOwnerId(Long ownerId) {

@@ -162,6 +162,16 @@ public class TripStatisticsService {
                 );
     }
 
+    public Double calculateCompletedDistanceKmForCurrentYear(Long ownerId) {
+        int currentYear = LocalDate.now(clock).getYear();
+
+        return findMonthlyStatisticsLast12Months(ownerId)
+                .stream()
+                .filter(statistic -> statistic.year() == currentYear)
+                .mapToDouble(MonthlyTripStatistics::totalDistanceKm)
+                .sum();
+    }
+
     public Map<Motorcycle, Long> countTripsByMotorcycle(Long ownerId) {
         return tripStatisticsRepository.countByOwnerIdAndMotorcycle(ownerId);
     }

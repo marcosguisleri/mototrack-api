@@ -15,6 +15,10 @@ class MotorcycleTest {
             "password-hash"
     );
 
+    // -------------------------------------------------------------------------
+    // Registro de motocicletas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldRegisterMotorcycleWithoutIdAndWithColor() {
         Motorcycle motorcycle = Motorcycle.register(
@@ -30,6 +34,10 @@ class MotorcycleTest {
         assertEquals(OWNER, motorcycle.getOwner());
         assertNull(motorcycle.getId());
     }
+
+    // -------------------------------------------------------------------------
+    // Identidade, igualdade e hash code por ID
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldBeEqualWhenIdsAreEqual() {

@@ -12,6 +12,10 @@ class UserMapperTest {
 
     private final UserMapper mapper = new UserMapper();
 
+    // -------------------------------------------------------------------------
+    // Conversão entre domínio e entidade de usuário
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldMapUserToEntity() {
         User user = User.register(

@@ -14,6 +14,10 @@ class RefreshTokenGeneratorTest {
     private final RefreshTokenGenerator refreshTokenGenerator =
             new RefreshTokenGenerator();
 
+    // -------------------------------------------------------------------------
+    // Geração de refresh tokens aleatórios e seguros para URL
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldGenerateNonBlankRefreshToken() {
         String refreshToken = refreshTokenGenerator.generate();
@@ -44,6 +48,10 @@ class RefreshTokenGeneratorTest {
                 () -> assertFalse(refreshToken.contains("/"))
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Hash SHA-256 dos refresh tokens
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldGenerateSameHashForSameToken() {

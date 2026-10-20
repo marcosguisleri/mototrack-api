@@ -38,6 +38,10 @@ class CustomUserDetailsServiceTest {
         userDetailsService = new CustomUserDetailsService(userRepository);
     }
 
+    // -------------------------------------------------------------------------
+    // Carregamento de credenciais por e-mail
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldLoadUserByNormalizedEmailWithPasswordHashAndNoAuthorities() {
         when(userRepository.findByEmail("marcos@example.com"))

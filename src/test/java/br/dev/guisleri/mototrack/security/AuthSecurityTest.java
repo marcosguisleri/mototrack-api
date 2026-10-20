@@ -90,6 +90,10 @@ class AuthSecurityTest {
     @MockitoBean
     private RefreshTokenGenerator refreshTokenGenerator;
 
+    // -------------------------------------------------------------------------
+    // POST /auth/login - autenticação e emissão inicial de tokens
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldNormalizeEmailCaseWhenLoggingInWithCorrectPassword() throws Exception {
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(USER));
@@ -172,6 +176,10 @@ class AuthSecurityTest {
         verify(refreshTokenGenerator, never()).generate();
         verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
     }
+
+    // -------------------------------------------------------------------------
+    // POST /auth/refresh - rotação e validação de refresh tokens
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldRotateRefreshTokenWhenRefreshIsValid() throws Exception {
@@ -343,6 +351,10 @@ class AuthSecurityTest {
                 .andExpect(content().string(not(containsString(NEW_HASHED_REFRESH_TOKEN))));
     }
 
+    // -------------------------------------------------------------------------
+    // POST /auth/logout - revogação idempotente do refresh token
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldLogoutExistingRefreshToken() throws Exception {
         RefreshToken existingRefreshToken = RefreshToken.restore(
@@ -399,6 +411,10 @@ class AuthSecurityTest {
         verify(refreshTokenGenerator, never()).hash(any());
         verify(refreshTokenRepository, never()).findByTokenHashForUpdate(any());
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de payload
+    // -------------------------------------------------------------------------
 
     private String loginJson(String email, String password) {
         return """

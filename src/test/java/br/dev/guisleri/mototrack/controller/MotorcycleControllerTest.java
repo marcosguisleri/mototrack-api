@@ -63,6 +63,10 @@ class MotorcycleControllerTest {
                 .thenReturn(CURRENT_USER);
     }
 
+    // -------------------------------------------------------------------------
+    // POST /motorcycles - criação, vínculo com proprietário e validação
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldCreateMotorcycleForAuthenticatedUser() throws Exception {
         Motorcycle savedMotorcycle = motorcycle(1L, "Honda", "NX 500");
@@ -179,6 +183,10 @@ class MotorcycleControllerTest {
         verifyNoInteractions(motorcycleService);
     }
 
+    // -------------------------------------------------------------------------
+    // GET /motorcycles - garagem do usuário autenticado
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldListOnlyAuthenticatedUsersMotorcycles() throws Exception {
         Motorcycle honda = motorcycle(1L, "Honda", "NX 500");
@@ -197,6 +205,10 @@ class MotorcycleControllerTest {
 
         verify(motorcycleService).findMotorcyclesByOwnerId(CURRENT_USER.getId());
     }
+
+    // -------------------------------------------------------------------------
+    // GET /motorcycles/{id} - consulta individual e controle de acesso
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindAuthenticatedUsersMotorcycleById() throws Exception {
@@ -239,6 +251,10 @@ class MotorcycleControllerTest {
                 .andExpect(jsonPath("$.error").value("Forbidden"))
                 .andExpect(jsonPath("$.message").value(message));
     }
+
+    // -------------------------------------------------------------------------
+    // DELETE /motorcycles/{id} - exclusão, conflitos e controle de acesso
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldDeleteAuthenticatedUsersMotorcycleWithoutTrips() throws Exception {
@@ -294,6 +310,10 @@ class MotorcycleControllerTest {
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value(message));
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de domínio e payload
+    // -------------------------------------------------------------------------
 
     private Motorcycle motorcycle(Long id, String brand, String model) {
         return Motorcycle.restore(

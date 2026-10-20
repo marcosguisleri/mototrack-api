@@ -58,6 +58,10 @@ class HomeControllerTest {
                 .thenReturn(CURRENT_USER);
     }
 
+    // -------------------------------------------------------------------------
+    // GET /home - composição dos dados da tela inicial
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldReturnCompleteHomeData() throws Exception {
         MotorcycleResponseDTO motorcycle = new MotorcycleResponseDTO(

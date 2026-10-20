@@ -8,6 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ClockConfigTest {
 
+    // -------------------------------------------------------------------------
+    // Configuração do relógio de negócio
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldUseExplicitBrazilianBusinessTimeZone() {
         assertEquals(

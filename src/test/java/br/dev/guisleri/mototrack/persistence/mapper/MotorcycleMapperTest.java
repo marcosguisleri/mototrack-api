@@ -15,6 +15,10 @@ class MotorcycleMapperTest {
     private final UserMapper userMapper = new UserMapper();
     private final MotorcycleMapper mapper = new MotorcycleMapper(userMapper);
 
+    // -------------------------------------------------------------------------
+    // Conversão entre domínio e entidade de motocicleta
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldMapMotorcycleToEntityWithOwner() {
         User owner = User.restore(

@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.model;
 
 import br.dev.guisleri.mototrack.exception.InvalidTripDateException;
 import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
+import br.dev.guisleri.mototrack.exception.TripDateUpdateRequiredException;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -14,7 +15,7 @@ public class Trip {
     private final double distanceKm;
     private TripStatus status;
     private final TerrainType terrain;
-    private final LocalDate tripDate;
+    private LocalDate tripDate;
     private final Motorcycle motorcycle;
 
     private Trip(
@@ -117,22 +118,44 @@ public class Trip {
         );
     }
 
-    public void changeStatus(
-            TripStatus newStatus,
-            LocalDate currentDate
+    public void startTrip(
+            LocalDate currentDate,
+            boolean updateTripDateToToday
     ) {
-        if (!status.canTransitionTo(newStatus)) {
-            throw new InvalidTripStatusException("Status inválido!");
+        if (!status.canTransitionTo(TripStatus.IN_PROGRESS)) {
+            throw new InvalidTripStatusException(
+                    "Não é possível iniciar uma viagem com status " + status + "."
+            );
         }
 
-        if (newStatus == TripStatus.COMPLETED
-                && tripDate.isAfter(currentDate)) {
+        if (!tripDate.equals(currentDate)) {
+            if (!updateTripDateToToday) {
+                throw new TripDateUpdateRequiredException(
+                        "A data da viagem é diferente da data atual. " +
+                                "Confirme a atualização da data para iniciar a viagem."
+                );
+            }
+
+            tripDate = currentDate;
+        }
+
+        status = TripStatus.IN_PROGRESS;
+    }
+
+    public void completeTrip(LocalDate currentDate) {
+        if (!status.canTransitionTo(TripStatus.COMPLETED)) {
+            throw new InvalidTripStatusException(
+                    "Não é possível concluir uma viagem com status " + status + "."
+            );
+        }
+
+        if (tripDate.isAfter(currentDate)) {
             throw new InvalidTripDateException(
                     "Uma viagem futura não pode ser concluída."
             );
         }
 
-        status = newStatus;
+        status = TripStatus.COMPLETED;
     }
 
     public Long getId() {

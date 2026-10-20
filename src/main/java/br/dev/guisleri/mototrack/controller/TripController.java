@@ -118,7 +118,8 @@ public class TripController {
         tripService.changeTripStatusForOwner(
                 tripId,
                 currentUser.getId(),
-                statusChangeRequest.status()
+                statusChangeRequest.status(),
+                Boolean.TRUE.equals(statusChangeRequest.updateTripDateToToday())
         );
 
         return ResponseEntity.noContent().build();

@@ -34,3 +34,5 @@ bin/
 *.iml
 
 .env
+
+CLAUDE.md

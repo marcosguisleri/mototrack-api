@@ -8,6 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class UserTest {
 
+    // -------------------------------------------------------------------------
+    // Registro de novos usuários
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldRegisterNewUserWithoutIdAndWithPasswordHash() {
         User user = User.register(
@@ -23,6 +27,10 @@ class UserTest {
                 () -> assertEquals("password-hash", user.getPasswordHash())
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Restauração de usuários persistidos
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldRestorePersistedUser() {

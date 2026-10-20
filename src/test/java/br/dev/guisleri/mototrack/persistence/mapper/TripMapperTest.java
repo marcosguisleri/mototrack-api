@@ -22,6 +22,10 @@ class TripMapperTest {
     private final MotorcycleMapper motorcycleMapper = new MotorcycleMapper(userMapper);
     private final TripMapper tripMapper = new TripMapper(motorcycleMapper);
 
+    // -------------------------------------------------------------------------
+    // Conversão entre domínio e entidade de viagem
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldMapTripToEntityWithMotorcycleOwner() {
         User owner = User.restore(
@@ -103,6 +107,10 @@ class TripMapperTest {
                 )
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de criação do grafo de domínio
+    // -------------------------------------------------------------------------
 
     private Trip trip(Motorcycle motorcycle) {
         return Trip.restore(

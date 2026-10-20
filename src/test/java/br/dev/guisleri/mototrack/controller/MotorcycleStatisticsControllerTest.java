@@ -59,6 +59,10 @@ class MotorcycleStatisticsControllerTest {
                 .thenReturn(CURRENT_USER);
     }
 
+    // -------------------------------------------------------------------------
+    // GET /motorcycles/{motorcycleId}/statistics - estatísticas do usuário
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldReturnAuthenticatedUsersMotorcycleStatistics() throws Exception {
         Motorcycle motorcycle = Motorcycle.restore(

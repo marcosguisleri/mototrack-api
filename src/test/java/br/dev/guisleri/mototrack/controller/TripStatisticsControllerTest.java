@@ -62,6 +62,10 @@ class TripStatisticsControllerTest {
                 .thenReturn(CURRENT_USER);
     }
 
+    // -------------------------------------------------------------------------
+    // GET /statistics - estatísticas consolidadas e estado vazio
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldReturnTripStatistics() throws Exception {
         Motorcycle motorcycle = motorcycle();
@@ -175,6 +179,10 @@ class TripStatisticsControllerTest {
                 .andExpect(jsonPath("$.terrainStatistics").isEmpty())
                 .andExpect(jsonPath("$.monthlyStatistics").isEmpty());
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de criação do domínio
+    // -------------------------------------------------------------------------
 
     private Motorcycle motorcycle() {
         return Motorcycle.restore(

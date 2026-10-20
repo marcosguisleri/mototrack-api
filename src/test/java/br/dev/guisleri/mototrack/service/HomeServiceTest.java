@@ -57,6 +57,10 @@ class HomeServiceTest {
         honda = motorcycle(1L, "Honda", "NX 500");
     }
 
+    // -------------------------------------------------------------------------
+    // Composição dos dados e estados opcionais da tela inicial
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldReturnHomeData() {
         Trip nextTrip = trip(
@@ -156,6 +160,10 @@ class HomeServiceTest {
         verify(tripStatisticsService).findLastCompletedTrip(OWNER_ID);
     }
 
+    // -------------------------------------------------------------------------
+    // Seleção da próxima viagem
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldUseNextUpcomingTrip() {
         Trip nearestTrip = trip(
@@ -183,6 +191,10 @@ class HomeServiceTest {
         verify(tripService).calculateDaysUntilTrip(nearestTrip);
     }
 
+    // -------------------------------------------------------------------------
+    // Contagem de motocicletas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldCountMotorcycles() {
         when(tripService.findNextUpcomingTripByOwnerId(OWNER_ID))
@@ -201,6 +213,10 @@ class HomeServiceTest {
         assertEquals(3L, home.motorcycleCount());
         verify(motorcycleService).countMotorcyclesByOwnerId(OWNER_ID);
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de domínio
+    // -------------------------------------------------------------------------
 
     private Trip trip(
             Long id,

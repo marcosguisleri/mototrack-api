@@ -60,6 +60,10 @@ class MotorcycleStatisticsServiceTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Composição das estatísticas da motocicleta
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldBuildStatisticsForOwnersMotorcycle() {
         Map<TerrainType, TerrainStatistics> terrainStatistics = Map.of(

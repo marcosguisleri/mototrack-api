@@ -45,6 +45,10 @@ class MotorcycleServiceTest {
         service = new MotorcycleService(motorcycleRepository, tripRepository);
     }
 
+    // -------------------------------------------------------------------------
+    // Registro de motocicleta
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldRegisterMotorcycleForOwner() {
         User owner = owner();
@@ -74,6 +78,10 @@ class MotorcycleServiceTest {
         assertSame(owner, motorcycleSentToRepository.getOwner());
         assertSame(persistedMotorcycle, result);
     }
+
+    // -------------------------------------------------------------------------
+    // Consulta individual e controle de acesso
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindMotorcycleByIdForOwner() {
@@ -118,6 +126,10 @@ class MotorcycleServiceTest {
         verify(motorcycleRepository).findById(1L);
     }
 
+    // -------------------------------------------------------------------------
+    // Listagem e contagem da garagem do proprietário
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindMotorcyclesByOwnerId() {
         List<Motorcycle> motorcycles = List.of(
@@ -151,6 +163,10 @@ class MotorcycleServiceTest {
         assertEquals(3L, result);
         verify(motorcycleRepository).countByOwnerId(OWNER_ID);
     }
+
+    // -------------------------------------------------------------------------
+    // Exclusão com lock, vínculo com viagens e controle de acesso
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldDeleteOwnersMotorcycleWithoutTrips() {
@@ -217,6 +233,10 @@ class MotorcycleServiceTest {
         verifyNoInteractions(tripRepository);
         verify(motorcycleRepository, never()).deleteById(1L);
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de domínio
+    // -------------------------------------------------------------------------
 
     private Motorcycle motorcycle(
             Long id,

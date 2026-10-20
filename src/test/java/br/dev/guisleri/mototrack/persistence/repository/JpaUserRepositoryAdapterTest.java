@@ -33,6 +33,10 @@ class JpaUserRepositoryAdapterTest {
     @PersistenceContext
     private EntityManager entityManager;
 
+    // -------------------------------------------------------------------------
+    // Persistência e restrição de unicidade do e-mail
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldPersistNewUser() {
         User newUser = User.register(
@@ -60,6 +64,10 @@ class JpaUserRepositoryAdapterTest {
                 () -> assertEquals("password-hash", savedEntity.getPasswordHash())
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Consulta por e-mail
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindUserByEmail() {
@@ -89,6 +97,10 @@ class JpaUserRepositoryAdapterTest {
                 .isEmpty());
     }
 
+    // -------------------------------------------------------------------------
+    // Restrições do banco de dados
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldRejectDuplicateEmailAtDatabaseLevel() {
         save(User.register(
@@ -108,6 +120,10 @@ class JpaUserRepositoryAdapterTest {
                 )
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de persistência
+    // -------------------------------------------------------------------------
 
     private User save(User user) {
         User savedUser = userRepositoryAdapter.save(user);

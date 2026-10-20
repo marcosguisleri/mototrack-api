@@ -74,12 +74,20 @@ public class TripService {
     public void changeTripStatusForOwner(
             long tripId,
             Long ownerId,
-            TripStatus newStatus
+            TripStatus newStatus,
+            boolean updateTripDateToToday
     ) {
         Trip trip = findTripByIdForUpdateForOwner(tripId, ownerId);
 
-        trip.changeStatus(newStatus,
-                LocalDate.now(clock));
+        LocalDate currentDate = LocalDate.now(clock);
+        switch (newStatus) {
+            case IN_PROGRESS ->
+                    trip.startTrip(currentDate, updateTripDateToToday);
+            case COMPLETED -> trip.completeTrip(currentDate);
+            case PLANNED -> throw new InvalidTripStatusException(
+                    "Não é possível reverter uma viagem para o status PLANNED."
+            );
+        }
         tripRepository.save(trip);
     }
 

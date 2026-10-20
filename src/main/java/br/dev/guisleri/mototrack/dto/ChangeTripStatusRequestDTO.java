@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 public record ChangeTripStatusRequestDTO(
         @NotNull(message = "O status da viagem é obrigatório.")
-        TripStatus status
+        TripStatus status,
+        Boolean updateTripDateToToday
 ) {
 }

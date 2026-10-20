@@ -52,6 +52,10 @@ class JpaRefreshTokenRepositoryAdapterTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Persistência e vínculo do refresh token com o usuário
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldPersistRefreshTokenWithUser() {
         RefreshToken newRefreshToken = RefreshToken.create(
@@ -96,6 +100,10 @@ class JpaRefreshTokenRepositoryAdapterTest {
         assertEquals(0, springDataRefreshTokenRepository.count());
     }
 
+    // -------------------------------------------------------------------------
+    // Consulta por hash com lock para atualização
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindRefreshTokenByTokenHashForUpdate() {
         RefreshToken savedRefreshToken = saveRefreshToken(TOKEN_HASH, EXPIRES_AT);
@@ -128,6 +136,10 @@ class JpaRefreshTokenRepositoryAdapterTest {
                 .isEmpty());
     }
 
+    // -------------------------------------------------------------------------
+    // Exclusão por ID
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldDeleteRefreshTokenById() {
         RefreshToken savedRefreshToken = saveRefreshToken(TOKEN_HASH, EXPIRES_AT);
@@ -139,6 +151,10 @@ class JpaRefreshTokenRepositoryAdapterTest {
                 .findById(savedRefreshToken.getId())
                 .isEmpty());
     }
+
+    // -------------------------------------------------------------------------
+    // Cardinalidade de tokens por usuário
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldPersistMultipleRefreshTokensForSameUser() {
@@ -170,6 +186,10 @@ class JpaRefreshTokenRepositoryAdapterTest {
                 () -> assertEquals(secondExpiresAt, secondResult.getExpiresAt())
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de persistência
+    // -------------------------------------------------------------------------
 
     private RefreshToken saveRefreshToken(String tokenHash, Instant expiresAt) {
         RefreshToken savedRefreshToken = refreshTokenRepositoryAdapter.save(

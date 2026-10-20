@@ -63,6 +63,10 @@ class TripStatisticsServiceTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Composição da resposta consolidada e estado vazio
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldBuildTripStatisticsResponse() {
         Trip longestTrip = completedTrip(
@@ -167,6 +171,10 @@ class TripStatisticsServiceTest {
         assertEquals(12, result.monthlyStatistics().size());
     }
 
+    // -------------------------------------------------------------------------
+    // Contagens por status e total de viagens concluídas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldCountTripsByStatus() {
         Map<TripStatus, Long> counts = Map.of(
@@ -204,6 +212,10 @@ class TripStatisticsServiceTest {
         verify(tripStatisticsRepository).countTripsByStatus(OWNER_ID);
     }
 
+    // -------------------------------------------------------------------------
+    // Distância total concluída
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldCalculateTotalCompletedDistanceKm() {
         when(tripStatisticsRepository.sumDistanceKmByOwnerIdAndStatus(
@@ -220,6 +232,10 @@ class TripStatisticsServiceTest {
                 TripStatus.COMPLETED
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Estatísticas por terreno e por motocicleta
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindTerrainStatistics() {
@@ -267,6 +283,10 @@ class TripStatisticsServiceTest {
                 );
     }
 
+    // -------------------------------------------------------------------------
+    // Série mensal dos últimos doze meses
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindMonthlyStatisticsFromTheBeginningOfTheLast12Months() {
         List<MonthlyTripStatistics> statistics = List.of(
@@ -303,6 +323,10 @@ class TripStatisticsServiceTest {
                 LocalDate.of(2025, 10, 1)
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Métricas anuais e agregados por motocicleta
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldCalculateCompletedDistanceForCurrentYear() {
@@ -363,6 +387,10 @@ class TripStatisticsServiceTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Histórico de viagens por motocicleta
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindLongestCompletedTripByMotorcycle() {
         Optional<Trip> expected = Optional.of(Trip.restore(
@@ -422,6 +450,10 @@ class TripStatisticsServiceTest {
                         honda
                 );
     }
+
+    // -------------------------------------------------------------------------
+    // Rankings e histórico geral de viagens concluídas
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindMostUsedMotorcycle() {
@@ -544,6 +576,10 @@ class TripStatisticsServiceTest {
         assertTrue(result.isEmpty());
         verify(tripStatisticsRepository).findFirstCompletedTripByOwnerId(OWNER_ID);
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de domínio
+    // -------------------------------------------------------------------------
 
     private Trip completedTrip(
             Long id,

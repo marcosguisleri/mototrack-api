@@ -3,6 +3,7 @@ package br.dev.guisleri.mototrack.service;
 import br.dev.guisleri.mototrack.exception.InvalidTripDateException;
 import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
 import br.dev.guisleri.mototrack.exception.TripAccessDeniedException;
+import br.dev.guisleri.mototrack.exception.TripDateUpdateRequiredException;
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
@@ -24,13 +25,13 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -80,6 +81,10 @@ class TripServiceTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Agendamento de viagens planejadas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldScheduleTrip() {
         Trip persistedTrip = trip(
@@ -110,6 +115,10 @@ class TripServiceTest {
         assertSame(persistedTrip, result);
     }
 
+    // -------------------------------------------------------------------------
+    // Registro de viagens já concluídas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldRegisterCompletedTrip() {
         Trip persistedTrip = trip(
@@ -136,6 +145,10 @@ class TripServiceTest {
         assertEquals(TripStatus.COMPLETED, tripCaptor.getValue().getStatus());
         assertSame(persistedTrip, result);
     }
+
+    // -------------------------------------------------------------------------
+    // Consulta individual e controle de acesso
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindTripByIdForOwner() {
@@ -173,6 +186,10 @@ class TripServiceTest {
         verify(tripRepository).findById(1L);
     }
 
+    // -------------------------------------------------------------------------
+    // Listagem geral por proprietário
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindTripsByOwner() {
         List<Trip> trips = List.of(
@@ -187,17 +204,133 @@ class TripServiceTest {
         verify(tripRepository).findByOwnerId(OWNER_ID);
     }
 
+    // -------------------------------------------------------------------------
+    // Mudança de status, confirmação de data, lock e persistência
+    // -------------------------------------------------------------------------
+
     @Test
-    void shouldChangeTripStatusForOwner() {
+    void shouldStartTripOnScheduledDate() {
+        Trip trip = plannedTrip(1L, 0, honda);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+
+        service.changeTripStatusForOwner(1L, OWNER_ID, TripStatus.IN_PROGRESS, false);
+
+        assertAll(
+                () -> assertEquals(TripStatus.IN_PROGRESS, trip.getStatus()),
+                () -> assertEquals(today, trip.getTripDate())
+        );
+        verify(tripRepository).findByIdForUpdate(1L);
+        verify(tripRepository).save(trip);
+    }
+
+    @Test
+    void shouldStartEarlyTripAndUpdateDateWhenConfirmed() {
         Trip trip = plannedTrip(1L, 1, honda);
         when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
         when(tripRepository.save(trip)).thenReturn(trip);
 
-        service.changeTripStatusForOwner(1L, OWNER_ID, TripStatus.IN_PROGRESS);
+        service.changeTripStatusForOwner(
+                1L,
+                OWNER_ID,
+                TripStatus.IN_PROGRESS,
+                true
+        );
 
-        assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
+        assertAll(
+                () -> assertEquals(TripStatus.IN_PROGRESS, trip.getStatus()),
+                () -> assertEquals(today, trip.getTripDate())
+        );
         verify(tripRepository).findByIdForUpdate(1L);
         verify(tripRepository).save(trip);
+    }
+
+    @Test
+    void shouldRejectEarlyStartWithoutDateUpdateConfirmation() {
+        LocalDate originalDate = today.plusDays(1);
+        Trip trip = plannedTrip(1L, 1, honda);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                TripDateUpdateRequiredException.class,
+                () -> service.changeTripStatusForOwner(
+                        1L,
+                        OWNER_ID,
+                        TripStatus.IN_PROGRESS,
+                        false
+                )
+        );
+
+        assertAll(
+                () -> assertEquals(TripStatus.PLANNED, trip.getStatus()),
+                () -> assertEquals(originalDate, trip.getTripDate())
+        );
+        verify(tripRepository).findByIdForUpdate(1L);
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldCompleteTripInProgress() {
+        Trip trip = trip(
+                1L,
+                TerrainType.ASPHALT,
+                today,
+                honda,
+                TripStatus.IN_PROGRESS
+        );
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+
+        service.changeTripStatusForOwner(
+                1L,
+                OWNER_ID,
+                TripStatus.COMPLETED,
+                false
+        );
+
+        assertEquals(TripStatus.COMPLETED, trip.getStatus());
+        verify(tripRepository).findByIdForUpdate(1L);
+        verify(tripRepository).save(trip);
+    }
+
+    @Test
+    void shouldRejectChangingTripStatusToPlanned() {
+        Trip trip = plannedTrip(1L, 0, honda);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                InvalidTripStatusException.class,
+                () -> service.changeTripStatusForOwner(
+                        1L,
+                        OWNER_ID,
+                        TripStatus.PLANNED,
+                        false
+                )
+        );
+
+        assertEquals(TripStatus.PLANNED, trip.getStatus());
+        verify(tripRepository).findByIdForUpdate(1L);
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldRejectCompletingPlannedTrip() {
+        Trip trip = plannedTrip(1L, 0, honda);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                InvalidTripStatusException.class,
+                () -> service.changeTripStatusForOwner(
+                        1L,
+                        OWNER_ID,
+                        TripStatus.COMPLETED,
+                        false
+                )
+        );
+
+        assertEquals(TripStatus.PLANNED, trip.getStatus());
+        verify(tripRepository).findByIdForUpdate(1L);
+        verify(tripRepository, never()).save(any());
     }
 
     @Test
@@ -209,7 +342,8 @@ class TripServiceTest {
                 () -> service.changeTripStatusForOwner(
                         99L,
                         OWNER_ID,
-                        TripStatus.IN_PROGRESS
+                        TripStatus.IN_PROGRESS,
+                        false
                 )
         );
 
@@ -227,7 +361,8 @@ class TripServiceTest {
                 () -> service.changeTripStatusForOwner(
                         1L,
                         OWNER_ID,
-                        TripStatus.IN_PROGRESS
+                        TripStatus.IN_PROGRESS,
+                        false
                 )
         );
 
@@ -235,6 +370,35 @@ class TripServiceTest {
         verify(tripRepository).findByIdForUpdate(1L);
         verify(tripRepository, never()).save(any(Trip.class));
     }
+
+    @Test
+    void shouldRejectCompletingFutureTrip() {
+        Trip trip = trip(
+                1L,
+                TerrainType.ASPHALT,
+                today.plusDays(10),
+                honda,
+                TripStatus.IN_PROGRESS
+        );
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> service.changeTripStatusForOwner(
+                        1L,
+                        OWNER_ID,
+                        TripStatus.COMPLETED,
+                        false
+                )
+        );
+        assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
+        verify(tripRepository).findByIdForUpdate(1L);
+        verify(tripRepository, never()).save(any());
+    }
+
+    // -------------------------------------------------------------------------
+    // Filtros, viagem em andamento, próximas viagens e histórico
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindTripsByOwnerAndTerrain() {
@@ -383,6 +547,10 @@ class TripServiceTest {
                 .findCompletedByOwnerIdOrderByTripDateDesc(OWNER_ID);
     }
 
+    // -------------------------------------------------------------------------
+    // Cálculo de dias restantes e controle de acesso
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldCalculateDaysUntilPlannedTripForOwner() {
         Trip trip = plannedTrip(1L, 12, honda);
@@ -426,26 +594,9 @@ class TripServiceTest {
         verify(tripRepository).findById(1L);
     }
 
-    @Test
-    void shouldRejectCompletingFutureTrip() {
-        Trip trip = plannedTrip(1L, 10, honda);
-        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
-        when(tripRepository.save(trip)).thenReturn(trip);
-
-        service.changeTripStatusForOwner(1L, OWNER_ID, TripStatus.IN_PROGRESS);
-
-        assertThrows(
-                InvalidTripDateException.class,
-                () -> service.changeTripStatusForOwner(
-                        1L,
-                        OWNER_ID,
-                        TripStatus.COMPLETED
-                )
-        );
-        assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
-        verify(tripRepository, times(2)).findByIdForUpdate(1L);
-        verify(tripRepository).save(trip);
-    }
+    // -------------------------------------------------------------------------
+    // Exclusão com lock e controle de acesso
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldDeleteTripByIdForOwner() {
@@ -484,6 +635,10 @@ class TripServiceTest {
         verify(tripRepository).findByIdForUpdate(1L);
         verify(tripRepository, never()).deleteById(1L);
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de domínio
+    // -------------------------------------------------------------------------
 
     private Trip plannedTrip(
             Long id,

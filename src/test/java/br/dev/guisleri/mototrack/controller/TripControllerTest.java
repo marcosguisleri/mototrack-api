@@ -3,6 +3,7 @@ package br.dev.guisleri.mototrack.controller;
 import br.dev.guisleri.mototrack.exception.InvalidTripDateException;
 import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
 import br.dev.guisleri.mototrack.exception.TripAccessDeniedException;
+import br.dev.guisleri.mototrack.exception.TripDateUpdateRequiredException;
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
@@ -93,6 +94,10 @@ class TripControllerTest {
     @MockitoBean
     private UserService userService;
 
+    // -------------------------------------------------------------------------
+    // POST /trips - agendamento de viagens planejadas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldScheduleTrip() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 20);
@@ -141,6 +146,10 @@ class TripControllerTest {
         verify(motorcycleService).findMotorcycleByIdForOwner(1L, CURRENT_USER.getId());
     }
 
+    // -------------------------------------------------------------------------
+    // POST /trips/completed - registro de viagens já concluídas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldRegisterCompletedTrip() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 10);
@@ -174,6 +183,10 @@ class TripControllerTest {
         );
         verify(motorcycleService).findMotorcycleByIdForOwner(1L, CURRENT_USER.getId());
     }
+
+    // -------------------------------------------------------------------------
+    // GET /trips - listagem e filtros por status
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindTripsForOwner() throws Exception {
@@ -237,6 +250,10 @@ class TripControllerTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // GET /trips/upcoming - próximas viagens planejadas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindUpcomingTrips() throws Exception {
         Trip trip = plannedTrip(1, LocalDate.of(2026, 9, 20));
@@ -251,6 +268,10 @@ class TripControllerTest {
 
         verify(tripService).findUpcomingTripsByOwnerId(CURRENT_USER.getId());
     }
+
+    // -------------------------------------------------------------------------
+    // GET /trips/terrain/{terrain} - filtro por terreno
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindTripsByTerrain() throws Exception {
@@ -271,6 +292,10 @@ class TripControllerTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // GET /trips/date/{date} - filtro por data
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldConvertDateAndFindTripsByDate() throws Exception {
         LocalDate tripDate = LocalDate.of(2026, 9, 20);
@@ -289,6 +314,10 @@ class TripControllerTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // GET /trips/{id}/days-until - dias restantes para a viagem
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldCalculateDaysUntilTrip() throws Exception {
         when(tripService.calculateDaysUntilTripForOwner(1, CURRENT_USER.getId()))
@@ -300,6 +329,10 @@ class TripControllerTest {
 
         verify(tripService).calculateDaysUntilTripForOwner(1, CURRENT_USER.getId());
     }
+
+    // -------------------------------------------------------------------------
+    // GET /trips/{id} - consulta individual, ausência e controle de acesso
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindTripById() throws Exception {
@@ -345,6 +378,10 @@ class TripControllerTest {
                 ))
                 .andExpect(jsonPath("$.errors").isEmpty());
     }
+
+    // -------------------------------------------------------------------------
+    // POST /trips - validação do payload e erros de criação
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldReturnBadRequestWhenTripDateIsInvalid() throws Exception {
@@ -469,6 +506,10 @@ class TripControllerTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Erros HTTP transversais - binding, roteamento e negociação de conteúdo
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldReturnStandardErrorForInvalidStatusQueryParameter() throws Exception {
         mockMvc.perform(get("/trips")
@@ -545,6 +586,10 @@ class TripControllerTest {
                 .andExpect(jsonPath("$.errors").isEmpty());
     }
 
+    // -------------------------------------------------------------------------
+    // PATCH /trips/{id}/status - mudança de status e confirmação de data
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldReturnBadRequestWhenTripStatusIsInvalid() throws Exception {
         doThrow(new InvalidTripStatusException("Status inválido!"))
@@ -552,7 +597,8 @@ class TripControllerTest {
                 .changeTripStatusForOwner(
                         1,
                         CURRENT_USER.getId(),
-                        TripStatus.COMPLETED
+                        TripStatus.COMPLETED,
+                        false
                 );
 
         mockMvc.perform(patch("/trips/1/status")
@@ -570,15 +616,11 @@ class TripControllerTest {
     }
 
     @Test
-    void shouldRejectNullStatusBeforeCallingService() throws Exception {
+    void shouldRejectMissingStatusBeforeCallingService() throws Exception {
         mockMvc.perform(patch("/trips/1/status")
                         .principal(AUTHENTICATION)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "status": null
-                                }
-                                """))
+                        .content("{}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Validation Failed"))
@@ -586,6 +628,35 @@ class TripControllerTest {
                         .value("O status da viagem é obrigatório."));
 
         verifyNoInteractions(tripService);
+    }
+
+    @Test
+    void shouldReturnConflictWhenTripDateUpdateConfirmationIsRequired()
+            throws Exception {
+        doThrow(new TripDateUpdateRequiredException(
+                "A data da viagem é diferente da data atual."
+        ))
+                .when(tripService)
+                .changeTripStatusForOwner(
+                        1,
+                        CURRENT_USER.getId(),
+                        TripStatus.IN_PROGRESS,
+                        false
+                );
+
+        mockMvc.perform(patch("/trips/1/status")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "IN_PROGRESS"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message")
+                        .value("A data da viagem é diferente da data atual."));
     }
 
     @Test
@@ -604,9 +675,35 @@ class TripControllerTest {
         verify(tripService).changeTripStatusForOwner(
                 1,
                 CURRENT_USER.getId(),
-                TripStatus.IN_PROGRESS
+                TripStatus.IN_PROGRESS,
+                false
         );
     }
+
+    @Test
+    void shouldPassTripDateUpdateConfirmationToService() throws Exception {
+        mockMvc.perform(patch("/trips/1/status")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "IN_PROGRESS",
+                                  "updateTripDateToToday": true
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        verify(tripService).changeTripStatusForOwner(
+                1,
+                CURRENT_USER.getId(),
+                TripStatus.IN_PROGRESS,
+                true
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // DELETE /trips/{id} - exclusão de viagem
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldDeleteTripById() throws Exception {
@@ -615,6 +712,10 @@ class TripControllerTest {
 
         verify(tripService).deleteTripByIdForOwner(1L, CURRENT_USER.getId());
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de asserção e criação de dados
+    // -------------------------------------------------------------------------
 
     private void assertUnreadableTripPayload(String payload) throws Exception {
         mockMvc.perform(post("/trips")

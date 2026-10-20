@@ -50,6 +50,15 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler({
+            TripDateUpdateRequiredException.class
+    })
+    public ResponseEntity<ApiErrorResponseDTO> handleTripDateUpdateRequired(
+            RuntimeException exception
+    ) {
+        return createErrorResponse(HttpStatus.CONFLICT, exception);
+    }
+
+    @ExceptionHandler({
             MotorcycleInUseException.class,
             UserAlreadyExistsException.class
     })

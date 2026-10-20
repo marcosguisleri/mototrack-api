@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.model;
 
 import br.dev.guisleri.mototrack.exception.InvalidTripDateException;
 import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
+import br.dev.guisleri.mototrack.exception.TripDateUpdateRequiredException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -45,6 +46,10 @@ public class TripTest {
         );
         today = LocalDate.now(fixedClock);
     }
+
+    // -------------------------------------------------------------------------
+    // Agendamento de viagens planejadas
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldCreateTripWithPlannedStatus() {
@@ -95,6 +100,10 @@ public class TripTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Registro de viagens já concluídas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldRegisterCompletedTripForPastDate() {
         LocalDate yesterday = today.minusDays(1);
@@ -126,54 +135,189 @@ public class TripTest {
         );
     }
 
-    @Test
-    void shouldChangeStatusFromPlannedToInProgress() {
-        Trip trip = createTrip(today.plusDays(1));
-
-        trip.changeStatus(TripStatus.IN_PROGRESS, today);
-
-        assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
-    }
+    // -------------------------------------------------------------------------
+    // Início de viagem e confirmação da atualização de data
+    // -------------------------------------------------------------------------
 
     @Test
-    void shouldChangeStatusFromInProgressToCompleted() {
+    void shouldStartTripOnScheduledDate() {
         Trip trip = createTrip(today);
-        trip.changeStatus(TripStatus.IN_PROGRESS, today);
 
-        trip.changeStatus(TripStatus.COMPLETED, today);
+        trip.startTrip(today, false);
 
-        assertEquals(TripStatus.COMPLETED, trip.getStatus());
+        assertAll(
+                () -> assertEquals(TripStatus.IN_PROGRESS, trip.getStatus()),
+                () -> assertEquals(today, trip.getTripDate())
+        );
     }
 
     @Test
-    void shouldRejectTransitionFromPlannedToCompleted() {
+    void shouldRejectEarlyStartWithoutDateUpdateConfirmation() {
+        LocalDate originalDate = today.plusDays(1);
+        Trip trip = createTrip(originalDate);
+
+        assertThrows(
+                TripDateUpdateRequiredException.class,
+                () -> trip.startTrip(today, false)
+        );
+
+        assertAll(
+                () -> assertEquals(TripStatus.PLANNED, trip.getStatus()),
+                () -> assertEquals(originalDate, trip.getTripDate())
+        );
+    }
+
+    @Test
+    void shouldStartEarlyTripAndUpdateDateWhenConfirmed() {
         Trip trip = createTrip(today.plusDays(1));
 
-        assertThrows(
-                InvalidTripStatusException.class,
-                () -> trip.changeStatus(TripStatus.COMPLETED, today)
+        trip.startTrip(today, true);
+
+        assertAll(
+                () -> assertEquals(TripStatus.IN_PROGRESS, trip.getStatus()),
+                () -> assertEquals(today, trip.getTripDate())
         );
     }
 
     @Test
-    void shouldRejectTransitionFromCompletedToInProgress() {
-        Trip trip = createCompletedTrip();
+    void shouldRejectLateStartWithoutDateUpdateConfirmation() {
+        LocalDate originalDate = today.minusDays(1);
+        Trip trip = restoreTrip(originalDate, TripStatus.PLANNED);
 
         assertThrows(
-                InvalidTripStatusException.class,
-                () -> trip.changeStatus(TripStatus.IN_PROGRESS, today)
+                TripDateUpdateRequiredException.class,
+                () -> trip.startTrip(today, false)
+        );
+
+        assertAll(
+                () -> assertEquals(TripStatus.PLANNED, trip.getStatus()),
+                () -> assertEquals(originalDate, trip.getTripDate())
         );
     }
 
     @Test
-    void shouldRejectTransitionFromCompletedToPlanned() {
-        Trip trip = createCompletedTrip();
+    void shouldStartLateTripAndUpdateDateWhenConfirmed() {
+        Trip trip = restoreTrip(today.minusDays(1), TripStatus.PLANNED);
+
+        trip.startTrip(today, true);
+
+        assertAll(
+                () -> assertEquals(TripStatus.IN_PROGRESS, trip.getStatus()),
+                () -> assertEquals(today, trip.getTripDate())
+        );
+    }
+
+    @Test
+    void shouldRejectStartingTripWhenStatusIsInProgress() {
+        Trip trip = restoreTrip(today, TripStatus.IN_PROGRESS);
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> trip.changeStatus(TripStatus.PLANNED, today)
+                () -> trip.startTrip(today, false)
         );
     }
+
+    @Test
+    void shouldRejectStartingTripWhenStatusIsCompleted() {
+        Trip trip = restoreTrip(today, TripStatus.COMPLETED);
+
+        assertThrows(
+                InvalidTripStatusException.class,
+                () -> trip.startTrip(today, false)
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Conclusão de viagem e validação das transições
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldCompleteTripInProgressOnCurrentDate() {
+        Trip trip = restoreTrip(today, TripStatus.IN_PROGRESS);
+
+        trip.completeTrip(today);
+
+        assertAll(
+                () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
+                () -> assertEquals(today, trip.getTripDate())
+        );
+    }
+
+    @Test
+    void shouldCompletePastTripInProgress() {
+        LocalDate originalDate = today.minusDays(1);
+        Trip trip = restoreTrip(originalDate, TripStatus.IN_PROGRESS);
+
+        trip.completeTrip(today);
+
+        assertAll(
+                () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
+                () -> assertEquals(originalDate, trip.getTripDate())
+        );
+    }
+
+    @Test
+    void shouldRejectCompletingPlannedTrip() {
+        Trip trip = createTrip(today);
+
+        assertThrows(
+                InvalidTripStatusException.class,
+                () -> trip.completeTrip(today)
+        );
+
+        assertAll(
+                () -> assertEquals(TripStatus.PLANNED, trip.getStatus()),
+                () -> assertEquals(today, trip.getTripDate())
+        );
+    }
+
+    @Test
+    void shouldRejectCompletingCompletedTrip() {
+        Trip trip = restoreTrip(today, TripStatus.COMPLETED);
+
+        assertThrows(
+                InvalidTripStatusException.class,
+                () -> trip.completeTrip(today)
+        );
+
+        assertAll(
+                () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
+                () -> assertEquals(today, trip.getTripDate())
+        );
+    }
+
+    @Test
+    void shouldRejectCompletingFutureTrip() {
+        LocalDate originalDate = today.plusDays(1);
+        Trip trip = restoreTrip(originalDate, TripStatus.IN_PROGRESS);
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> trip.completeTrip(today)
+        );
+
+        assertAll(
+                () -> assertEquals(TripStatus.IN_PROGRESS, trip.getStatus()),
+                () -> assertEquals(originalDate, trip.getTripDate())
+        );
+    }
+
+    @Test
+    void shouldCompleteTripAfterStartingWithUpdatedDate() {
+        Trip trip = createTrip(today.plusDays(1));
+
+        trip.startTrip(today, true);
+        trip.completeTrip(today);
+
+        assertAll(
+                () -> assertEquals(today, trip.getTripDate()),
+                () -> assertEquals(TripStatus.COMPLETED, trip.getStatus())
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Helpers de criação e restauração do domínio
+    // -------------------------------------------------------------------------
 
     private Trip createTrip(LocalDate plannedDate) {
         return Trip.schedule(
@@ -187,10 +331,6 @@ public class TripTest {
         );
     }
 
-    private Trip createCompletedTrip() {
-        return createCompletedTrip(today.minusDays(1));
-    }
-
     private Trip createCompletedTrip(LocalDate tripDate) {
         return Trip.registerCompleted(
                 "Florianopolis",
@@ -200,6 +340,19 @@ public class TripTest {
                 tripDate,
                 motorcycle,
                 fixedClock
+        );
+    }
+
+    private Trip restoreTrip(LocalDate tripDate, TripStatus status) {
+        return Trip.restore(
+                1L,
+                "Florianopolis",
+                "Serra do Rio do Rastro",
+                284.5,
+                TerrainType.ASPHALT,
+                tripDate,
+                motorcycle,
+                status
         );
     }
 }

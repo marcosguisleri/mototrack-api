@@ -49,6 +49,10 @@ class UserControllerTest {
     @MockitoBean
     private UserService userService;
 
+    // -------------------------------------------------------------------------
+    // POST /users - criação, normalização, validação e conflitos
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldCreateUserWithoutExposingCredentials() throws Exception {
         when(userService.registerUser("Marcos", "marcos@example.com", PASSWORD))
@@ -176,6 +180,10 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value(message));
     }
 
+    // -------------------------------------------------------------------------
+    // GET /users/me - consulta do usuário autenticado
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldReturnCurrentAuthenticatedUserWithoutExposingCredentials() throws Exception {
         when(userService.findUserByEmail(USER.getEmail())).thenReturn(USER);
@@ -204,6 +212,10 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.message").value(message));
     }
 
+    // -------------------------------------------------------------------------
+    // Rotas de usuário que não devem ser expostas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldNotExposeUserCollectionEndpoint() throws Exception {
         mockMvc.perform(get("/users"))
@@ -219,6 +231,10 @@ class UserControllerTest {
 
         verifyNoInteractions(userService);
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de payload
+    // -------------------------------------------------------------------------
 
     private String userJson(String name, String email, String password) {
         return """

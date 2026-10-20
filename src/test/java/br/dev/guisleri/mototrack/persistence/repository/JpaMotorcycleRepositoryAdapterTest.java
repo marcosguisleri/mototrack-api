@@ -52,6 +52,10 @@ class JpaMotorcycleRepositoryAdapterTest {
         owner = saveUser("Marcos", "marcos@example.com");
     }
 
+    // -------------------------------------------------------------------------
+    // Persistência e restauração do proprietário
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldPersistMotorcycleWithOwner() {
         Motorcycle newMotorcycle = motorcycle(
@@ -93,6 +97,10 @@ class JpaMotorcycleRepositoryAdapterTest {
                 )
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Consulta individual e lock pessimista
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldRestoreMotorcycleWithOwner() {
@@ -154,6 +162,10 @@ class JpaMotorcycleRepositoryAdapterTest {
                 )
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Listagem e contagem por proprietário
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindMotorcyclesByOwnerId() {
@@ -230,6 +242,10 @@ class JpaMotorcycleRepositoryAdapterTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Exclusão por ID
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldDeleteMotorcycleById() {
         Motorcycle savedMotorcycle = save(motorcycle(
@@ -247,6 +263,10 @@ class JpaMotorcycleRepositoryAdapterTest {
                 .findById(savedMotorcycle.getId())
                 .isEmpty());
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de persistência e domínio
+    // -------------------------------------------------------------------------
 
     private Motorcycle save(Motorcycle motorcycle) {
         Motorcycle savedMotorcycle = motorcycleRepositoryAdapter.save(motorcycle);

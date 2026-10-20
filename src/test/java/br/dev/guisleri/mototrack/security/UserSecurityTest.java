@@ -65,6 +65,10 @@ class UserSecurityTest {
     @MockitoBean
     private UserRepository userRepository;
 
+    // -------------------------------------------------------------------------
+    // Rotas públicas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldAllowPublicUserRegistration() throws Exception {
         when(userService.registerUser("Marcos", EMAIL, PASSWORD))
@@ -79,6 +83,10 @@ class UserSecurityTest {
 
         verify(userService).registerUser("Marcos", EMAIL, PASSWORD);
     }
+
+    // -------------------------------------------------------------------------
+    // Rejeição de requisições sem autenticação ou com token inválido
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldRejectCurrentUserRequestWithoutAuthentication() throws Exception {
@@ -117,6 +125,10 @@ class UserSecurityTest {
         verifyNoInteractions(userRepository);
     }
 
+    // -------------------------------------------------------------------------
+    // Autenticação JWT e identidade do usuário
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldUseJwtSubjectAsAuthenticationNameWhenGettingCurrentUser() throws Exception {
         when(userService.findUserByEmail(EMAIL)).thenReturn(USER);
@@ -137,6 +149,10 @@ class UserSecurityTest {
         verifyNoInteractions(userRepository);
     }
 
+    // -------------------------------------------------------------------------
+    // Tratamento de rota desconhecida para usuário autenticado
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldReturnStandardNotFoundForAuthenticatedUnknownEndpoint() throws Exception {
         mockMvc.perform(get("/unknown-endpoint")
@@ -152,6 +168,10 @@ class UserSecurityTest {
 
         verifyNoInteractions(userService);
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de autenticação e payload
+    // -------------------------------------------------------------------------
 
     private String validJwtWithSubject(String subject) {
         Instant issuedAt = Instant.now();

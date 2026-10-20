@@ -45,6 +45,10 @@ class UserServiceTest {
         service = new UserService(userRepository, passwordEncoder);
     }
 
+    // -------------------------------------------------------------------------
+    // Registro, normalização e unicidade de usuários
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldRegisterUserWithNormalizedEmailAndEncodedPassword() {
         User persistedUser = User.restore(
@@ -136,6 +140,10 @@ class UserServiceTest {
         assertEquals(PASSWORD_HASH, userSentToRepository.getPasswordHash());
         assertNotEquals(PLAIN_PASSWORD, userSentToRepository.getPasswordHash());
     }
+
+    // -------------------------------------------------------------------------
+    // Consulta de usuário por e-mail normalizado
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindUserByNormalizedEmail() {

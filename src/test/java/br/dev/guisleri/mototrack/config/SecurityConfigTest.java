@@ -9,6 +9,10 @@ class SecurityConfigTest {
 
     private final SecurityConfig securityConfig = new SecurityConfig();
 
+    // -------------------------------------------------------------------------
+    // Validação das propriedades de segurança JWT
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldRejectJwtSecretShorterThan256Bits() {
         IllegalStateException exception = assertThrows(

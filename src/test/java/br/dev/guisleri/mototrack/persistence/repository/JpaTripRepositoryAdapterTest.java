@@ -84,6 +84,10 @@ class JpaTripRepositoryAdapterTest {
     @PersistenceContext
     private EntityManager entityManager;
 
+    // -------------------------------------------------------------------------
+    // Persistência e vínculo com a motocicleta
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldPersistTripWithMotorcycleOwner() {
         Trip newTrip = plannedTrip(175.5, TerrainType.MIXED, TODAY.plusDays(5), HONDA);
@@ -164,6 +168,10 @@ class JpaTripRepositoryAdapterTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Consulta individual e lock pessimista
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindTripByIdWithMotorcycleOwner() {
         Trip savedTrip = save(plannedTrip(
@@ -225,6 +233,10 @@ class JpaTripRepositoryAdapterTest {
                 )
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Listagem e filtros por proprietário
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindTripsByOwner() {
@@ -320,6 +332,10 @@ class JpaTripRepositoryAdapterTest {
         assertEquals(tripOnDate.getId(), result.getFirst().getId());
     }
 
+    // -------------------------------------------------------------------------
+    // Próximas viagens planejadas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindOnlyOwnersPlannedUpcomingTripsInDateOrder() {
         LocalDate referenceDate = TODAY.plusDays(5);
@@ -406,6 +422,10 @@ class JpaTripRepositoryAdapterTest {
         assertEquals(ownerId, result.getMotorcycle().getOwner().getId());
     }
 
+    // -------------------------------------------------------------------------
+    // Histórico de viagens concluídas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindCompletedTripsByOwnerIdOrderedByTripDateDesc() {
         Trip oldestTrip = save(completedTrip(
@@ -452,6 +472,10 @@ class JpaTripRepositoryAdapterTest {
         assertEquals(LocalDate.of(2026, 7, 11), result.get(2).getTripDate());
     }
 
+    // -------------------------------------------------------------------------
+    // Existência de viagens por motocicleta
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldCheckWhetherMotorcycleHasTrips() {
         Trip savedTrip = save(plannedTrip(
@@ -465,6 +489,10 @@ class JpaTripRepositoryAdapterTest {
                 savedTrip.getMotorcycle().getId()
         ));
     }
+
+    // -------------------------------------------------------------------------
+    // Exclusão por ID
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldDeleteTripById() {
@@ -480,6 +508,10 @@ class JpaTripRepositoryAdapterTest {
 
         assertTrue(tripRepositoryAdapter.findById(savedTrip.getId()).isEmpty());
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de persistência e domínio
+    // -------------------------------------------------------------------------
 
     private Trip save(Trip trip) {
         Trip savedTrip = tripRepositoryAdapter.save(trip);
@@ -513,8 +545,16 @@ class JpaTripRepositoryAdapterTest {
             Motorcycle motorcycle
     ) {
         Trip trip = plannedTrip(distanceKm, terrainType, tripDate, motorcycle);
-        trip.changeStatus(TripStatus.IN_PROGRESS, TODAY);
-        return trip;
+        return Trip.restore(
+                trip.getId(),
+                trip.getOrigin(),
+                trip.getDestination(),
+                trip.getDistanceKm(),
+                trip.getTerrain(),
+                trip.getTripDate(),
+                trip.getMotorcycle(),
+                TripStatus.IN_PROGRESS
+        );
     }
 
     private Trip completedTrip(

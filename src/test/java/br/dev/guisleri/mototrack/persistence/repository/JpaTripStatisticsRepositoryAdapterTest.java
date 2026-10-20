@@ -81,6 +81,10 @@ class JpaTripStatisticsRepositoryAdapterTest {
     @Autowired
     private MotorcycleMapper motorcycleMapper;
 
+    // -------------------------------------------------------------------------
+    // Distâncias e contagens por status
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldCalculateDistanceStatistics() {
         Motorcycle savedHonda = save(completedTrip(
@@ -187,6 +191,10 @@ class JpaTripStatisticsRepositoryAdapterTest {
 
         assertEquals(2L, result);
     }
+
+    // -------------------------------------------------------------------------
+    // Estatísticas por terreno e por motocicleta
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldCalculateTerrainStatisticsForCompletedTripsAndOwner() {
@@ -363,6 +371,10 @@ class JpaTripStatisticsRepositoryAdapterTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Série mensal de viagens concluídas
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldCalculateMonthlyStatisticsForCompletedTripsSinceStartDateAndOwner() {
         LocalDate startDate = LocalDate.of(2025, 10, 1);
@@ -418,6 +430,10 @@ class JpaTripStatisticsRepositoryAdapterTest {
         );
     }
 
+    // -------------------------------------------------------------------------
+    // Motocicleta mais utilizada
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindMostUsedMotorcycleAmongCompletedTrips() {
         Motorcycle savedHonda = save(completedTrip(
@@ -459,6 +475,10 @@ class JpaTripStatisticsRepositoryAdapterTest {
                 .findMostUsedMotorcycleInCompletedTripsByOwnerId(999L)
                 .isEmpty());
     }
+
+    // -------------------------------------------------------------------------
+    // Viagem concluída mais longa e critérios de desempate
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindLongestCompletedTripForOwner() {
@@ -593,6 +613,10 @@ class JpaTripStatisticsRepositoryAdapterTest {
 
         assertEquals(expected.getId(), result.getId());
     }
+
+    // -------------------------------------------------------------------------
+    // Última viagem concluída e critérios de desempate
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldFindLastCompletedTripForOwner() {
@@ -730,6 +754,10 @@ class JpaTripStatisticsRepositoryAdapterTest {
         assertTrue(result.isEmpty());
     }
 
+    // -------------------------------------------------------------------------
+    // Primeira viagem concluída e ordenação histórica
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldFindFirstCompletedTripForOwner() {
         Motorcycle savedHonda = save(completedTrip(
@@ -788,6 +816,10 @@ class JpaTripStatisticsRepositoryAdapterTest {
         assertEquals(expected.getId(), result.getId());
     }
 
+    // -------------------------------------------------------------------------
+    // Desempate adicional da última viagem concluída
+    // -------------------------------------------------------------------------
+
     @Test
     void shouldUseHighestIdWhenLastCompletedTripsHaveSameDate() {
         Motorcycle savedHonda = save(completedTrip(
@@ -809,6 +841,10 @@ class JpaTripStatisticsRepositoryAdapterTest {
 
         assertEquals(expected.getId(), result.getId());
     }
+
+    // -------------------------------------------------------------------------
+    // Desempates adicionais da viagem concluída mais longa
+    // -------------------------------------------------------------------------
 
     @Test
     void shouldUseMostRecentTripWhenLongestTripsHaveSameDistance() {
@@ -854,6 +890,10 @@ class JpaTripStatisticsRepositoryAdapterTest {
 
         assertEquals(expected.getId(), result.getId());
     }
+
+    // -------------------------------------------------------------------------
+    // Helpers de persistência e domínio
+    // -------------------------------------------------------------------------
 
     private Trip save(Trip trip) {
         Trip savedTrip = tripRepositoryAdapter.save(trip);

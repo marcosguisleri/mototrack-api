@@ -30,7 +30,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/users/me
 | Nome | Campos |
 |---|---|
 | `User` | `id`, `name`, `email` |
-| `Motorcycle` | `id`, `brand`, `model`, `color`, `year`, `engineCapacity`, `owner: User` |
+| `Motorcycle` | `id`, `brand`, `model`, `color`, `year`, `engineCapacity`, `type: MotorcycleType \| null`, `owner: User` |
 | `Trip` | `id`, `origin`, `destination`, `distanceKm`, `status`, `terrain`, `tripDate`, `motorcycle: Motorcycle` |
 | `TripSummary` | `id`, `origin`, `destination`, `distanceKm`, `terrain`, `tripDate`, `motorcycle: Motorcycle` |
 | `MotorcycleTripSummary` | `id`, `origin`, `destination`, `distanceKm`, `terrain`, `tripDate` (sem `motorcycle` e sem `status`) |
@@ -120,23 +120,26 @@ curl -X POST http://localhost:8080/auth/logout \
 
 | Método e rota | Parâmetros / request | Sucesso | Outros status relevantes |
 |---|---|---|---|
-| `POST /motorcycles` | JSON: `brand`, `model`, `color` não vazios e com até 255 caracteres; `year >= 1900`; `engineCapacity > 0`. Não aceita owner escolhido pelo cliente. | `201` + `Motorcycle` | `400` |
+| `POST /motorcycles` | JSON: `brand`, `model`, `color` não vazios e com até 255 caracteres; `year >= 1900`; `engineCapacity > 0`; `type` obrigatório (`STREET`, `NAKED`, `SPORT`, `CUSTOM`, `TRAIL` ou `BIG_TRAIL`). Não aceita owner escolhido pelo cliente. | `201` + `Motorcycle` | `400` |
 | `GET /motorcycles` | Sem parâmetros. | `200` + `Motorcycle[]` | — |
 | `GET /motorcycles/{id}` | `id`: ID da moto. | `200` + `Motorcycle` | `400` ID inválido; `403` outro owner; `404` inexistente |
 | `DELETE /motorcycles/{id}` | `id`: ID da moto; sem corpo. | `204` sem corpo | `400` ID inválido; `403` outro owner; `404` inexistente; `409` moto com qualquer viagem vinculada |
+
+`type` é `null` nas motos cadastradas antes de o campo existir. Os valores
+possíveis são `STREET`, `NAKED`, `SPORT`, `CUSTOM`, `TRAIL` e `BIG_TRAIL`.
 
 Exemplo de criação:
 
 ```bash
 curl -H "Authorization: Bearer $ACCESS_TOKEN" -X POST http://localhost:8080/motorcycles \
   -H 'Content-Type: application/json' \
-  -d '{"brand":"Honda","model":"NX 500","color":"Black","year":2025,"engineCapacity":471}'
+  -d '{"brand":"Honda","model":"NX 500","color":"Black","year":2025,"engineCapacity":471,"type":"NAKED"}'
 ```
 
 ```json
 {
   "id": 1, "brand": "Honda", "model": "NX 500", "color": "Black",
-  "year": 2025, "engineCapacity": 471,
+  "year": 2025, "engineCapacity": 471, "type": "NAKED",
   "owner": {"id": 1, "name": "Marcos", "email": "marcos@example.com"}
 }
 ```
@@ -167,7 +170,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" \
 {
   "motorcycle": {
     "id": 1, "brand": "Honda", "model": "NX 500", "color": "Black",
-    "year": 2025, "engineCapacity": 471,
+    "year": 2025, "engineCapacity": 471, "type": "NAKED",
     "owner": {"id": 1, "name": "Marcos", "email": "marcos@example.com"}
   },
   "completedTrips": 2,
@@ -226,7 +229,7 @@ Exemplo de resposta `Trip` de uma viagem planejada:
   "tripDate": "2026-10-15",
   "motorcycle": {
     "id": 1, "brand": "Honda", "model": "NX 500", "color": "Black",
-    "year": 2025, "engineCapacity": 471,
+    "year": 2025, "engineCapacity": 471, "type": "NAKED",
     "owner": {"id": 1, "name": "Marcos", "email": "marcos@example.com"}
   }
 }

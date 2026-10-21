@@ -71,7 +71,7 @@ flowchart TD
     end
 
     subgraph DOM["💛 Domínio"]
-        M["Trip · Motorcycle · User<br/>TripStatus · TerrainType<br/>regras e invariantes"]
+        M["Trip · Motorcycle · User<br/>TripStatus · TerrainType · MotorcycleType<br/>regras e invariantes"]
     end
 
     subgraph INFRA["🗄️ Infraestrutura"]
@@ -112,7 +112,7 @@ br.dev.guisleri.mototrack
 ├── controller/             Auth · User · Motorcycle · Trip · Home · TripStatistics · MotorcycleStatistics
 ├── dto/                    Records de request e response
 ├── exception/              Exceções de negócio + GlobalExceptionHandler
-├── model/                  💛 User · RefreshToken · Trip · Motorcycle · TripStatus · TerrainType
+├── model/                  💛 User · RefreshToken · Trip · Motorcycle · TripStatus · TerrainType · MotorcycleType
 ├── repository/             🔌 Ports (inclui RefreshTokenRepository)
 ├── security/               CustomUserDetailsService · RefreshTokenGenerator
 ├── service/                Auth · User · Motorcycle · Trip · Home · TripStatistics · MotorcycleStatistics
@@ -250,7 +250,8 @@ curl -X POST http://localhost:8080/motorcycles \
     "model": "NX 500",
     "color": "Black",
     "year": 2025,
-    "engineCapacity": 471
+    "engineCapacity": 471,
+    "type": "NAKED"
   }'
 ```
 
@@ -262,6 +263,7 @@ curl -X POST http://localhost:8080/motorcycles \
   "color": "Black",
   "year": 2025,
   "engineCapacity": 471,
+  "type": "NAKED",
   "owner": {
     "id": 1,
     "name": "Marcos",
@@ -302,6 +304,7 @@ curl -X POST http://localhost:8080/trips \
     "color": "Black",
     "year": 2025,
     "engineCapacity": 471,
+    "type": "NAKED",
     "owner": {
       "id": 1,
       "name": "Marcos",
@@ -338,6 +341,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/statistics
     "color": "Black",
     "year": 2025,
     "engineCapacity": 471,
+    "type": "NAKED",
     "owner": {
       "id": 1,
       "name": "Marcos",
@@ -358,6 +362,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/statistics
       "color": "Black",
       "year": 2025,
       "engineCapacity": 471,
+      "type": "NAKED",
       "owner": {
         "id": 1,
         "name": "Marcos",
@@ -379,6 +384,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/statistics
       "color": "Black",
       "year": 2025,
       "engineCapacity": 471,
+      "type": "NAKED",
       "owner": {
         "id": 1,
         "name": "Marcos",
@@ -400,6 +406,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/statistics
       "color": "Black",
       "year": 2025,
       "engineCapacity": 471,
+      "type": "NAKED",
       "owner": {
         "id": 1,
         "name": "Marcos",

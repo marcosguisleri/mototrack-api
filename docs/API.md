@@ -217,7 +217,7 @@ requests aceita `status` ou owner escolhidos pelo cliente.
 | `GET /trips/terrain/{terrain}` | `terrain`: `ASPHALT`, `MIXED` ou `OFF_ROAD`; inclui todos os status. | `200` + `Trip[]` | `400` terreno inválido |
 | `GET /trips/date/{date}` | `date`: data `yyyy-MM-dd`; inclui todos os status. | `200` + `Trip[]` | `400` data inválida |
 | `GET /trips/{id}/days-until` | Apenas `PLANNED`; `id` da viagem. Viagens planejadas vencidas podem retornar número negativo. | `200` + número inteiro JSON (ex.: `3`) | `400` status/ID inválido; `403` outro owner; `404` inexistente |
-| `PATCH /trips/{id}/status` | JSON `{ "status": "IN_PROGRESS" }` ou `{ "status": "COMPLETED" }`. Só `PLANNED → IN_PROGRESS → COMPLETED`; concluir requer `tripDate <= hoje`. | `204` sem corpo | `400` transição/data/payload/ID inválidos; `403` outro owner; `404` inexistente |
+| `PATCH /trips/{id}/status` | JSON `{ "status": "IN_PROGRESS" }` ou `{ "status": "COMPLETED" }`, com `updateTripDateToToday` opcional. Só `PLANNED → IN_PROGRESS → COMPLETED`. Iniciar ou concluir com `tripDate` diferente de hoje (para concluir, só se for posterior a hoje) exige `updateTripDateToToday: true`, que atualiza a data para hoje; sem ele a resposta é `409`. | `204` sem corpo | `400` transição/payload/ID inválidos; `403` outro owner; `404` inexistente; `409` exige confirmação da atualização da data |
 | `DELETE /trips/{id}` | `id` da viagem; sem corpo. | `204` sem corpo | `400` ID inválido; `403` outro owner; `404` inexistente |
 
 Exemplo de resposta `Trip` de uma viagem planejada:

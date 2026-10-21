@@ -83,7 +83,7 @@ public class TripService {
         switch (newStatus) {
             case IN_PROGRESS ->
                     trip.startTrip(currentDate, updateTripDateToToday);
-            case COMPLETED -> trip.completeTrip(currentDate);
+            case COMPLETED -> trip.completeTrip(currentDate, updateTripDateToToday);
             case PLANNED -> throw new InvalidTripStatusException(
                     "Não é possível reverter uma viagem para o status PLANNED."
             );

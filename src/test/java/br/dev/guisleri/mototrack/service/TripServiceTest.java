@@ -373,7 +373,7 @@ class TripServiceTest {
     }
 
     @Test
-    void shouldRejectCompletingFutureTrip() {
+    void shouldRequireConfirmationToCompleteFutureTrip() {
         Trip trip = trip(
                 1L,
                 TerrainType.ASPHALT,
@@ -384,7 +384,7 @@ class TripServiceTest {
         when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
 
         assertThrows(
-                InvalidTripDateException.class,
+                TripDateUpdateRequiredException.class,
                 () -> service.changeTripStatusForOwner(
                         1L,
                         OWNER_ID,
@@ -395,6 +395,29 @@ class TripServiceTest {
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
         verify(tripRepository).findByIdForUpdate(1L);
         verify(tripRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldCompleteFutureTripAndUpdateDateWhenConfirmed() {
+        Trip trip = trip(
+                1L,
+                TerrainType.ASPHALT,
+                today.plusDays(10),
+                honda,
+                TripStatus.IN_PROGRESS
+        );
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        service.changeTripStatusForOwner(
+                1L,
+                OWNER_ID,
+                TripStatus.COMPLETED,
+                true
+        );
+
+        assertEquals(TripStatus.COMPLETED, trip.getStatus());
+        assertEquals(today, trip.getTripDate());
+        verify(tripRepository).save(trip);
     }
 
     // -------------------------------------------------------------------------

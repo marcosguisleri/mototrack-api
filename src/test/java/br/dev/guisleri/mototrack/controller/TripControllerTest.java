@@ -683,6 +683,54 @@ class TripControllerTest {
     }
 
     @Test
+    void shouldPassTripDateUpdateConfirmationWhenCompletingTrip() throws Exception {
+        mockMvc.perform(patch("/trips/1/status")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "COMPLETED",
+                                  "updateTripDateToToday": true
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        verify(tripService).changeTripStatusForOwner(
+                1,
+                CURRENT_USER.getId(),
+                TripStatus.COMPLETED,
+                true
+        );
+    }
+
+    @Test
+    void shouldReturnConflictWhenCompletingTripNeedsDateUpdate() throws Exception {
+        doThrow(new TripDateUpdateRequiredException(
+                "A data da viagem é posterior à data atual."
+        ))
+                .when(tripService)
+                .changeTripStatusForOwner(
+                        1,
+                        CURRENT_USER.getId(),
+                        TripStatus.COMPLETED,
+                        false
+                );
+
+        mockMvc.perform(patch("/trips/1/status")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "COMPLETED"
+                                }
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.message")
+                        .value("A data da viagem é posterior à data atual."));
+    }
+
+    @Test
     void shouldPassTripDateUpdateConfirmationToService() throws Exception {
         mockMvc.perform(patch("/trips/1/status")
                         .principal(AUTHENTICATION)

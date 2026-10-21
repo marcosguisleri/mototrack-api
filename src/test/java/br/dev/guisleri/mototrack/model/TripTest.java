@@ -236,7 +236,7 @@ public class TripTest {
     void shouldCompleteTripInProgressOnCurrentDate() {
         Trip trip = restoreTrip(today, TripStatus.IN_PROGRESS);
 
-        trip.completeTrip(today);
+        trip.completeTrip(today, false);
 
         assertAll(
                 () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
@@ -249,7 +249,7 @@ public class TripTest {
         LocalDate originalDate = today.minusDays(1);
         Trip trip = restoreTrip(originalDate, TripStatus.IN_PROGRESS);
 
-        trip.completeTrip(today);
+        trip.completeTrip(today, false);
 
         assertAll(
                 () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
@@ -263,7 +263,7 @@ public class TripTest {
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> trip.completeTrip(today)
+                () -> trip.completeTrip(today, false)
         );
 
         assertAll(
@@ -278,7 +278,7 @@ public class TripTest {
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> trip.completeTrip(today)
+                () -> trip.completeTrip(today, false)
         );
 
         assertAll(
@@ -288,13 +288,13 @@ public class TripTest {
     }
 
     @Test
-    void shouldRejectCompletingFutureTrip() {
+    void shouldRequireConfirmationToCompleteTripInProgressWithFutureDate() {
         LocalDate originalDate = today.plusDays(1);
         Trip trip = restoreTrip(originalDate, TripStatus.IN_PROGRESS);
 
         assertThrows(
-                InvalidTripDateException.class,
-                () -> trip.completeTrip(today)
+                TripDateUpdateRequiredException.class,
+                () -> trip.completeTrip(today, false)
         );
 
         assertAll(
@@ -304,11 +304,36 @@ public class TripTest {
     }
 
     @Test
+    void shouldCompleteTripInProgressWithFutureDateWhenUpdateIsConfirmed() {
+        Trip trip = restoreTrip(today.plusDays(4), TripStatus.IN_PROGRESS);
+
+        trip.completeTrip(today, true);
+
+        assertAll(
+                () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
+                () -> assertEquals(today, trip.getTripDate())
+        );
+    }
+
+    @Test
+    void shouldKeepPastDateWhenCompletingEvenIfUpdateIsRequested() {
+        LocalDate originalDate = today.minusDays(2);
+        Trip trip = restoreTrip(originalDate, TripStatus.IN_PROGRESS);
+
+        trip.completeTrip(today, true);
+
+        assertAll(
+                () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
+                () -> assertEquals(originalDate, trip.getTripDate())
+        );
+    }
+
+    @Test
     void shouldCompleteTripAfterStartingWithUpdatedDate() {
         Trip trip = createTrip(today.plusDays(1));
 
         trip.startTrip(today, true);
-        trip.completeTrip(today);
+        trip.completeTrip(today, false);
 
         assertAll(
                 () -> assertEquals(today, trip.getTripDate()),

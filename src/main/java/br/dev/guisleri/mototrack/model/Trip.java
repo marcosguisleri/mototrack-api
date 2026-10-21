@@ -142,17 +142,27 @@ public class Trip {
         status = TripStatus.IN_PROGRESS;
     }
 
-    public void completeTrip(LocalDate currentDate) {
+    public void completeTrip(
+            LocalDate currentDate,
+            boolean updateTripDateToToday
+    ) {
         if (!status.canTransitionTo(TripStatus.COMPLETED)) {
             throw new InvalidTripStatusException(
                     "Não é possível concluir uma viagem com status " + status + "."
             );
         }
 
+        // A trip in progress has already started, so a future date is an
+        // inconsistency to be fixed with the user's confirmation, not a dead end.
         if (tripDate.isAfter(currentDate)) {
-            throw new InvalidTripDateException(
-                    "Uma viagem futura não pode ser concluída."
-            );
+            if (!updateTripDateToToday) {
+                throw new TripDateUpdateRequiredException(
+                        "A data da viagem é posterior à data atual. " +
+                                "Confirme a atualização da data para concluir a viagem."
+                );
+            }
+
+            tripDate = currentDate;
         }
 
         status = TripStatus.COMPLETED;

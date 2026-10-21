@@ -1,6 +1,7 @@
 package br.dev.guisleri.mototrack.persistence.mapper;
 
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -78,6 +79,7 @@ class TripMapperTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 ownerEntity
         );
         TripEntity entity = new TripEntity(
@@ -133,6 +135,7 @@ class TripMapperTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 owner
         );
     }

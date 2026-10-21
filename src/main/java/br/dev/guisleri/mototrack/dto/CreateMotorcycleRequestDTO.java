@@ -1,7 +1,9 @@
 package br.dev.guisleri.mototrack.dto;
 
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
@@ -23,7 +25,10 @@ public record CreateMotorcycleRequestDTO(
         int year,
 
         @Positive(message = "A cilindrada deve ser maior que zero.")
-        int engineCapacity
+        int engineCapacity,
+
+        @NotNull(message = "O tipo da moto é obrigatório.")
+        MotorcycleType type
 
 ) {
 }

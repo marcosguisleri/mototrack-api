@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.service;
 
 import br.dev.guisleri.mototrack.dto.HomeResponseDTO;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -243,6 +244,7 @@ class HomeServiceTest {
                 "Black",
                 2025,
                 500,
+                MotorcycleType.NAKED,
                 owner
         );
     }

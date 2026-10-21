@@ -4,6 +4,7 @@ import br.dev.guisleri.mototrack.exception.MotorcycleAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.MotorcycleInUseException;
 import br.dev.guisleri.mototrack.exception.MotorcycleNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.service.MotorcycleService;
 import br.dev.guisleri.mototrack.service.UserService;
@@ -76,6 +77,7 @@ class MotorcycleControllerTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 CURRENT_USER
         )).thenReturn(savedMotorcycle);
 
@@ -90,6 +92,7 @@ class MotorcycleControllerTest {
                 .andExpect(jsonPath("$.color").value("Black"))
                 .andExpect(jsonPath("$.year").value(2025))
                 .andExpect(jsonPath("$.engineCapacity").value(471))
+                .andExpect(jsonPath("$.type").value("NAKED"))
                 .andExpect(jsonPath("$.owner.id").value(1))
                 .andExpect(jsonPath("$.owner.name").value("Marcos"))
                 .andExpect(jsonPath("$.owner.email").value("marcos@example.com"));
@@ -101,6 +104,7 @@ class MotorcycleControllerTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 CURRENT_USER
         );
     }
@@ -114,6 +118,7 @@ class MotorcycleControllerTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 CURRENT_USER
         )).thenReturn(savedMotorcycle);
 
@@ -130,6 +135,7 @@ class MotorcycleControllerTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 CURRENT_USER
         );
     }
@@ -157,9 +163,64 @@ class MotorcycleControllerTest {
                 .andExpect(jsonPath("$.errors.year")
                         .value("O ano deve ser igual ou posterior a 1900."))
                 .andExpect(jsonPath("$.errors.engineCapacity")
-                        .value("A cilindrada deve ser maior que zero."));
+                        .value("A cilindrada deve ser maior que zero."))
+                .andExpect(jsonPath("$.errors.type")
+                        .value("O tipo da moto é obrigatório."));
 
         verifyNoInteractions(motorcycleService);
+    }
+
+    @Test
+    void shouldRejectUnknownMotorcycleType() throws Exception {
+        mockMvc.perform(post("/motorcycles")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "brand": "Honda",
+                                  "model": "NX 500",
+                                  "color": "Black",
+                                  "year": 2025,
+                                  "engineCapacity": 471,
+                                  "type": "SPACESHIP"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(motorcycleService);
+    }
+
+    @Test
+    void shouldAcceptEveryMotorcycleType() throws Exception {
+        for (MotorcycleType type : MotorcycleType.values()) {
+            Motorcycle saved = Motorcycle.restore(
+                    1L, "Honda", "NX 500", "Black", 2025, 471, type, CURRENT_USER
+            );
+            when(motorcycleService.registerMotorcycle(
+                    "Honda", "NX 500", "Black", 2025, 471, type, CURRENT_USER
+            )).thenReturn(saved);
+
+            mockMvc.perform(post("/motorcycles")
+                            .principal(AUTHENTICATION)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(createMotorcycleJson()
+                                    .replace("NAKED", type.name())))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.type").value(type.name()));
+        }
+    }
+
+    @Test
+    void shouldReturnNullTypeForMotorcycleCreatedBeforeTypeExisted() throws Exception {
+        Motorcycle legacy = Motorcycle.restore(
+                1L, "Honda", "NX 500", "Black", 2025, 471, null, CURRENT_USER
+        );
+        when(motorcycleService.findMotorcyclesByOwnerId(CURRENT_USER.getId()))
+                .thenReturn(List.of(legacy));
+
+        mockMvc.perform(get("/motorcycles").principal(AUTHENTICATION))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].type").doesNotExist());
     }
 
     @Test
@@ -173,7 +234,8 @@ class MotorcycleControllerTest {
                                   "model": "NX 500",
                                   "color": "Black",
                                   "year": 2025,
-                                  "engineCapacity": 471
+                                  "engineCapacity": 471,
+                                  "type": "NAKED"
                                 }
                                 """.formatted("a".repeat(256))))
                 .andExpect(status().isBadRequest())
@@ -323,6 +385,7 @@ class MotorcycleControllerTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 CURRENT_USER
         );
     }
@@ -334,7 +397,8 @@ class MotorcycleControllerTest {
                   "model": "NX 500",
                   "color": "Black",
                   "year": 2025,
-                  "engineCapacity": 471
+                  "engineCapacity": 471,
+                  "type": "NAKED"
                 }
                 """;
     }
@@ -347,6 +411,7 @@ class MotorcycleControllerTest {
                   "color": "Black",
                   "year": 2025,
                   "engineCapacity": 471,
+                  "type": "NAKED",
                   "ownerId": %d
                 }
                 """.formatted(ownerId);

@@ -4,6 +4,7 @@ import br.dev.guisleri.mototrack.exception.MotorcycleAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.MotorcycleInUseException;
 import br.dev.guisleri.mototrack.exception.MotorcycleNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.repository.MotorcycleRepository;
 import br.dev.guisleri.mototrack.repository.TripRepository;
@@ -33,11 +34,12 @@ public class MotorcycleService {
             String color,
             int year,
             int engineCapacity,
+            MotorcycleType type,
             User owner
     ) {
 
         Motorcycle motorcycle = Motorcycle.register(
-                brand, model, color, year, engineCapacity, owner
+                brand, model, color, year, engineCapacity, type, owner
         );
 
         return motorcycleRepository.save(motorcycle);

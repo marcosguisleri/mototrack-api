@@ -6,6 +6,7 @@ import br.dev.guisleri.mototrack.exception.TripAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.TripDateUpdateRequiredException;
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -65,10 +66,10 @@ class TripServiceTest {
                 "password-hash"
         );
         honda = Motorcycle.restore(
-                1L, "Honda", "NX 500", "Black", 2025, 471, owner
+                1L, "Honda", "NX 500", "Black", 2025, 471, MotorcycleType.NAKED, owner
         );
         yamaha = Motorcycle.restore(
-                2L, "Yamaha", "Tenere 700", "Blue", 2024, 689, owner
+                2L, "Yamaha", "Tenere 700", "Blue", 2024, 689, MotorcycleType.NAKED, owner
         );
         User otherOwner = User.restore(
                 2L,
@@ -77,7 +78,7 @@ class TripServiceTest {
                 "password-hash"
         );
         foreignMotorcycle = Motorcycle.restore(
-                3L, "BMW", "F 900 GS", "White", 2025, 895, otherOwner
+                3L, "BMW", "F 900 GS", "White", 2025, 895, MotorcycleType.NAKED, otherOwner
         );
     }
 

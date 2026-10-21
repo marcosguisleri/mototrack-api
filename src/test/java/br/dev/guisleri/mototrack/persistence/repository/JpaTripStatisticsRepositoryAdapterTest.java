@@ -1,6 +1,7 @@
 package br.dev.guisleri.mototrack.persistence.repository;
 
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
 import br.dev.guisleri.mototrack.model.TerrainStatistics;
 import br.dev.guisleri.mototrack.model.TerrainType;
@@ -52,6 +53,7 @@ class JpaTripStatisticsRepositoryAdapterTest {
             "Black",
             2025,
             471,
+            MotorcycleType.NAKED,
             User.register("Marcos", "marcos@example.com", "password-hash")
     );
     private static final Motorcycle YAMAHA = Motorcycle.register(
@@ -60,6 +62,7 @@ class JpaTripStatisticsRepositoryAdapterTest {
             "Blue",
             2024,
             689,
+            MotorcycleType.NAKED,
             User.register("Ana", "ana@example.com", "password-hash")
     );
 
@@ -167,6 +170,7 @@ class JpaTripStatisticsRepositoryAdapterTest {
                 "Blue",
                 2024,
                 689,
+                MotorcycleType.NAKED,
                 savedHonda.getOwner()
         );
         save(completedTrip(
@@ -288,6 +292,7 @@ class JpaTripStatisticsRepositoryAdapterTest {
                 "Blue",
                 2024,
                 689,
+                MotorcycleType.NAKED,
                 savedHonda.getOwner()
         );
         save(completedTrip(
@@ -449,6 +454,7 @@ class JpaTripStatisticsRepositoryAdapterTest {
                 "Blue",
                 2024,
                 689,
+                MotorcycleType.NAKED,
                 savedHonda.getOwner()
         );
         Motorcycle savedYamaha = save(completedTrip(
@@ -534,6 +540,7 @@ class JpaTripStatisticsRepositoryAdapterTest {
                 "Blue",
                 2024,
                 689,
+                MotorcycleType.NAKED,
                 savedHonda.getOwner()
         );
         save(completedTrip(
@@ -672,6 +679,7 @@ class JpaTripStatisticsRepositoryAdapterTest {
                 "Blue",
                 2024,
                 689,
+                MotorcycleType.NAKED,
                 savedHonda.getOwner()
         );
         save(completedTrip(

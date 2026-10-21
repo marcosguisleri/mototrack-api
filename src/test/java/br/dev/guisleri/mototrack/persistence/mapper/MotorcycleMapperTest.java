@@ -1,6 +1,7 @@
 package br.dev.guisleri.mototrack.persistence.mapper;
 
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.persistence.entity.MotorcycleEntity;
 import br.dev.guisleri.mototrack.persistence.entity.UserEntity;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 class MotorcycleMapperTest {
@@ -34,6 +36,7 @@ class MotorcycleMapperTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 owner
         );
         UserEntity ownerEntity = userMapper.toEntity(owner);
@@ -47,6 +50,7 @@ class MotorcycleMapperTest {
                 () -> assertEquals("Black", entity.getColor()),
                 () -> assertEquals(2025, entity.getYear()),
                 () -> assertEquals(471, entity.getEngineCapacity()),
+                () -> assertEquals(MotorcycleType.NAKED, entity.getType()),
                 () -> assertSame(ownerEntity, entity.getOwner())
         );
     }
@@ -66,6 +70,7 @@ class MotorcycleMapperTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 ownerEntity
         );
 
@@ -78,6 +83,7 @@ class MotorcycleMapperTest {
                 () -> assertEquals("Black", motorcycle.getColor()),
                 () -> assertEquals(2025, motorcycle.getYear()),
                 () -> assertEquals(471, motorcycle.getEngineCapacity()),
+                () -> assertEquals(MotorcycleType.NAKED, motorcycle.getType()),
                 () -> assertEquals(1L, motorcycle.getOwner().getId()),
                 () -> assertEquals("Marcos", motorcycle.getOwner().getName()),
                 () -> assertEquals(
@@ -85,5 +91,29 @@ class MotorcycleMapperTest {
                         motorcycle.getOwner().getEmail()
                 )
         );
+    }
+
+    @Test
+    void shouldKeepMissingTypeOfLegacyEntityNull() {
+        UserEntity ownerEntity = new UserEntity(
+                1L,
+                "Marcos",
+                "marcos@example.com",
+                "password-hash"
+        );
+        MotorcycleEntity legacyEntity = new MotorcycleEntity(
+                10L,
+                "Honda",
+                "CG 160",
+                "Red",
+                2020,
+                160,
+                null,
+                ownerEntity
+        );
+
+        Motorcycle motorcycle = mapper.toDomain(legacyEntity);
+
+        assertNull(motorcycle.getType());
     }
 }

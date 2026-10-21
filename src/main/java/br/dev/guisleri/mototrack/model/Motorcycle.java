@@ -8,6 +8,7 @@ public class Motorcycle {
     private final String color;
     private final int year;
     private final int engineCapacity;
+    private final MotorcycleType type;
     private final User owner;
 
     private Motorcycle(
@@ -17,6 +18,7 @@ public class Motorcycle {
             String color,
             int year,
             int engineCapacity,
+            MotorcycleType type,
             User owner
     ) {
         this.id = id;
@@ -25,6 +27,7 @@ public class Motorcycle {
         this.color = color;
         this.year = year;
         this.engineCapacity = engineCapacity;
+        this.type = type;
         this.owner = owner;
     }
 
@@ -34,6 +37,7 @@ public class Motorcycle {
             String color,
             int year,
             int engineCapacity,
+            MotorcycleType type,
             User owner
     ) {
         return new Motorcycle(
@@ -43,6 +47,7 @@ public class Motorcycle {
                 color,
                 year,
                 engineCapacity,
+                type,
                 owner
         );
     }
@@ -54,6 +59,7 @@ public class Motorcycle {
             String color,
             int year,
             int engineCapacity,
+            MotorcycleType type,
             User owner
     ) {
         return new Motorcycle(
@@ -63,6 +69,7 @@ public class Motorcycle {
                 color,
                 year,
                 engineCapacity,
+                type,
                 owner
         );
     }
@@ -109,6 +116,13 @@ public class Motorcycle {
 
     public int getEngineCapacity() {
         return engineCapacity;
+    }
+
+    /**
+     * Pode ser {@code null} em motos cadastradas antes de o tipo existir.
+     */
+    public MotorcycleType getType() {
+        return type;
     }
 
     public User getOwner() {

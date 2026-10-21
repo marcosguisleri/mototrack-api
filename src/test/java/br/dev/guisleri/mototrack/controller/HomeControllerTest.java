@@ -6,6 +6,7 @@ import br.dev.guisleri.mototrack.dto.NextTripResponseDTO;
 import br.dev.guisleri.mototrack.dto.TripSummaryResponseDTO;
 import br.dev.guisleri.mototrack.dto.UserResponseDTO;
 import br.dev.guisleri.mototrack.model.TerrainType;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.service.HomeService;
 import br.dev.guisleri.mototrack.service.UserService;
@@ -71,6 +72,7 @@ class HomeControllerTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 UserResponseDTO.from(CURRENT_USER)
         );
         NextTripResponseDTO nextTrip = new NextTripResponseDTO(

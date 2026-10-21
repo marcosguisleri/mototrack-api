@@ -1,6 +1,7 @@
 package br.dev.guisleri.mototrack.persistence.repository;
 
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.persistence.entity.MotorcycleEntity;
 import br.dev.guisleri.mototrack.persistence.entity.UserEntity;
@@ -84,6 +85,7 @@ class JpaMotorcycleRepositoryAdapterTest {
                 () -> assertEquals("Black", savedEntity.getColor()),
                 () -> assertEquals(2025, savedEntity.getYear()),
                 () -> assertEquals(471, savedEntity.getEngineCapacity()),
+                () -> assertEquals(MotorcycleType.NAKED, savedEntity.getType()),
                 () -> assertEquals(owner.getId(), savedEntity.getOwner().getId()),
                 () -> assertEquals("Honda", savedMotorcycle.getBrand()),
                 () -> assertEquals("NX 500", savedMotorcycle.getModel()),
@@ -124,10 +126,43 @@ class JpaMotorcycleRepositoryAdapterTest {
                 () -> assertEquals("Black", result.getColor()),
                 () -> assertEquals(2025, result.getYear()),
                 () -> assertEquals(471, result.getEngineCapacity()),
+                () -> assertEquals(MotorcycleType.NAKED, result.getType()),
                 () -> assertEquals(owner.getId(), result.getOwner().getId()),
                 () -> assertEquals("Marcos", result.getOwner().getName()),
                 () -> assertEquals("marcos@example.com", result.getOwner().getEmail())
         );
+    }
+
+    @Test
+    void shouldPersistEveryMotorcycleType() {
+        for (MotorcycleType type : MotorcycleType.values()) {
+            Motorcycle saved = save(Motorcycle.register(
+                    "Brand", "Model " + type, "Black", 2025, 300, type, owner
+            ));
+            entityManager.clear();
+
+            assertEquals(
+                    type,
+                    motorcycleRepositoryAdapter
+                            .findById(saved.getId())
+                            .orElseThrow()
+                            .getType()
+            );
+        }
+    }
+
+    @Test
+    void shouldReadMotorcycleStoredWithoutTypeAsNull() {
+        Motorcycle saved = save(Motorcycle.register(
+                "Honda", "CG 160", "Red", 2020, 160, null, owner
+        ));
+        entityManager.clear();
+
+        Motorcycle result = motorcycleRepositoryAdapter
+                .findById(saved.getId())
+                .orElseThrow();
+
+        assertNull(result.getType());
     }
 
     @Test
@@ -298,6 +333,7 @@ class JpaMotorcycleRepositoryAdapterTest {
                 color,
                 year,
                 engineCapacity,
+                MotorcycleType.NAKED,
                 motorcycleOwner
         );
     }

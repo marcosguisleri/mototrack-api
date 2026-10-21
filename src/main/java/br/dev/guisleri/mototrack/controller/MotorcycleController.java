@@ -50,6 +50,7 @@ public class MotorcycleController {
                 createMotorcycleRequest.color(),
                 createMotorcycleRequest.year(),
                 createMotorcycleRequest.engineCapacity(),
+                createMotorcycleRequest.type(),
                 owner
         );
 

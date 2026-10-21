@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.persistence.repository;
 
 import br.dev.guisleri.mototrack.exception.MotorcycleNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -55,6 +56,7 @@ class JpaTripRepositoryAdapterTest {
             "Black",
             2025,
             471,
+            MotorcycleType.NAKED,
             User.register("Marcos", "marcos@example.com", "password-hash")
     );
     private static final Motorcycle YAMAHA = Motorcycle.register(
@@ -63,6 +65,7 @@ class JpaTripRepositoryAdapterTest {
             "Blue",
             2024,
             689,
+            MotorcycleType.NAKED,
             User.register("Ana", "ana@example.com", "password-hash")
     );
 
@@ -145,6 +148,7 @@ class JpaTripRepositoryAdapterTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 missingOwner
         );
         Trip trip = Trip.schedule(

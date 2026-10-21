@@ -6,6 +6,7 @@ import br.dev.guisleri.mototrack.exception.TripAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.TripDateUpdateRequiredException;
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
@@ -67,6 +68,7 @@ class TripControllerTest {
             "Black",
             2025,
             471,
+            MotorcycleType.NAKED,
             CURRENT_USER
     );
     private static final Authentication AUTHENTICATION =

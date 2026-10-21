@@ -5,6 +5,7 @@ import br.dev.guisleri.mototrack.dto.TripStatisticsResponseDTO;
 import br.dev.guisleri.mototrack.dto.TripSummaryResponseDTO;
 import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.TerrainStatistics;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
@@ -192,6 +193,7 @@ class TripStatisticsControllerTest {
                 "Red",
                 2023,
                 471,
+                MotorcycleType.NAKED,
                 CURRENT_USER
         );
     }

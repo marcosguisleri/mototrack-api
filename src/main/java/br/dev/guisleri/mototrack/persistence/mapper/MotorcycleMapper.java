@@ -25,6 +25,7 @@ public class MotorcycleMapper {
                 motorcycle.getColor(),
                 motorcycle.getYear(),
                 motorcycle.getEngineCapacity(),
+                motorcycle.getType(),
                 userEntity
         );
     }
@@ -37,6 +38,7 @@ public class MotorcycleMapper {
                 motorcycleEntity.getColor(),
                 motorcycleEntity.getYear(),
                 motorcycleEntity.getEngineCapacity(),
+                motorcycleEntity.getType(),
                 userMapper.toDomain(motorcycleEntity.getOwner())
         );
     }

@@ -38,6 +38,7 @@ public class TripTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 owner
         );
         fixedClock = Clock.fixed(

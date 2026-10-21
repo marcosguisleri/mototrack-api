@@ -4,6 +4,7 @@ import br.dev.guisleri.mototrack.exception.MotorcycleAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.MotorcycleInUseException;
 import br.dev.guisleri.mototrack.exception.MotorcycleNotFoundException;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.repository.MotorcycleRepository;
 import br.dev.guisleri.mototrack.repository.TripRepository;
@@ -64,6 +65,7 @@ class MotorcycleServiceTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 owner
         );
 
@@ -75,6 +77,7 @@ class MotorcycleServiceTest {
         assertEquals("Black", motorcycleSentToRepository.getColor());
         assertEquals(2025, motorcycleSentToRepository.getYear());
         assertEquals(471, motorcycleSentToRepository.getEngineCapacity());
+        assertEquals(MotorcycleType.NAKED, motorcycleSentToRepository.getType());
         assertSame(owner, motorcycleSentToRepository.getOwner());
         assertSame(persistedMotorcycle, result);
     }
@@ -251,6 +254,7 @@ class MotorcycleServiceTest {
                 "Black",
                 2025,
                 471,
+                MotorcycleType.NAKED,
                 motorcycleOwner
         );
     }

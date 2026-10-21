@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.service;
 
 import br.dev.guisleri.mototrack.dto.TripStatisticsResponseDTO;
 import br.dev.guisleri.mototrack.model.Motorcycle;
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import br.dev.guisleri.mototrack.model.MonthlyTripStatistics;
 import br.dev.guisleri.mototrack.model.TerrainStatistics;
 import br.dev.guisleri.mototrack.model.TerrainType;
@@ -59,7 +60,7 @@ class TripStatisticsServiceTest {
                 "password-hash"
         );
         honda = Motorcycle.restore(
-                1L, "Honda", "NX 500", "Black", 2025, 471, owner
+                1L, "Honda", "NX 500", "Black", 2025, 471, MotorcycleType.NAKED, owner
         );
     }
 

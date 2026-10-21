@@ -1,7 +1,10 @@
 package br.dev.guisleri.mototrack.persistence.entity;
 
+import br.dev.guisleri.mototrack.model.MotorcycleType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -33,6 +36,11 @@ public class MotorcycleEntity {
     @Column(name = "engine_capacity", nullable = false)
     private int engineCapacity;
 
+    // Nullable: as motos criadas antes do tipo existir ficam sem valor.
+    @Enumerated(EnumType.STRING)
+    @Column
+    private MotorcycleType type;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity owner;
@@ -47,6 +55,7 @@ public class MotorcycleEntity {
             String color,
             int year,
             int engineCapacity,
+            MotorcycleType type,
             UserEntity owner
     ) {
         this.id = id;
@@ -55,6 +64,7 @@ public class MotorcycleEntity {
         this.color = color;
         this.year = year;
         this.engineCapacity = engineCapacity;
+        this.type = type;
         this.owner = owner;
     }
 
@@ -80,6 +90,10 @@ public class MotorcycleEntity {
 
     public int getEngineCapacity() {
         return engineCapacity;
+    }
+
+    public MotorcycleType getType() {
+        return type;
     }
 
     public UserEntity getOwner() {

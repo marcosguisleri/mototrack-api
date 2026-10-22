@@ -2,9 +2,7 @@ package br.dev.guisleri.mototrack.model;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 class MotorcycleTest {
 
@@ -65,6 +63,40 @@ class MotorcycleTest {
         );
 
         assertNull(motorcycle.getType());
+    }
+
+    @Test
+    void shouldUpdateMotorcycleDetails() {
+        Motorcycle motorcycle = Motorcycle.restore(
+                42L,
+                "Honda",
+                "NX 500",
+                "Black",
+                2025,
+                471,
+                MotorcycleType.NAKED,
+                OWNER
+        );
+
+        motorcycle.updateDetails(
+                "Triumph",
+                "Tiger 1200",
+                "Red",
+                2026,
+                1160,
+                MotorcycleType.BIG_TRAIL
+        );
+
+        assertAll(
+                () -> assertEquals(42L, motorcycle.getId()),
+                () -> assertEquals("Triumph", motorcycle.getBrand()),
+                () -> assertEquals("Tiger 1200", motorcycle.getModel()),
+                () -> assertEquals("Red", motorcycle.getColor()),
+                () -> assertEquals(2026, motorcycle.getYear()),
+                () -> assertEquals(1160, motorcycle.getEngineCapacity()),
+                () -> assertEquals(MotorcycleType.BIG_TRAIL, motorcycle.getType()),
+                () -> assertSame(OWNER, motorcycle.getOwner())
+        );
     }
 
     // -------------------------------------------------------------------------

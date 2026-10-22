@@ -3,12 +3,12 @@ package br.dev.guisleri.mototrack.model;
 public class Motorcycle {
 
     private final Long id;
-    private final String brand;
-    private final String model;
-    private final String color;
-    private final int year;
-    private final int engineCapacity;
-    private final MotorcycleType type;
+    private String brand;
+    private String model;
+    private String color;
+    private int year;
+    private int engineCapacity;
+    private MotorcycleType type;
     private final User owner;
 
     private Motorcycle(
@@ -74,6 +74,22 @@ public class Motorcycle {
         );
     }
 
+    public void updateDetails(
+            String brand,
+            String model,
+            String color,
+            int year,
+            int engineCapacity,
+            MotorcycleType type
+    ) {
+        this.brand = brand;
+        this.model = model;
+        this.color = color;
+        this.year = year;
+        this.engineCapacity = engineCapacity;
+        this.type = type;
+    }
+
     @Override
     public boolean equals(Object object) {
         if (this == object) {
@@ -118,9 +134,6 @@ public class Motorcycle {
         return engineCapacity;
     }
 
-    /**
-     * Pode ser {@code null} em motos cadastradas antes de o tipo existir.
-     */
     public MotorcycleType getType() {
         return type;
     }

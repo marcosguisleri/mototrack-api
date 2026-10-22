@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -246,6 +247,214 @@ class MotorcycleControllerTest {
     }
 
     // -------------------------------------------------------------------------
+    // PUT /motorcycles/{id} - edição, validação e controle de acesso
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldUpdateMotorcycle() throws Exception {
+        Motorcycle updatedMotorcycle = Motorcycle.restore(
+                1L,
+                "Triumph",
+                "Tiger 1200",
+                "Red",
+                2026,
+                1160,
+                MotorcycleType.BIG_TRAIL,
+                CURRENT_USER
+        );
+        when(motorcycleService.updateMotorcycleForOwner(
+                1L,
+                CURRENT_USER.getId(),
+                "Triumph",
+                "Tiger 1200",
+                "Red",
+                2026,
+                1160,
+                MotorcycleType.BIG_TRAIL
+        )).thenReturn(updatedMotorcycle);
+
+        mockMvc.perform(put("/motorcycles/1")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateMotorcycleJson()))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.brand").value("Triumph"))
+                .andExpect(jsonPath("$.model").value("Tiger 1200"))
+                .andExpect(jsonPath("$.color").value("Red"))
+                .andExpect(jsonPath("$.year").value(2026))
+                .andExpect(jsonPath("$.engineCapacity").value(1160))
+                .andExpect(jsonPath("$.type").value("BIG_TRAIL"))
+                .andExpect(jsonPath("$.owner.id").value(CURRENT_USER.getId()));
+
+        verify(userService).findUserByEmail(CURRENT_USER.getEmail());
+        verify(motorcycleService).updateMotorcycleForOwner(
+                1L,
+                CURRENT_USER.getId(),
+                "Triumph",
+                "Tiger 1200",
+                "Red",
+                2026,
+                1160,
+                MotorcycleType.BIG_TRAIL
+        );
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenUpdatingUnknownMotorcycle() throws Exception {
+        String message = "Motocicleta com id 999 não encontrada";
+        when(motorcycleService.updateMotorcycleForOwner(
+                999L,
+                CURRENT_USER.getId(),
+                "Triumph",
+                "Tiger 1200",
+                "Red",
+                2026,
+                1160,
+                MotorcycleType.BIG_TRAIL
+        )).thenThrow(new MotorcycleNotFoundException(message));
+
+        mockMvc.perform(put("/motorcycles/999")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateMotorcycleJson()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value(message));
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenUpdatingMotorcycleOwnedByAnotherUser()
+            throws Exception {
+        String message = "Você não possui permissão para acessar esta motocicleta.";
+        when(motorcycleService.updateMotorcycleForOwner(
+                1L,
+                CURRENT_USER.getId(),
+                "Triumph",
+                "Tiger 1200",
+                "Red",
+                2026,
+                1160,
+                MotorcycleType.BIG_TRAIL
+        )).thenThrow(new MotorcycleAccessDeniedException(message));
+
+        mockMvc.perform(put("/motorcycles/1")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateMotorcycleJson()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value(message));
+    }
+
+    @Test
+    void shouldRejectUpdateWithBlankBrand() throws Exception {
+        assertInvalidUpdate(
+                updateMotorcycleJson().replace("\"Triumph\"", "\" \""),
+                "brand",
+                "A marca é obrigatória."
+        );
+    }
+
+    @Test
+    void shouldRejectUpdateWithBlankModel() throws Exception {
+        assertInvalidUpdate(
+                updateMotorcycleJson().replace("\"Tiger 1200\"", "\"\""),
+                "model",
+                "O modelo é obrigatório."
+        );
+    }
+
+    @Test
+    void shouldRejectUpdateWithBlankColor() throws Exception {
+        assertInvalidUpdate(
+                updateMotorcycleJson().replace("\"Red\"", "\" \""),
+                "color",
+                "A cor é obrigatória."
+        );
+    }
+
+    @Test
+    void shouldRejectUpdateWithBrandLongerThan255Characters() throws Exception {
+        assertInvalidUpdate(
+                updateMotorcycleJson().replace(
+                        "\"Triumph\"",
+                        "\"%s\"".formatted("a".repeat(256))
+                ),
+                "brand",
+                "A marca deve ter no máximo 255 caracteres."
+        );
+    }
+
+    @Test
+    void shouldRejectUpdateWithModelLongerThan255Characters() throws Exception {
+        assertInvalidUpdate(
+                updateMotorcycleJson().replace(
+                        "\"Tiger 1200\"",
+                        "\"%s\"".formatted("a".repeat(256))
+                ),
+                "model",
+                "O modelo deve ter no máximo 255 caracteres."
+        );
+    }
+
+    @Test
+    void shouldRejectUpdateWithColorLongerThan255Characters() throws Exception {
+        assertInvalidUpdate(
+                updateMotorcycleJson().replace(
+                        "\"Red\"",
+                        "\"%s\"".formatted("a".repeat(256))
+                ),
+                "color",
+                "A cor deve ter no máximo 255 caracteres."
+        );
+    }
+
+    @Test
+    void shouldRejectUpdateWithYearBefore1900() throws Exception {
+        assertInvalidUpdate(
+                updateMotorcycleJson().replace("2026", "1899"),
+                "year",
+                "O ano deve ser igual ou posterior a 1900."
+        );
+    }
+
+    @Test
+    void shouldRejectUpdateWithNonPositiveEngineCapacity() throws Exception {
+        assertInvalidUpdate(
+                updateMotorcycleJson().replace("1160", "0"),
+                "engineCapacity",
+                "A cilindrada deve ser maior que zero."
+        );
+    }
+
+    @Test
+    void shouldRejectUpdateWithoutMotorcycleType() throws Exception {
+        assertInvalidUpdate(
+                updateMotorcycleJson().replace("\"BIG_TRAIL\"", "null"),
+                "type",
+                "O tipo da motocicleta é obrigatório."
+        );
+    }
+
+    @Test
+    void shouldRejectUpdateWithInvalidMotorcycleType() throws Exception {
+        mockMvc.perform(put("/motorcycles/1")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateMotorcycleJson().replace(
+                                "\"BIG_TRAIL\"",
+                                "\"SPACESHIP\""
+                        )))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(motorcycleService);
+    }
+
+    // -------------------------------------------------------------------------
     // GET /motorcycles - garagem do usuário autenticado
     // -------------------------------------------------------------------------
 
@@ -415,5 +624,35 @@ class MotorcycleControllerTest {
                   "ownerId": %d
                 }
                 """.formatted(ownerId);
+    }
+
+    private String updateMotorcycleJson() {
+        return """
+                {
+                  "brand": "Triumph",
+                  "model": "Tiger 1200",
+                  "color": "Red",
+                  "year": 2026,
+                  "engineCapacity": 1160,
+                  "type": "BIG_TRAIL"
+                }
+                """;
+    }
+
+    private void assertInvalidUpdate(
+            String requestBody,
+            String field,
+            String message
+    ) throws Exception {
+        mockMvc.perform(put("/motorcycles/1")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Validation Failed"))
+                .andExpect(jsonPath("$.errors." + field).value(message));
+
+        verifyNoInteractions(motorcycleService);
     }
 }

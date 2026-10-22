@@ -28,6 +28,7 @@ public class MotorcycleService {
         this.tripRepository = tripRepository;
     }
 
+    @Transactional
     public Motorcycle registerMotorcycle(
             String brand,
             String model,
@@ -40,6 +41,35 @@ public class MotorcycleService {
 
         Motorcycle motorcycle = Motorcycle.register(
                 brand, model, color, year, engineCapacity, type, owner
+        );
+
+        return motorcycleRepository.save(motorcycle);
+    }
+
+    @Transactional
+    public Motorcycle updateMotorcycleForOwner(
+            Long motorcycleId,
+            Long ownerId,
+            String brand,
+            String model,
+            String color,
+            int year,
+            int engineCapacity,
+            MotorcycleType type
+    ) {
+        Motorcycle motorcycle = requireOwnedMotorcycle(
+                motorcycleRepository.findByIdForUpdate(motorcycleId),
+                motorcycleId,
+                ownerId
+        );
+
+        motorcycle.updateDetails(
+                brand,
+                model,
+                color,
+                year,
+                engineCapacity,
+                type
         );
 
         return motorcycleRepository.save(motorcycle);

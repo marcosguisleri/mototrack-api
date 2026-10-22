@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.dto.CreateMotorcycleRequestDTO;
 import br.dev.guisleri.mototrack.dto.MotorcycleResponseDTO;
+import br.dev.guisleri.mototrack.dto.UpdateMotorcycleRequestDTO;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.service.MotorcycleService;
@@ -10,13 +11,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -57,6 +52,32 @@ public class MotorcycleController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(MotorcycleResponseDTO.from(motorcycle));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<MotorcycleResponseDTO> updateMotorcycle(
+            @PathVariable("id") Long motorcycleId,
+            @Valid @RequestBody UpdateMotorcycleRequestDTO requestDTO,
+            Authentication authentication
+    ) {
+        User owner = userService.findUserByEmail(
+                authentication.getName()
+        );
+
+        Motorcycle motorcycle = motorcycleService.updateMotorcycleForOwner(
+                motorcycleId,
+                owner.getId(),
+                requestDTO.brand(),
+                requestDTO.model(),
+                requestDTO.color(),
+                requestDTO.year(),
+                requestDTO.engineCapacity(),
+                requestDTO.type()
+        );
+
+        return ResponseEntity.ok(
+                MotorcycleResponseDTO.from(motorcycle)
+        );
     }
 
     @GetMapping

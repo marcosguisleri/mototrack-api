@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -80,6 +81,96 @@ class MotorcycleServiceTest {
         assertEquals(MotorcycleType.NAKED, motorcycleSentToRepository.getType());
         assertSame(owner, motorcycleSentToRepository.getOwner());
         assertSame(persistedMotorcycle, result);
+    }
+
+    // -------------------------------------------------------------------------
+    // Edição com lock e controle de acesso
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldUpdateMotorcycleForOwner() {
+        User owner = owner();
+        Motorcycle motorcycle = motorcycle(1L, "Honda", "NX 500", owner);
+        when(motorcycleRepository.findByIdForUpdate(1L))
+                .thenReturn(Optional.of(motorcycle));
+        when(motorcycleRepository.save(motorcycle)).thenReturn(motorcycle);
+
+        Motorcycle result = service.updateMotorcycleForOwner(
+                1L,
+                OWNER_ID,
+                "Triumph",
+                "Tiger 1200",
+                "Red",
+                2026,
+                1160,
+                MotorcycleType.BIG_TRAIL
+        );
+
+        assertAll(
+                () -> assertSame(motorcycle, result),
+                () -> assertEquals(1L, result.getId()),
+                () -> assertEquals("Triumph", result.getBrand()),
+                () -> assertEquals("Tiger 1200", result.getModel()),
+                () -> assertEquals("Red", result.getColor()),
+                () -> assertEquals(2026, result.getYear()),
+                () -> assertEquals(1160, result.getEngineCapacity()),
+                () -> assertEquals(MotorcycleType.BIG_TRAIL, result.getType()),
+                () -> assertSame(owner, result.getOwner())
+        );
+        verify(motorcycleRepository).findByIdForUpdate(1L);
+        verify(motorcycleRepository).save(motorcycle);
+    }
+
+    @Test
+    void shouldThrowWhenUpdatingUnknownMotorcycle() {
+        when(motorcycleRepository.findByIdForUpdate(99L))
+                .thenReturn(Optional.empty());
+
+        MotorcycleNotFoundException exception = assertThrows(
+                MotorcycleNotFoundException.class,
+                () -> service.updateMotorcycleForOwner(
+                        99L,
+                        OWNER_ID,
+                        "Triumph",
+                        "Tiger 1200",
+                        "Red",
+                        2026,
+                        1160,
+                        MotorcycleType.BIG_TRAIL
+                )
+        );
+
+        assertEquals("Motocicleta com id 99 não encontrada", exception.getMessage());
+        verify(motorcycleRepository).findByIdForUpdate(99L);
+        verify(motorcycleRepository, never()).save(any(Motorcycle.class));
+    }
+
+    @Test
+    void shouldDenyUpdatingMotorcycleOwnedByAnotherUser() {
+        Motorcycle motorcycle = motorcycle(1L, "Honda", "NX 500", otherOwner());
+        when(motorcycleRepository.findByIdForUpdate(1L))
+                .thenReturn(Optional.of(motorcycle));
+
+        MotorcycleAccessDeniedException exception = assertThrows(
+                MotorcycleAccessDeniedException.class,
+                () -> service.updateMotorcycleForOwner(
+                        1L,
+                        OWNER_ID,
+                        "Triumph",
+                        "Tiger 1200",
+                        "Red",
+                        2026,
+                        1160,
+                        MotorcycleType.BIG_TRAIL
+                )
+        );
+
+        assertEquals(
+                "Você não possui permissão para acessar esta motocicleta.",
+                exception.getMessage()
+        );
+        verify(motorcycleRepository).findByIdForUpdate(1L);
+        verify(motorcycleRepository, never()).save(any(Motorcycle.class));
     }
 
     // -------------------------------------------------------------------------

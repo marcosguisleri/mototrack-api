@@ -36,7 +36,6 @@ public class MotorcycleEntity {
     @Column(name = "engine_capacity", nullable = false)
     private int engineCapacity;
 
-    // Nullable: as motos criadas antes do tipo existir ficam sem valor.
     @Enumerated(EnumType.STRING)
     @Column
     private MotorcycleType type;

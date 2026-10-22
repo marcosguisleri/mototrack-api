@@ -26,7 +26,9 @@ public class TripMapper {
                 trip.getStatus(),
                 trip.getTerrain(),
                 trip.getTripDate(),
-                motorcycleEntity
+                motorcycleEntity,
+                trip.getStartedAt(),
+                trip.getCompletedAt()
         );
     }
 
@@ -39,7 +41,9 @@ public class TripMapper {
                 tripEntity.getTerrain(),
                 tripEntity.getTripDate(),
                 motorcycleMapper.toDomain(tripEntity.getMotorcycle()),
-                tripEntity.getStatus()
+                tripEntity.getStatus(),
+                tripEntity.getStartedAt(),
+                tripEntity.getCompletedAt()
         );
     }
 

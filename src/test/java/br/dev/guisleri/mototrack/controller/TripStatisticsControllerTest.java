@@ -212,7 +212,9 @@ class TripStatisticsControllerTest {
                 TerrainType.MIXED,
                 tripDate,
                 motorcycle,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         );
     }
 }

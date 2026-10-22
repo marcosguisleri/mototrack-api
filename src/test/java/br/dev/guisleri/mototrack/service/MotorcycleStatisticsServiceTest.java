@@ -175,7 +175,9 @@ class MotorcycleStatisticsServiceTest {
                 TerrainType.MIXED,
                 LocalDate.of(2025, 1, 15),
                 motorcycle,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         );
         Trip lastCompletedTrip = Trip.restore(
                 21L,
@@ -185,7 +187,9 @@ class MotorcycleStatisticsServiceTest {
                 TerrainType.ASPHALT,
                 LocalDate.of(2026, 9, 10),
                 motorcycle,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         );
         when(motorcycleService.findMotorcycleByIdForOwner(
                 MOTORCYCLE_ID,

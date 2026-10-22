@@ -14,6 +14,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
@@ -48,6 +49,12 @@ public class TripEntity {
     @JoinColumn(name = "motorcycle_id", nullable = false)
     private MotorcycleEntity motorcycle;
 
+    @Column(name = "started_at")
+    private Instant startedAt;
+
+    @Column(name = "completed_at")
+    private Instant completedAt;
+
     protected TripEntity() {
     }
 
@@ -59,7 +66,9 @@ public class TripEntity {
             TripStatus status,
             TerrainType terrain,
             LocalDate tripDate,
-            MotorcycleEntity motorcycle
+            MotorcycleEntity motorcycle,
+            Instant startedAt,
+            Instant completedAt
     ) {
         this.id = id;
         this.origin = origin;
@@ -69,6 +78,8 @@ public class TripEntity {
         this.terrain = terrain;
         this.tripDate = tripDate;
         this.motorcycle = motorcycle;
+        this.startedAt = startedAt;
+        this.completedAt = completedAt;
     }
 
     public Long getId() {
@@ -101,5 +112,13 @@ public class TripEntity {
 
     public MotorcycleEntity getMotorcycle() {
         return motorcycle;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public Instant getCompletedAt() {
+        return completedAt;
     }
 }

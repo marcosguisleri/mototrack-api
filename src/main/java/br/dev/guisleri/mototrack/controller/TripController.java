@@ -119,7 +119,8 @@ public class TripController {
                 tripId,
                 currentUser.getId(),
                 statusChangeRequest.status(),
-                Boolean.TRUE.equals(statusChangeRequest.updateTripDateToToday())
+                Boolean.TRUE.equals(statusChangeRequest.updateTripDateToToday()),
+                statusChangeRequest.occurredAt()
         );
 
         return ResponseEntity.noContent().build();

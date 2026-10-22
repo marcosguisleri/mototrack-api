@@ -5,7 +5,10 @@ import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
 import br.dev.guisleri.mototrack.exception.TripDateUpdateRequiredException;
 
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
 
 public class Trip {
 
@@ -17,6 +20,8 @@ public class Trip {
     private final TerrainType terrain;
     private LocalDate tripDate;
     private final Motorcycle motorcycle;
+    private Instant startedAt;
+    private Instant completedAt;
 
     private Trip(
             Long id,
@@ -26,7 +31,9 @@ public class Trip {
             TerrainType terrain,
             LocalDate tripDate,
             Motorcycle motorcycle,
-            TripStatus status
+            TripStatus status,
+            Instant startedAt,
+            Instant completedAt
     ) {
         this.id = id;
         this.origin = origin;
@@ -36,6 +43,8 @@ public class Trip {
         this.tripDate = tripDate;
         this.motorcycle = motorcycle;
         this.status = status;
+        this.startedAt = startedAt;
+        this.completedAt = completedAt;
     }
 
     public static Trip schedule(
@@ -63,7 +72,9 @@ public class Trip {
                 terrain,
                 tripDate,
                 motorcycle,
-                TripStatus.PLANNED
+                TripStatus.PLANNED,
+                null,
+                null
         );
     }
 
@@ -92,7 +103,9 @@ public class Trip {
                 terrain,
                 tripDate,
                 motorcycle,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         );
     }
 
@@ -104,7 +117,9 @@ public class Trip {
             TerrainType terrain,
             LocalDate tripDate,
             Motorcycle motorcycle,
-            TripStatus status
+            TripStatus status,
+            Instant startedAt,
+            Instant completedAt
     ) {
         return new Trip(
                 id,
@@ -114,17 +129,27 @@ public class Trip {
                 terrain,
                 tripDate,
                 motorcycle,
-                status
+                status,
+                startedAt,
+                completedAt
         );
     }
 
     public void startTrip(
             LocalDate currentDate,
-            boolean updateTripDateToToday
+            boolean updateTripDateToToday,
+            Instant startedAt,
+            Instant now
     ) {
         if (!status.canTransitionTo(TripStatus.IN_PROGRESS)) {
             throw new InvalidTripStatusException(
                     "Não é possível iniciar uma viagem com status " + status + "."
+            );
+        }
+
+        if (startedAt.isAfter(now)) {
+            throw new InvalidTripDateException(
+                    "O horário de início da viagem não pode estar no futuro."
             );
         }
 
@@ -139,16 +164,31 @@ public class Trip {
             tripDate = currentDate;
         }
 
+        this.startedAt = startedAt;
         status = TripStatus.IN_PROGRESS;
     }
 
     public void completeTrip(
             LocalDate currentDate,
-            boolean updateTripDateToToday
+            boolean updateTripDateToToday,
+            Instant completedAt,
+            Instant now
     ) {
         if (!status.canTransitionTo(TripStatus.COMPLETED)) {
             throw new InvalidTripStatusException(
                     "Não é possível concluir uma viagem com status " + status + "."
+            );
+        }
+
+        if (completedAt.isAfter(now)) {
+            throw new InvalidTripDateException(
+                    "O horário de conclusão da viagem não pode estar no futuro."
+            );
+        }
+
+        if (startedAt != null && completedAt.isBefore(startedAt)) {
+            throw new InvalidTripDateException(
+                    "O horário de conclusão não pode ser anterior ao horário de início."
             );
         }
 
@@ -165,7 +205,16 @@ public class Trip {
             tripDate = currentDate;
         }
 
+        this.completedAt = completedAt;
         status = TripStatus.COMPLETED;
+    }
+
+    public Optional<Duration> duration() {
+        if (startedAt == null || completedAt == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(Duration.between(startedAt, completedAt));
     }
 
     public Long getId() {
@@ -198,6 +247,14 @@ public class Trip {
 
     public Motorcycle getMotorcycle() {
         return motorcycle;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public Instant getCompletedAt() {
+        return completedAt;
     }
 
 }

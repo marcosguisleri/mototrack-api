@@ -4,6 +4,7 @@ import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
 
+import java.time.Instant;
 import java.time.LocalDate;
 
 public record TripResponseDTO(
@@ -14,7 +15,9 @@ public record TripResponseDTO(
         TripStatus status,
         TerrainType terrain,
         LocalDate tripDate,
-        MotorcycleResponseDTO motorcycle
+        MotorcycleResponseDTO motorcycle,
+        Instant startedAt,
+        Instant completedAt
 ) {
     public static TripResponseDTO from(Trip trip) {
         return new TripResponseDTO(
@@ -25,7 +28,9 @@ public record TripResponseDTO(
                 trip.getStatus(),
                 trip.getTerrain(),
                 trip.getTripDate(),
-                MotorcycleResponseDTO.from(trip.getMotorcycle())
+                MotorcycleResponseDTO.from(trip.getMotorcycle()),
+                trip.getStartedAt(),
+                trip.getCompletedAt()
         );
     }
 }

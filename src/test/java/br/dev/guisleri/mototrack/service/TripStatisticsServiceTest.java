@@ -402,7 +402,9 @@ class TripStatisticsServiceTest {
                 TerrainType.MIXED,
                 LocalDate.of(2026, 1, 10),
                 honda,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         ));
         when(tripStatisticsRepository
                 .findLongestCompletedTripByOwnerIdAndMotorcycle(
@@ -432,7 +434,9 @@ class TripStatisticsServiceTest {
                 TerrainType.MIXED,
                 LocalDate.of(2026, 1, 10),
                 honda,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         ));
         when(tripStatisticsRepository
                 .findLastCompletedTripByOwnerIdAndMotorcycle(
@@ -492,7 +496,9 @@ class TripStatisticsServiceTest {
                 TerrainType.MIXED,
                 LocalDate.of(2026, 1, 10),
                 honda,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         );
         when(tripStatisticsRepository.findLongestCompletedTripByOwnerId(OWNER_ID))
                 .thenReturn(Optional.of(longestTrip));
@@ -524,7 +530,9 @@ class TripStatisticsServiceTest {
                 TerrainType.ASPHALT,
                 LocalDate.of(2026, 2, 15),
                 honda,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         );
         when(tripStatisticsRepository.findLastCompletedTripByOwnerId(OWNER_ID))
                 .thenReturn(Optional.of(lastTrip));
@@ -556,7 +564,9 @@ class TripStatisticsServiceTest {
                 TerrainType.ASPHALT,
                 LocalDate.of(2024, 5, 10),
                 honda,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         );
         when(tripStatisticsRepository.findFirstCompletedTripByOwnerId(OWNER_ID))
                 .thenReturn(Optional.of(firstTrip));
@@ -595,7 +605,9 @@ class TripStatisticsServiceTest {
                 TerrainType.MIXED,
                 tripDate,
                 honda,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         );
     }
 }

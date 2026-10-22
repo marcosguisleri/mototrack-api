@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -75,15 +76,27 @@ public class TripService {
             long tripId,
             Long ownerId,
             TripStatus newStatus,
-            boolean updateTripDateToToday
+            boolean updateTripDateToToday,
+            Instant occurredAt
     ) {
         Trip trip = findTripByIdForUpdateForOwner(tripId, ownerId);
 
         LocalDate currentDate = LocalDate.now(clock);
+        Instant now = clock.instant();
+        Instant effectiveAt = occurredAt != null ? occurredAt : now;
         switch (newStatus) {
-            case IN_PROGRESS ->
-                    trip.startTrip(currentDate, updateTripDateToToday);
-            case COMPLETED -> trip.completeTrip(currentDate, updateTripDateToToday);
+            case IN_PROGRESS -> trip.startTrip(
+                    currentDate,
+                    updateTripDateToToday,
+                    effectiveAt,
+                    now
+            );
+            case COMPLETED -> trip.completeTrip(
+                    currentDate,
+                    updateTripDateToToday,
+                    effectiveAt,
+                    now
+            );
             case PLANNED -> throw new InvalidTripStatusException(
                     "Não é possível reverter uma viagem para o status PLANNED."
             );

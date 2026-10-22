@@ -232,7 +232,9 @@ class HomeServiceTest {
                 TerrainType.ASPHALT,
                 tripDate,
                 honda,
-                status
+                status,
+                null,
+                null
         );
     }
 

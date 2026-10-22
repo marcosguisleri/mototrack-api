@@ -26,6 +26,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -600,7 +601,8 @@ class TripControllerTest {
                         1,
                         CURRENT_USER.getId(),
                         TripStatus.COMPLETED,
-                        false
+                        false,
+                        null
                 );
 
         mockMvc.perform(patch("/trips/1/status")
@@ -643,7 +645,8 @@ class TripControllerTest {
                         1,
                         CURRENT_USER.getId(),
                         TripStatus.IN_PROGRESS,
-                        false
+                        false,
+                        null
                 );
 
         mockMvc.perform(patch("/trips/1/status")
@@ -678,7 +681,8 @@ class TripControllerTest {
                 1,
                 CURRENT_USER.getId(),
                 TripStatus.IN_PROGRESS,
-                false
+                false,
+                null
         );
     }
 
@@ -699,7 +703,8 @@ class TripControllerTest {
                 1,
                 CURRENT_USER.getId(),
                 TripStatus.COMPLETED,
-                true
+                true,
+                null
         );
     }
 
@@ -713,7 +718,8 @@ class TripControllerTest {
                         1,
                         CURRENT_USER.getId(),
                         TripStatus.COMPLETED,
-                        false
+                        false,
+                        null
                 );
 
         mockMvc.perform(patch("/trips/1/status")
@@ -747,8 +753,72 @@ class TripControllerTest {
                 1,
                 CURRENT_USER.getId(),
                 TripStatus.IN_PROGRESS,
-                true
+                true,
+                null
         );
+    }
+
+    @Test
+    void shouldPassOccurredAtToService() throws Exception {
+        mockMvc.perform(patch("/trips/1/status")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "COMPLETED",
+                                  "occurredAt": "2026-09-14T15:18:00-03:00"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        verify(tripService).changeTripStatusForOwner(
+                1,
+                CURRENT_USER.getId(),
+                TripStatus.COMPLETED,
+                false,
+                Instant.parse("2026-09-14T18:18:00Z")
+        );
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenOccurredAtIsInvalid() throws Exception {
+        mockMvc.perform(patch("/trips/1/status")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "status": "COMPLETED",
+                                  "occurredAt": "ontem de manhã"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(tripService);
+    }
+
+    @Test
+    void shouldExposeTimestampsInTripResponse() throws Exception {
+        Trip trip = Trip.restore(
+                1L,
+                "Florianopolis",
+                "Urubici",
+                175.5,
+                TerrainType.MIXED,
+                LocalDate.of(2026, 9, 20),
+                PERSISTED_MOTORCYCLE,
+                TripStatus.COMPLETED,
+                Instant.parse("2026-09-20T11:42:00Z"),
+                Instant.parse("2026-09-20T18:18:00Z")
+        );
+        when(tripService.findTripsByOwnerId(CURRENT_USER.getId()))
+                .thenReturn(List.of(trip, plannedTrip(2, LocalDate.of(2026, 9, 21))));
+
+        mockMvc.perform(get("/trips").principal(AUTHENTICATION))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].startedAt").value("2026-09-20T11:42:00Z"))
+                .andExpect(jsonPath("$[0].completedAt").value("2026-09-20T18:18:00Z"))
+                .andExpect(jsonPath("$[1].startedAt").isEmpty())
+                .andExpect(jsonPath("$[1].completedAt").isEmpty());
     }
 
     // -------------------------------------------------------------------------
@@ -793,7 +863,9 @@ class TripControllerTest {
                 TerrainType.MIXED,
                 tripDate,
                 PERSISTED_MOTORCYCLE,
-                TripStatus.PLANNED
+                TripStatus.PLANNED,
+                null,
+                null
         );
     }
 
@@ -806,7 +878,9 @@ class TripControllerTest {
                 TerrainType.MIXED,
                 tripDate,
                 PERSISTED_MOTORCYCLE,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         );
     }
 

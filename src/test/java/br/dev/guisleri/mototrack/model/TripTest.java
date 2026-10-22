@@ -7,12 +7,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -23,6 +25,7 @@ public class TripTest {
     private Motorcycle motorcycle;
     private Clock fixedClock;
     private LocalDate today;
+    private Instant now;
 
     @BeforeEach
     void setUp() {
@@ -46,6 +49,7 @@ public class TripTest {
                 ZoneId.of("America/Sao_Paulo")
         );
         today = LocalDate.now(fixedClock);
+        now = fixedClock.instant();
     }
 
     // -------------------------------------------------------------------------
@@ -144,7 +148,7 @@ public class TripTest {
     void shouldStartTripOnScheduledDate() {
         Trip trip = createTrip(today);
 
-        trip.startTrip(today, false);
+        trip.startTrip(today, false, now, now);
 
         assertAll(
                 () -> assertEquals(TripStatus.IN_PROGRESS, trip.getStatus()),
@@ -159,7 +163,7 @@ public class TripTest {
 
         assertThrows(
                 TripDateUpdateRequiredException.class,
-                () -> trip.startTrip(today, false)
+                () -> trip.startTrip(today, false, now, now)
         );
 
         assertAll(
@@ -172,7 +176,7 @@ public class TripTest {
     void shouldStartEarlyTripAndUpdateDateWhenConfirmed() {
         Trip trip = createTrip(today.plusDays(1));
 
-        trip.startTrip(today, true);
+        trip.startTrip(today, true, now, now);
 
         assertAll(
                 () -> assertEquals(TripStatus.IN_PROGRESS, trip.getStatus()),
@@ -187,7 +191,7 @@ public class TripTest {
 
         assertThrows(
                 TripDateUpdateRequiredException.class,
-                () -> trip.startTrip(today, false)
+                () -> trip.startTrip(today, false, now, now)
         );
 
         assertAll(
@@ -200,7 +204,7 @@ public class TripTest {
     void shouldStartLateTripAndUpdateDateWhenConfirmed() {
         Trip trip = restoreTrip(today.minusDays(1), TripStatus.PLANNED);
 
-        trip.startTrip(today, true);
+        trip.startTrip(today, true, now, now);
 
         assertAll(
                 () -> assertEquals(TripStatus.IN_PROGRESS, trip.getStatus()),
@@ -214,7 +218,7 @@ public class TripTest {
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> trip.startTrip(today, false)
+                () -> trip.startTrip(today, false, now, now)
         );
     }
 
@@ -224,7 +228,136 @@ public class TripTest {
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> trip.startTrip(today, false)
+                () -> trip.startTrip(today, false, now, now)
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Horários de início e conclusão
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldCreateTripsWithoutTimestamps() {
+        Trip planned = createTrip(today.plusDays(1));
+        Trip completed = createCompletedTrip(today);
+
+        assertAll(
+                () -> assertNull(planned.getStartedAt()),
+                () -> assertNull(planned.getCompletedAt()),
+                () -> assertNull(completed.getStartedAt()),
+                () -> assertNull(completed.getCompletedAt())
+        );
+    }
+
+    @Test
+    void shouldRecordStartedAtWhenStartingTrip() {
+        Trip trip = createTrip(today);
+        Instant startedAt = now.minusSeconds(3600);
+
+        trip.startTrip(today, false, startedAt, now);
+
+        assertEquals(startedAt, trip.getStartedAt());
+    }
+
+    @Test
+    void shouldRejectStartedAtInTheFuture() {
+        Trip trip = createTrip(today);
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> trip.startTrip(today, false, now.plusSeconds(1), now)
+        );
+        assertNull(trip.getStartedAt());
+        assertEquals(TripStatus.PLANNED, trip.getStatus());
+    }
+
+    @Test
+    void shouldRecordCompletedAtWhenCompletingTrip() {
+        Trip trip = createTrip(today);
+        Instant startedAt = now.minusSeconds(7200);
+        Instant completedAt = now.minusSeconds(600);
+        trip.startTrip(today, false, startedAt, now);
+
+        trip.completeTrip(today, false, completedAt, now);
+
+        assertAll(
+                () -> assertEquals(startedAt, trip.getStartedAt()),
+                () -> assertEquals(completedAt, trip.getCompletedAt())
+        );
+    }
+
+    @Test
+    void shouldRejectCompletedAtBeforeStartedAt() {
+        Trip trip = createTrip(today);
+        trip.startTrip(today, false, now.minusSeconds(600), now);
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> trip.completeTrip(today, false, now.minusSeconds(601), now)
+        );
+        assertNull(trip.getCompletedAt());
+        assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
+    }
+
+    @Test
+    void shouldRejectCompletedAtInTheFuture() {
+        Trip trip = restoreTrip(today, TripStatus.IN_PROGRESS);
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> trip.completeTrip(today, false, now.plusSeconds(1), now)
+        );
+        assertNull(trip.getCompletedAt());
+    }
+
+    @Test
+    void shouldCompleteTripInProgressWithoutStartedAt() {
+        Trip trip = restoreTrip(today, TripStatus.IN_PROGRESS);
+
+        trip.completeTrip(today, false, now, now);
+
+        assertAll(
+                () -> assertNull(trip.getStartedAt()),
+                () -> assertEquals(now, trip.getCompletedAt()),
+                () -> assertTrue(trip.duration().isEmpty())
+        );
+    }
+
+    @Test
+    void shouldCalculateDurationFromTimestamps() {
+        Trip trip = createTrip(today);
+        trip.startTrip(today, false, now.minusSeconds(7200), now);
+        trip.completeTrip(today, false, now, now);
+
+        assertEquals(Duration.ofHours(2), trip.duration().orElseThrow());
+    }
+
+    @Test
+    void shouldHaveNoDurationBeforeCompletion() {
+        Trip trip = createTrip(today);
+        trip.startTrip(today, false, now, now);
+
+        assertTrue(trip.duration().isEmpty());
+    }
+
+    @Test
+    void shouldRestoreTimestamps() {
+        Trip trip = Trip.restore(
+                1L,
+                "Florianopolis",
+                "Serra do Rio do Rastro",
+                284.5,
+                TerrainType.ASPHALT,
+                today,
+                motorcycle,
+                TripStatus.COMPLETED,
+                now.minusSeconds(60),
+                now
+        );
+
+        assertAll(
+                () -> assertEquals(now.minusSeconds(60), trip.getStartedAt()),
+                () -> assertEquals(now, trip.getCompletedAt())
         );
     }
 
@@ -236,7 +369,7 @@ public class TripTest {
     void shouldCompleteTripInProgressOnCurrentDate() {
         Trip trip = restoreTrip(today, TripStatus.IN_PROGRESS);
 
-        trip.completeTrip(today, false);
+        trip.completeTrip(today, false, now, now);
 
         assertAll(
                 () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
@@ -249,7 +382,7 @@ public class TripTest {
         LocalDate originalDate = today.minusDays(1);
         Trip trip = restoreTrip(originalDate, TripStatus.IN_PROGRESS);
 
-        trip.completeTrip(today, false);
+        trip.completeTrip(today, false, now, now);
 
         assertAll(
                 () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
@@ -263,7 +396,7 @@ public class TripTest {
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> trip.completeTrip(today, false)
+                () -> trip.completeTrip(today, false, now, now)
         );
 
         assertAll(
@@ -278,7 +411,7 @@ public class TripTest {
 
         assertThrows(
                 InvalidTripStatusException.class,
-                () -> trip.completeTrip(today, false)
+                () -> trip.completeTrip(today, false, now, now)
         );
 
         assertAll(
@@ -294,7 +427,7 @@ public class TripTest {
 
         assertThrows(
                 TripDateUpdateRequiredException.class,
-                () -> trip.completeTrip(today, false)
+                () -> trip.completeTrip(today, false, now, now)
         );
 
         assertAll(
@@ -307,7 +440,7 @@ public class TripTest {
     void shouldCompleteTripInProgressWithFutureDateWhenUpdateIsConfirmed() {
         Trip trip = restoreTrip(today.plusDays(4), TripStatus.IN_PROGRESS);
 
-        trip.completeTrip(today, true);
+        trip.completeTrip(today, true, now, now);
 
         assertAll(
                 () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
@@ -320,7 +453,7 @@ public class TripTest {
         LocalDate originalDate = today.minusDays(2);
         Trip trip = restoreTrip(originalDate, TripStatus.IN_PROGRESS);
 
-        trip.completeTrip(today, true);
+        trip.completeTrip(today, true, now, now);
 
         assertAll(
                 () -> assertEquals(TripStatus.COMPLETED, trip.getStatus()),
@@ -332,8 +465,8 @@ public class TripTest {
     void shouldCompleteTripAfterStartingWithUpdatedDate() {
         Trip trip = createTrip(today.plusDays(1));
 
-        trip.startTrip(today, true);
-        trip.completeTrip(today, false);
+        trip.startTrip(today, true, now, now);
+        trip.completeTrip(today, false, now, now);
 
         assertAll(
                 () -> assertEquals(today, trip.getTripDate()),
@@ -378,7 +511,9 @@ public class TripTest {
                 TerrainType.ASPHALT,
                 tripDate,
                 motorcycle,
-                status
+                status,
+                null,
+                null
         );
     }
 }

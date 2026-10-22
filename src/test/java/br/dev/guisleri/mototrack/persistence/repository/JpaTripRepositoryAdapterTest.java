@@ -134,6 +134,35 @@ class JpaTripRepositoryAdapterTest {
     }
 
     @Test
+    void shouldPersistAndRestoreTripTimestamps() {
+        Instant startedAt = Instant.parse("2026-09-10T11:42:00Z");
+        Instant completedAt = Instant.parse("2026-09-10T18:18:00Z");
+        Trip newTrip = Trip.restore(
+                null,
+                "Origem",
+                "Destino",
+                100.0,
+                TerrainType.ASPHALT,
+                TODAY,
+                persistMotorcycleIfNecessary(HONDA),
+                TripStatus.COMPLETED,
+                startedAt,
+                completedAt
+        );
+
+        Trip savedTrip = tripRepositoryAdapter.save(newTrip);
+        springDataTripRepository.flush();
+        entityManager.clear();
+
+        Trip foundTrip = tripRepositoryAdapter.findById(savedTrip.getId()).orElseThrow();
+
+        assertAll(
+                () -> assertEquals(startedAt, foundTrip.getStartedAt()),
+                () -> assertEquals(completedAt, foundTrip.getCompletedAt())
+        );
+    }
+
+    @Test
     void shouldReportMissingMotorcycleWhenPersistingTrip() {
         User missingOwner = User.restore(
                 999L,
@@ -557,7 +586,9 @@ class JpaTripRepositoryAdapterTest {
                 trip.getTerrain(),
                 trip.getTripDate(),
                 trip.getMotorcycle(),
-                TripStatus.IN_PROGRESS
+                TripStatus.IN_PROGRESS,
+                null,
+                null
         );
     }
 
@@ -577,7 +608,9 @@ class JpaTripRepositoryAdapterTest {
                 terrainType,
                 tripDate,
                 persistedMotorcycle,
-                TripStatus.COMPLETED
+                TripStatus.COMPLETED,
+                null,
+                null
         );
     }
 

@@ -215,7 +215,7 @@ class TripServiceTest {
         when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
         when(tripRepository.save(trip)).thenReturn(trip);
 
-        service.changeTripStatusForOwner(1L, OWNER_ID, TripStatus.IN_PROGRESS, false);
+        service.changeTripStatusForOwner(1L, OWNER_ID, TripStatus.IN_PROGRESS, false, null);
 
         assertAll(
                 () -> assertEquals(TripStatus.IN_PROGRESS, trip.getStatus()),
@@ -223,6 +223,54 @@ class TripServiceTest {
         );
         verify(tripRepository).findByIdForUpdate(1L);
         verify(tripRepository).save(trip);
+    }
+
+    @Test
+    void shouldUseCurrentInstantWhenOccurredAtIsNotInformed() {
+        Trip trip = plannedTrip(1L, 0, honda);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        service.changeTripStatusForOwner(1L, OWNER_ID, TripStatus.IN_PROGRESS, false, null);
+
+        assertEquals(fixedClock.instant(), trip.getStartedAt());
+    }
+
+    @Test
+    void shouldUseInformedOccurredAtWhenStartingAndCompletingTrip() {
+        Trip trip = plannedTrip(1L, 0, honda);
+        Instant startedAt = fixedClock.instant().minusSeconds(7200);
+        Instant completedAt = fixedClock.instant().minusSeconds(600);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        service.changeTripStatusForOwner(
+                1L, OWNER_ID, TripStatus.IN_PROGRESS, false, startedAt
+        );
+        service.changeTripStatusForOwner(
+                1L, OWNER_ID, TripStatus.COMPLETED, false, completedAt
+        );
+
+        assertAll(
+                () -> assertEquals(startedAt, trip.getStartedAt()),
+                () -> assertEquals(completedAt, trip.getCompletedAt())
+        );
+    }
+
+    @Test
+    void shouldRejectOccurredAtInTheFutureWithoutSaving() {
+        Trip trip = plannedTrip(1L, 0, honda);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> service.changeTripStatusForOwner(
+                        1L,
+                        OWNER_ID,
+                        TripStatus.IN_PROGRESS,
+                        false,
+                        fixedClock.instant().plusSeconds(1)
+                )
+        );
+        verify(tripRepository, never()).save(any());
     }
 
     @Test
@@ -235,7 +283,8 @@ class TripServiceTest {
                 1L,
                 OWNER_ID,
                 TripStatus.IN_PROGRESS,
-                true
+                true,
+                null
         );
 
         assertAll(
@@ -258,7 +307,8 @@ class TripServiceTest {
                         1L,
                         OWNER_ID,
                         TripStatus.IN_PROGRESS,
-                        false
+                        false,
+                        null
                 )
         );
 
@@ -286,7 +336,8 @@ class TripServiceTest {
                 1L,
                 OWNER_ID,
                 TripStatus.COMPLETED,
-                false
+                false,
+                null
         );
 
         assertEquals(TripStatus.COMPLETED, trip.getStatus());
@@ -305,7 +356,8 @@ class TripServiceTest {
                         1L,
                         OWNER_ID,
                         TripStatus.PLANNED,
-                        false
+                        false,
+                        null
                 )
         );
 
@@ -325,7 +377,8 @@ class TripServiceTest {
                         1L,
                         OWNER_ID,
                         TripStatus.COMPLETED,
-                        false
+                        false,
+                        null
                 )
         );
 
@@ -344,7 +397,8 @@ class TripServiceTest {
                         99L,
                         OWNER_ID,
                         TripStatus.IN_PROGRESS,
-                        false
+                        false,
+                        null
                 )
         );
 
@@ -363,7 +417,8 @@ class TripServiceTest {
                         1L,
                         OWNER_ID,
                         TripStatus.IN_PROGRESS,
-                        false
+                        false,
+                        null
                 )
         );
 
@@ -389,7 +444,8 @@ class TripServiceTest {
                         1L,
                         OWNER_ID,
                         TripStatus.COMPLETED,
-                        false
+                        false,
+                        null
                 )
         );
         assertEquals(TripStatus.IN_PROGRESS, trip.getStatus());
@@ -412,7 +468,8 @@ class TripServiceTest {
                 1L,
                 OWNER_ID,
                 TripStatus.COMPLETED,
-                true
+                true,
+                null
         );
 
         assertEquals(TripStatus.COMPLETED, trip.getStatus());
@@ -693,7 +750,9 @@ class TripServiceTest {
                 terrainType,
                 tripDate,
                 motorcycle,
-                status
+                status,
+                null,
+                null
         );
     }
 }

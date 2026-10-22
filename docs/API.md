@@ -31,7 +31,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/users/me
 |---|---|
 | `User` | `id`, `name`, `email` |
 | `Motorcycle` | `id`, `brand`, `model`, `color`, `year`, `engineCapacity`, `type: MotorcycleType \| null`, `owner: User` |
-| `Trip` | `id`, `origin`, `destination`, `distanceKm`, `status`, `terrain`, `tripDate`, `motorcycle: Motorcycle` |
+| `Trip` | `id`, `origin`, `destination`, `distanceKm`, `status`, `terrain`, `tripDate`, `motorcycle: Motorcycle`, `startedAt: Instant \| null`, `completedAt: Instant \| null` |
 | `TripSummary` | `id`, `origin`, `destination`, `distanceKm`, `terrain`, `tripDate`, `motorcycle: Motorcycle` |
 | `MotorcycleTripSummary` | `id`, `origin`, `destination`, `distanceKm`, `terrain`, `tripDate` (sem `motorcycle` e sem `status`) |
 | `TerrainStatistics` | `tripCount`, `totalDistanceKm` |
@@ -217,7 +217,7 @@ requests aceita `status` ou owner escolhidos pelo cliente.
 | `GET /trips/terrain/{terrain}` | `terrain`: `ASPHALT`, `MIXED` ou `OFF_ROAD`; inclui todos os status. | `200` + `Trip[]` | `400` terreno inválido |
 | `GET /trips/date/{date}` | `date`: data `yyyy-MM-dd`; inclui todos os status. | `200` + `Trip[]` | `400` data inválida |
 | `GET /trips/{id}/days-until` | Apenas `PLANNED`; `id` da viagem. Viagens planejadas vencidas podem retornar número negativo. | `200` + número inteiro JSON (ex.: `3`) | `400` status/ID inválido; `403` outro owner; `404` inexistente |
-| `PATCH /trips/{id}/status` | JSON `{ "status": "IN_PROGRESS" }` ou `{ "status": "COMPLETED" }`, com `updateTripDateToToday` opcional. Só `PLANNED → IN_PROGRESS → COMPLETED`. Iniciar ou concluir com `tripDate` diferente de hoje (para concluir, só se for posterior a hoje) exige `updateTripDateToToday: true`, que atualiza a data para hoje; sem ele a resposta é `409`. | `204` sem corpo | `400` transição/payload/ID inválidos; `403` outro owner; `404` inexistente; `409` exige confirmação da atualização da data |
+| `PATCH /trips/{id}/status` | JSON `{ "status": "IN_PROGRESS" }` ou `{ "status": "COMPLETED" }`, com `updateTripDateToToday` e `occurredAt` opcionais. `occurredAt` é o instante em que a viagem iniciou ou terminou (ISO-8601 com offset, ex.: `2026-10-20T15:18:00-03:00`); sem ele vale o momento da requisição. Não pode estar no futuro, e `completedAt` não pode ser anterior a `startedAt`. Só `PLANNED → IN_PROGRESS → COMPLETED`. Iniciar ou concluir com `tripDate` diferente de hoje (para concluir, só se for posterior a hoje) exige `updateTripDateToToday: true`, que atualiza a data para hoje; sem ele a resposta é `409`. | `204` sem corpo | `400` transição/payload/ID/horário inválidos; `403` outro owner; `404` inexistente; `409` exige confirmação da atualização da data |
 | `DELETE /trips/{id}` | `id` da viagem; sem corpo. | `204` sem corpo | `400` ID inválido; `403` outro owner; `404` inexistente |
 
 Exemplo de resposta `Trip` de uma viagem planejada:
@@ -231,9 +231,13 @@ Exemplo de resposta `Trip` de uma viagem planejada:
     "id": 1, "brand": "Honda", "model": "NX 500", "color": "Black",
     "year": 2025, "engineCapacity": 471, "type": "NAKED",
     "owner": {"id": 1, "name": "Marcos", "email": "marcos@example.com"}
-  }
+  },
+  "startedAt": null, "completedAt": null
 }
 ```
+
+Os horários são devolvidos em UTC (ex.: `2026-10-20T18:18:00Z`). Viagens sem horário
+registrado (planejadas, registradas já concluídas ou anteriores a este recurso) retornam `null`.
 
 ## Home e estatísticas gerais
 

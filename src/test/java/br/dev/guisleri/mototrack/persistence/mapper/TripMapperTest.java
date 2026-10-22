@@ -11,6 +11,7 @@ import br.dev.guisleri.mototrack.persistence.entity.TripEntity;
 import br.dev.guisleri.mototrack.persistence.entity.UserEntity;
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -90,7 +91,9 @@ class TripMapperTest {
                 TripStatus.IN_PROGRESS,
                 TerrainType.MIXED,
                 LocalDate.of(2026, 9, 20),
-                motorcycleEntity
+                motorcycleEntity,
+                null,
+                null
         );
 
         Trip trip = tripMapper.toDomain(entity);
@@ -110,6 +113,40 @@ class TripMapperTest {
         );
     }
 
+    @Test
+    void shouldMapTimestampsInBothDirections() {
+        User owner = User.restore(1L, "Marcos", "marcos@example.com", "password-hash");
+        Motorcycle motorcycle = motorcycle(owner);
+        MotorcycleEntity motorcycleEntity = motorcycleMapper.toEntity(
+                motorcycle,
+                userMapper.toEntity(owner)
+        );
+        Instant startedAt = Instant.parse("2026-09-20T11:42:00Z");
+        Instant completedAt = Instant.parse("2026-09-20T18:18:00Z");
+        Trip trip = Trip.restore(
+                42L,
+                "Florianopolis",
+                "Urubici",
+                175.5,
+                TerrainType.MIXED,
+                LocalDate.of(2026, 9, 20),
+                motorcycle,
+                TripStatus.COMPLETED,
+                startedAt,
+                completedAt
+        );
+
+        TripEntity entity = tripMapper.toEntity(trip, motorcycleEntity);
+        Trip restored = tripMapper.toDomain(entity);
+
+        assertAll(
+                () -> assertEquals(startedAt, entity.getStartedAt()),
+                () -> assertEquals(completedAt, entity.getCompletedAt()),
+                () -> assertEquals(startedAt, restored.getStartedAt()),
+                () -> assertEquals(completedAt, restored.getCompletedAt())
+        );
+    }
+
     // -------------------------------------------------------------------------
     // Helpers de criação do grafo de domínio
     // -------------------------------------------------------------------------
@@ -123,7 +160,9 @@ class TripMapperTest {
                 TerrainType.MIXED,
                 LocalDate.of(2026, 9, 20),
                 motorcycle,
-                TripStatus.IN_PROGRESS
+                TripStatus.IN_PROGRESS,
+                null,
+                null
         );
     }
 

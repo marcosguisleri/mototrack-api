@@ -33,6 +33,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/users/me
 | `Motorcycle` | `id`, `brand`, `model`, `color`, `year`, `engineCapacity`, `type: MotorcycleType \| null`, `owner: User` |
 | `Trip` | `id`, `origin`, `destination`, `distanceKm`, `status`, `terrain`, `tripDate`, `motorcycle: Motorcycle`, `startedAt: Instant \| null`, `completedAt: Instant \| null` |
 | `FuelEntry` | `id`, `liters`, `totalCost`, `pricePerLiter` (calculado: `totalCost / liters`, 2 casas), `createdAt: Instant` |
+| `TripExpense` | `id`, `category: ExpenseCategory`, `amount`, `description: string \| null`, `createdAt: Instant` |
 | `TripSummary` | `id`, `origin`, `destination`, `distanceKm`, `terrain`, `tripDate`, `motorcycle: Motorcycle` |
 | `MotorcycleTripSummary` | `id`, `origin`, `destination`, `distanceKm`, `terrain`, `tripDate` (sem `motorcycle` e sem `status`) |
 | `TerrainStatistics` | `tripCount`, `totalDistanceKm` |
@@ -261,6 +262,30 @@ seja do usuário autenticado. O corpo é o mesmo em `POST` e `PUT`:
 | `DELETE /trips/{tripId}/fuel-entries/{fuelEntryId}` | Remove o abastecimento. | `204` sem corpo | `403`; `404` como acima |
 
 Excluir uma viagem (`DELETE /trips/{id}`) também remove os abastecimentos dela.
+
+### Gastos da viagem
+
+Gastos reais que não são combustível (combustível usa os abastecimentos acima).
+Mesmas regras de status e de posse: só em viagens `IN_PROGRESS` ou `COMPLETED`,
+inclusive depois de concluída. `ExpenseCategory`: `TOLL`, `FOOD`, `PARKING`,
+`LODGING`, `ADMISSION`, `OTHER`. O corpo é o mesmo em `POST` e `PUT`:
+
+```json
+{ "category": "FOOD", "amount": 42.50, "description": "Almoço" }
+```
+
+`category` é obrigatória; `amount` deve ser maior que zero, com até 8 dígitos
+inteiros e 2 casas decimais; `description` é opcional, com no máximo 255
+caracteres (texto em branco vira `null`).
+
+| Método e rota | Regra | Sucesso | Outros status relevantes |
+|---|---|---|---|
+| `POST /trips/{tripId}/expenses` | Registra um gasto. | `201` + `TripExpense` | `400` payload inválido ou viagem `PLANNED`; `403` outro owner; `404` viagem inexistente |
+| `GET /trips/{tripId}/expenses` | Lista em ordem de registro (`createdAt`, `id`). Lista vazia se não houver registros. | `200` + `TripExpense[]` | `403`, `404` como acima |
+| `PUT /trips/{tripId}/expenses/{expenseId}` | Substitui `category`, `amount` e `description`. | `200` + `TripExpense` | `400`, `403`; `404` viagem ou gasto inexistente (ou de outra viagem) |
+| `DELETE /trips/{tripId}/expenses/{expenseId}` | Remove o gasto. | `204` sem corpo | `403`; `404` como acima |
+
+Excluir uma viagem (`DELETE /trips/{id}`) também remove os gastos dela.
 
 ## Home e estatísticas gerais
 

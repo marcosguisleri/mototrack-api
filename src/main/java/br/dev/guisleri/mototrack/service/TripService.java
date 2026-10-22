@@ -7,6 +7,7 @@ import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
+import br.dev.guisleri.mototrack.repository.FuelEntryRepository;
 import br.dev.guisleri.mototrack.repository.TripRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,10 +23,16 @@ import java.util.Optional;
 public class TripService {
 
     private final TripRepository tripRepository;
+    private final FuelEntryRepository fuelEntryRepository;
     private final Clock clock;
 
-    public TripService(TripRepository tripRepository, Clock clock) {
+    public TripService(
+            TripRepository tripRepository,
+            FuelEntryRepository fuelEntryRepository,
+            Clock clock
+    ) {
         this.tripRepository = tripRepository;
+        this.fuelEntryRepository = fuelEntryRepository;
         this.clock = clock;
     }
 
@@ -126,6 +133,7 @@ public class TripService {
     @Transactional
     public void deleteTripByIdForOwner(Long tripId, Long ownerId) {
         findTripByIdForUpdateForOwner(tripId, ownerId);
+        fuelEntryRepository.deleteByTripId(tripId);
         tripRepository.deleteById(tripId);
     }
 

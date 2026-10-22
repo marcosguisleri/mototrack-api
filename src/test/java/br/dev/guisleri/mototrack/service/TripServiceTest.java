@@ -11,6 +11,7 @@ import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
 import br.dev.guisleri.mototrack.model.TripStatus;
 import br.dev.guisleri.mototrack.model.User;
+import br.dev.guisleri.mototrack.repository.FuelEntryRepository;
 import br.dev.guisleri.mototrack.repository.TripRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,9 @@ class TripServiceTest {
     @Mock
     private TripRepository tripRepository;
 
+    @Mock
+    private FuelEntryRepository fuelEntryRepository;
+
     private TripService service;
     private Motorcycle honda;
     private Motorcycle yamaha;
@@ -58,7 +62,7 @@ class TripServiceTest {
                 ZoneId.of("America/Sao_Paulo")
         );
         today = LocalDate.now(fixedClock);
-        service = new TripService(tripRepository, fixedClock);
+        service = new TripService(tripRepository, fuelEntryRepository, fixedClock);
         User owner = User.restore(
                 OWNER_ID,
                 "Marcos",
@@ -687,6 +691,7 @@ class TripServiceTest {
         service.deleteTripByIdForOwner(1L, OWNER_ID);
 
         verify(tripRepository).findByIdForUpdate(1L);
+        verify(fuelEntryRepository).deleteByTripId(1L);
         verify(tripRepository).deleteById(1L);
     }
 
@@ -700,6 +705,7 @@ class TripServiceTest {
         );
 
         verify(tripRepository).findByIdForUpdate(99L);
+        verify(fuelEntryRepository, never()).deleteByTripId(99L);
         verify(tripRepository, never()).deleteById(99L);
     }
 
@@ -714,6 +720,7 @@ class TripServiceTest {
         );
 
         verify(tripRepository).findByIdForUpdate(1L);
+        verify(fuelEntryRepository, never()).deleteByTripId(1L);
         verify(tripRepository, never()).deleteById(1L);
     }
 

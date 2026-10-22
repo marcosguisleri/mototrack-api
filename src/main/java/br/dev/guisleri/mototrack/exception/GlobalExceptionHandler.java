@@ -30,6 +30,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             TripNotFoundException.class,
+            FuelEntryNotFoundException.class,
             MotorcycleNotFoundException.class,
             UserNotFoundException.class
     })
@@ -41,7 +42,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             InvalidTripDateException.class,
-            InvalidTripStatusException.class
+            InvalidTripStatusException.class,
+            InvalidFuelEntryException.class
     })
     public ResponseEntity<ApiErrorResponseDTO> handleInvalidTrip(
             RuntimeException exception

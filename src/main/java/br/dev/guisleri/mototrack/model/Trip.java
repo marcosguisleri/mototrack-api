@@ -209,6 +209,15 @@ public class Trip {
         status = TripStatus.COMPLETED;
     }
 
+    public void assertAcceptsRecords() {
+        if (status == TripStatus.PLANNED) {
+            throw new InvalidTripStatusException(
+                    "Só é possível registrar abastecimentos e gastos em viagens " +
+                            "iniciadas ou concluídas."
+            );
+        }
+    }
+
     public Optional<Duration> duration() {
         if (startedAt == null || completedAt == null) {
             return Optional.empty();

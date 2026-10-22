@@ -362,6 +362,29 @@ public class TripTest {
     }
 
     // -------------------------------------------------------------------------
+    // Registros reais (abastecimentos e gastos)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldRejectRecordsOnPlannedTrip() {
+        Trip trip = createTrip(today.plusDays(1));
+
+        assertThrows(InvalidTripStatusException.class, trip::assertAcceptsRecords);
+    }
+
+    @Test
+    void shouldAcceptRecordsOnTripInProgressAndCompleted() {
+        assertAll(
+                () -> assertDoesNotThrow(
+                        restoreTrip(today, TripStatus.IN_PROGRESS)::assertAcceptsRecords
+                ),
+                () -> assertDoesNotThrow(
+                        restoreTrip(today, TripStatus.COMPLETED)::assertAcceptsRecords
+                )
+        );
+    }
+
+    // -------------------------------------------------------------------------
     // Conclusão de viagem e validação das transições
     // -------------------------------------------------------------------------
 

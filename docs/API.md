@@ -32,6 +32,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:8080/users/me
 | `User` | `id`, `name`, `email` |
 | `Motorcycle` | `id`, `brand`, `model`, `color`, `year`, `engineCapacity`, `type: MotorcycleType \| null`, `owner: User` |
 | `Trip` | `id`, `origin`, `destination`, `distanceKm`, `status`, `terrain`, `tripDate`, `motorcycle: Motorcycle`, `startedAt: Instant \| null`, `completedAt: Instant \| null` |
+| `FuelEntry` | `id`, `liters`, `totalCost`, `pricePerLiter` (calculado: `totalCost / liters`, 2 casas), `createdAt: Instant` |
 | `TripSummary` | `id`, `origin`, `destination`, `distanceKm`, `terrain`, `tripDate`, `motorcycle: Motorcycle` |
 | `MotorcycleTripSummary` | `id`, `origin`, `destination`, `distanceKm`, `terrain`, `tripDate` (sem `motorcycle` e sem `status`) |
 | `TerrainStatistics` | `tripCount`, `totalDistanceKm` |
@@ -238,6 +239,28 @@ Exemplo de resposta `Trip` de uma viagem planejada:
 
 Os horários são devolvidos em UTC (ex.: `2026-10-20T18:18:00Z`). Viagens sem horário
 registrado (planejadas, registradas já concluídas ou anteriores a este recurso) retornam `null`.
+
+### Abastecimentos da viagem
+
+Registro real de combustível, permitido apenas em viagens `IN_PROGRESS` ou
+`COMPLETED` (inclusive depois de concluída). Todas as rotas exigem que a viagem
+seja do usuário autenticado. O corpo é o mesmo em `POST` e `PUT`:
+
+```json
+{ "liters": 10.2, "totalCost": 64.90 }
+```
+
+`liters` deve ser maior que zero, com até 4 dígitos inteiros e 3 casas decimais;
+`totalCost` deve ser maior que zero, com até 8 dígitos inteiros e 2 casas decimais.
+
+| Método e rota | Regra | Sucesso | Outros status relevantes |
+|---|---|---|---|
+| `POST /trips/{tripId}/fuel-entries` | Registra um abastecimento. | `201` + `FuelEntry` | `400` payload inválido ou viagem `PLANNED`; `403` outro owner; `404` viagem inexistente |
+| `GET /trips/{tripId}/fuel-entries` | Lista em ordem de registro (`createdAt`, `id`). Lista vazia se não houver registros. | `200` + `FuelEntry[]` | `403`, `404` como acima |
+| `PUT /trips/{tripId}/fuel-entries/{fuelEntryId}` | Substitui `liters` e `totalCost`. | `200` + `FuelEntry` | `400`, `403`; `404` viagem ou abastecimento inexistente (ou de outra viagem) |
+| `DELETE /trips/{tripId}/fuel-entries/{fuelEntryId}` | Remove o abastecimento. | `204` sem corpo | `403`; `404` como acima |
+
+Excluir uma viagem (`DELETE /trips/{id}`) também remove os abastecimentos dela.
 
 ## Home e estatísticas gerais
 

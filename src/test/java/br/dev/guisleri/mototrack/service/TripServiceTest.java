@@ -491,6 +491,75 @@ class TripServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // Edição de viagem
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldUpdateTripUnderLockAndSave() {
+        Trip trip = plannedTrip(1L, 1, honda);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+
+        Trip result = service.updateTripForOwner(
+                1L, OWNER_ID, "Campinas", "Santos", 170.0,
+                TerrainType.MIXED, today.plusDays(3), yamaha
+        );
+
+        assertAll(
+                () -> assertSame(trip, result),
+                () -> assertEquals("Campinas", trip.getOrigin()),
+                () -> assertEquals(today.plusDays(3), trip.getTripDate()),
+                () -> assertSame(yamaha, trip.getMotorcycle())
+        );
+        verify(tripRepository).findByIdForUpdate(1L);
+        verify(tripRepository).save(trip);
+    }
+
+    @Test
+    void shouldRejectInvalidDateOnUpdateWithoutSaving() {
+        Trip trip = plannedTrip(1L, 1, honda);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> service.updateTripForOwner(
+                        1L, OWNER_ID, "Campinas", "Santos", 170.0,
+                        TerrainType.MIXED, today.minusDays(1), honda
+                )
+        );
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldNotUpdateTripOfAnotherOwner() {
+        Trip trip = trip(1L, TerrainType.ASPHALT, today.plusDays(1), foreignMotorcycle, TripStatus.PLANNED);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                TripAccessDeniedException.class,
+                () -> service.updateTripForOwner(
+                        1L, OWNER_ID, "Campinas", "Santos", 170.0,
+                        TerrainType.MIXED, today.plusDays(3), honda
+                )
+        );
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldReportMissingTripOnUpdate() {
+        when(tripRepository.findByIdForUpdate(99L)).thenReturn(Optional.empty());
+
+        assertThrows(
+                TripNotFoundException.class,
+                () -> service.updateTripForOwner(
+                        99L, OWNER_ID, "Campinas", "Santos", 170.0,
+                        TerrainType.MIXED, today.plusDays(3), honda
+                )
+        );
+        verify(tripRepository, never()).save(any());
+    }
+
+    // -------------------------------------------------------------------------
     // Filtros, viagem em andamento, próximas viagens e histórico
     // -------------------------------------------------------------------------
 

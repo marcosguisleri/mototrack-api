@@ -2,6 +2,7 @@ package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.exception.InvalidTripDateException;
 import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
+import br.dev.guisleri.mototrack.exception.MotorcycleAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.TripAccessDeniedException;
 import br.dev.guisleri.mototrack.exception.TripDateUpdateRequiredException;
 import br.dev.guisleri.mototrack.exception.TripNotFoundException;
@@ -549,7 +550,7 @@ class TripControllerTest {
 
     @Test
     void shouldReturnStandardErrorForUnsupportedMethod() throws Exception {
-        mockMvc.perform(put("/trips/1").principal(AUTHENTICATION))
+        mockMvc.perform(patch("/trips/1").principal(AUTHENTICATION))
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(header().exists(HttpHeaders.ALLOW))
                 .andExpect(jsonPath("$.status").value(405))
@@ -819,6 +820,124 @@ class TripControllerTest {
                 .andExpect(jsonPath("$[0].completedAt").value("2026-09-20T18:18:00Z"))
                 .andExpect(jsonPath("$[1].startedAt").isEmpty())
                 .andExpect(jsonPath("$[1].completedAt").isEmpty());
+    }
+
+    // -------------------------------------------------------------------------
+    // PUT /trips/{id} - edição dos dados da viagem
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldUpdateTrip() throws Exception {
+        LocalDate tripDate = LocalDate.of(2026, 9, 20);
+        when(motorcycleService.findMotorcycleByIdForOwner(1L, CURRENT_USER.getId()))
+                .thenReturn(PERSISTED_MOTORCYCLE);
+        when(tripService.updateTripForOwner(
+                eq(5L),
+                eq(CURRENT_USER.getId()),
+                eq("Florianopolis"),
+                eq("Urubici"),
+                eq(175.5),
+                eq(TerrainType.MIXED),
+                eq(tripDate),
+                eq(PERSISTED_MOTORCYCLE)
+        )).thenReturn(plannedTrip(5, tripDate));
+
+        mockMvc.perform(put("/trips/5")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createTripJson("2026-09-20")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(5))
+                .andExpect(jsonPath("$.origin").value("Florianopolis"))
+                .andExpect(jsonPath("$.tripDate").value("2026-09-20"))
+                .andExpect(jsonPath("$.motorcycle.id").value(1));
+    }
+
+    @Test
+    void shouldRejectInvalidUpdatePayload() throws Exception {
+        mockMvc.perform(put("/trips/5")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "origin": "",
+                                  "destination": "Urubici",
+                                  "distanceKm": 0,
+                                  "terrain": "MIXED",
+                                  "tripDate": "2026-09-20",
+                                  "motorcycleId": 1
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.length()").value(2));
+
+        verifyNoInteractions(tripService, motorcycleService);
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenUpdateDateIsInvalid() throws Exception {
+        when(motorcycleService.findMotorcycleByIdForOwner(1L, CURRENT_USER.getId()))
+                .thenReturn(PERSISTED_MOTORCYCLE);
+        when(tripService.updateTripForOwner(
+                eq(5L), eq(CURRENT_USER.getId()), eq("Florianopolis"), eq("Urubici"),
+                eq(175.5), eq(TerrainType.MIXED), eq(LocalDate.of(2026, 9, 20)),
+                eq(PERSISTED_MOTORCYCLE)
+        )).thenThrow(new InvalidTripDateException("Data inválida!"));
+
+        mockMvc.perform(put("/trips/5")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createTripJson("2026-09-20")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Data inválida!"));
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenUpdatingTripOfAnotherOwner() throws Exception {
+        when(motorcycleService.findMotorcycleByIdForOwner(1L, CURRENT_USER.getId()))
+                .thenReturn(PERSISTED_MOTORCYCLE);
+        when(tripService.updateTripForOwner(
+                eq(5L), eq(CURRENT_USER.getId()), eq("Florianopolis"), eq("Urubici"),
+                eq(175.5), eq(TerrainType.MIXED), eq(LocalDate.of(2026, 9, 20)),
+                eq(PERSISTED_MOTORCYCLE)
+        )).thenThrow(new TripAccessDeniedException("negado"));
+
+        mockMvc.perform(put("/trips/5")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createTripJson("2026-09-20")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldReturnForbiddenWhenUpdatingTripWithForeignMotorcycle() throws Exception {
+        when(motorcycleService.findMotorcycleByIdForOwner(1L, CURRENT_USER.getId()))
+                .thenThrow(new MotorcycleAccessDeniedException("negado"));
+
+        mockMvc.perform(put("/trips/5")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createTripJson("2026-09-20")))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(tripService);
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenUpdatingUnknownTrip() throws Exception {
+        when(motorcycleService.findMotorcycleByIdForOwner(1L, CURRENT_USER.getId()))
+                .thenReturn(PERSISTED_MOTORCYCLE);
+        when(tripService.updateTripForOwner(
+                eq(5L), eq(CURRENT_USER.getId()), eq("Florianopolis"), eq("Urubici"),
+                eq(175.5), eq(TerrainType.MIXED), eq(LocalDate.of(2026, 9, 20)),
+                eq(PERSISTED_MOTORCYCLE)
+        )).thenThrow(new TripNotFoundException("não encontrada"));
+
+        mockMvc.perform(put("/trips/5")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createTripJson("2026-09-20")))
+                .andExpect(status().isNotFound());
     }
 
     // -------------------------------------------------------------------------

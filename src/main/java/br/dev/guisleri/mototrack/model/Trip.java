@@ -13,13 +13,13 @@ import java.util.Optional;
 public class Trip {
 
     private final Long id;
-    private final String origin;
-    private final String destination;
-    private final double distanceKm;
+    private String origin;
+    private String destination;
+    private double distanceKm;
     private TripStatus status;
-    private final TerrainType terrain;
+    private TerrainType terrain;
     private LocalDate tripDate;
-    private final Motorcycle motorcycle;
+    private Motorcycle motorcycle;
     private Instant startedAt;
     private Instant completedAt;
 
@@ -133,6 +133,35 @@ public class Trip {
                 startedAt,
                 completedAt
         );
+    }
+
+    public void updateDetails(
+            String origin,
+            String destination,
+            double distanceKm,
+            TerrainType terrain,
+            LocalDate tripDate,
+            Motorcycle motorcycle,
+            LocalDate currentDate
+    ) {
+        if (status == TripStatus.PLANNED) {
+            if (tripDate.isBefore(currentDate)) {
+                throw new InvalidTripDateException(
+                        "Não é possível planejar uma viagem para uma data passada."
+                );
+            }
+        } else if (tripDate.isAfter(currentDate)) {
+            throw new InvalidTripDateException(
+                    "Uma viagem iniciada ou concluída não pode ter data futura."
+            );
+        }
+
+        this.origin = origin;
+        this.destination = destination;
+        this.distanceKm = distanceKm;
+        this.terrain = terrain;
+        this.tripDate = tripDate;
+        this.motorcycle = motorcycle;
     }
 
     public void startTrip(

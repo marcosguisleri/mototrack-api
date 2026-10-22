@@ -362,6 +362,121 @@ public class TripTest {
     }
 
     // -------------------------------------------------------------------------
+    // Edição dos dados da viagem
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldUpdatePlannedTripDetailsAndKeepLifecycle() {
+        Trip trip = createTrip(today.plusDays(1));
+        Motorcycle otherMotorcycle = Motorcycle.restore(
+                2L, "Yamaha", "Tenere 700", "Blue", 2024, 689, MotorcycleType.NAKED,
+                motorcycle.getOwner()
+        );
+
+        trip.updateDetails(
+                "Campinas", "Santos", 170.0, TerrainType.MIXED,
+                today.plusDays(5), otherMotorcycle, today
+        );
+
+        assertAll(
+                () -> assertEquals("Campinas", trip.getOrigin()),
+                () -> assertEquals("Santos", trip.getDestination()),
+                () -> assertEquals(170.0, trip.getDistanceKm()),
+                () -> assertEquals(TerrainType.MIXED, trip.getTerrain()),
+                () -> assertEquals(today.plusDays(5), trip.getTripDate()),
+                () -> assertSame(otherMotorcycle, trip.getMotorcycle()),
+                () -> assertEquals(TripStatus.PLANNED, trip.getStatus())
+        );
+    }
+
+    @Test
+    void shouldAllowPlannedTripOnToday() {
+        Trip trip = createTrip(today.plusDays(1));
+
+        trip.updateDetails(
+                "A", "B", 10.0, TerrainType.ASPHALT, today, motorcycle, today
+        );
+
+        assertEquals(today, trip.getTripDate());
+    }
+
+    @Test
+    void shouldRejectPlannedTripInThePastKeepingPreviousValues() {
+        Trip trip = createTrip(today.plusDays(1));
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> trip.updateDetails(
+                        "A", "B", 10.0, TerrainType.ASPHALT,
+                        today.minusDays(1), motorcycle, today
+                )
+        );
+        assertAll(
+                () -> assertEquals("Florianopolis", trip.getOrigin()),
+                () -> assertEquals(today.plusDays(1), trip.getTripDate())
+        );
+    }
+
+    @Test
+    void shouldUpdateTripInProgressAndCompletedWithPastOrCurrentDate() {
+        Trip inProgress = restoreTrip(today, TripStatus.IN_PROGRESS);
+        Trip completed = restoreTrip(today.minusDays(3), TripStatus.COMPLETED);
+
+        inProgress.updateDetails(
+                "A", "B", 10.0, TerrainType.OFF_ROAD, today, motorcycle, today
+        );
+        completed.updateDetails(
+                "C", "D", 20.0, TerrainType.MIXED, today.minusDays(10), motorcycle, today
+        );
+
+        assertAll(
+                () -> assertEquals("B", inProgress.getDestination()),
+                () -> assertEquals(TripStatus.IN_PROGRESS, inProgress.getStatus()),
+                () -> assertEquals(today.minusDays(10), completed.getTripDate()),
+                () -> assertEquals(TripStatus.COMPLETED, completed.getStatus())
+        );
+    }
+
+    @Test
+    void shouldRejectFutureDateForTripInProgressAndCompleted() {
+        Trip inProgress = restoreTrip(today, TripStatus.IN_PROGRESS);
+        Trip completed = restoreTrip(today, TripStatus.COMPLETED);
+
+        assertAll(
+                () -> assertThrows(
+                        InvalidTripDateException.class,
+                        () -> inProgress.updateDetails(
+                                "A", "B", 10.0, TerrainType.ASPHALT,
+                                today.plusDays(1), motorcycle, today
+                        )
+                ),
+                () -> assertThrows(
+                        InvalidTripDateException.class,
+                        () -> completed.updateDetails(
+                                "A", "B", 10.0, TerrainType.ASPHALT,
+                                today.plusDays(1), motorcycle, today
+                        )
+                )
+        );
+    }
+
+    @Test
+    void shouldKeepTimestampsWhenUpdatingDetails() {
+        Trip trip = createTrip(today);
+        trip.startTrip(today, false, now.minusSeconds(60), now);
+        trip.completeTrip(today, false, now, now);
+
+        trip.updateDetails(
+                "A", "B", 10.0, TerrainType.ASPHALT, today, motorcycle, today
+        );
+
+        assertAll(
+                () -> assertEquals(now.minusSeconds(60), trip.getStartedAt()),
+                () -> assertEquals(now, trip.getCompletedAt())
+        );
+    }
+
+    // -------------------------------------------------------------------------
     // Registros reais (abastecimentos e gastos)
     // -------------------------------------------------------------------------
 

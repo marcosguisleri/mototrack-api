@@ -163,6 +163,36 @@ class JpaTripRepositoryAdapterTest {
     }
 
     @Test
+    void shouldPersistEditedTripDetails() {
+        Trip saved = tripRepositoryAdapter.save(
+                plannedTrip(175.5, TerrainType.MIXED, TODAY.plusDays(5), HONDA)
+        );
+        springDataTripRepository.flush();
+        entityManager.clear();
+        Motorcycle otherMotorcycle = persistMotorcycleIfNecessary(YAMAHA);
+
+        Trip loaded = tripRepositoryAdapter.findByIdForUpdate(saved.getId()).orElseThrow();
+        loaded.updateDetails(
+                "Campinas", "Santos", 170.0, TerrainType.OFF_ROAD,
+                TODAY.plusDays(9), otherMotorcycle, TODAY
+        );
+        tripRepositoryAdapter.save(loaded);
+        springDataTripRepository.flush();
+        entityManager.clear();
+
+        Trip reloaded = tripRepositoryAdapter.findById(saved.getId()).orElseThrow();
+        assertAll(
+                () -> assertEquals("Campinas", reloaded.getOrigin()),
+                () -> assertEquals("Santos", reloaded.getDestination()),
+                () -> assertEquals(170.0, reloaded.getDistanceKm()),
+                () -> assertEquals(TerrainType.OFF_ROAD, reloaded.getTerrain()),
+                () -> assertEquals(TODAY.plusDays(9), reloaded.getTripDate()),
+                () -> assertEquals(otherMotorcycle.getId(), reloaded.getMotorcycle().getId()),
+                () -> assertEquals(TripStatus.PLANNED, reloaded.getStatus())
+        );
+    }
+
+    @Test
     void shouldReportMissingMotorcycleWhenPersistingTrip() {
         User missingOwner = User.restore(
                 999L,

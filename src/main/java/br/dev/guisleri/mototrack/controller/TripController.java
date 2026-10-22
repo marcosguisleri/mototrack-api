@@ -3,6 +3,7 @@ package br.dev.guisleri.mototrack.controller;
 import br.dev.guisleri.mototrack.dto.ChangeTripStatusRequestDTO;
 import br.dev.guisleri.mototrack.dto.CreateTripRequestDTO;
 import br.dev.guisleri.mototrack.dto.TripResponseDTO;
+import br.dev.guisleri.mototrack.dto.UpdateTripRequestDTO;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -104,6 +106,35 @@ public class TripController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(TripResponseDTO.from(completedTrip));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TripResponseDTO> updateTrip(
+            @PathVariable("id") long tripId,
+            @Valid @RequestBody UpdateTripRequestDTO updateTripRequest,
+            Authentication authentication
+    ) {
+
+        User currentUser = userService.findUserByEmail(authentication.getName());
+
+        Motorcycle motorcycle = motorcycleService
+                .findMotorcycleByIdForOwner(
+                        updateTripRequest.motorcycleId(),
+                        currentUser.getId()
+                );
+
+        Trip trip = tripService.updateTripForOwner(
+                tripId,
+                currentUser.getId(),
+                updateTripRequest.origin(),
+                updateTripRequest.destination(),
+                updateTripRequest.distanceKm(),
+                updateTripRequest.terrain(),
+                updateTripRequest.tripDate(),
+                motorcycle
+        );
+
+        return ResponseEntity.ok(TripResponseDTO.from(trip));
     }
 
     @PatchMapping("/{id}/status")

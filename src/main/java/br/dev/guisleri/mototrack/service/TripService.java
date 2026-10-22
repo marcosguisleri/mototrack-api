@@ -83,6 +83,32 @@ public class TripService {
     }
 
     @Transactional
+    public Trip updateTripForOwner(
+            long tripId,
+            Long ownerId,
+            String origin,
+            String destination,
+            double distanceKm,
+            TerrainType terrainType,
+            LocalDate tripDate,
+            Motorcycle motorcycle
+    ) {
+        Trip trip = findTripByIdForUpdateForOwner(tripId, ownerId);
+
+        trip.updateDetails(
+                origin,
+                destination,
+                distanceKm,
+                terrainType,
+                tripDate,
+                motorcycle,
+                LocalDate.now(clock)
+        );
+
+        return tripRepository.save(trip);
+    }
+
+    @Transactional
     public void changeTripStatusForOwner(
             long tripId,
             Long ownerId,

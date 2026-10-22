@@ -81,6 +81,23 @@ class TripCostSummaryTest {
     }
 
     @Test
+    void shouldCountExemptTollsAsKnownZeroCost() {
+        List<ExpenseCategorySummary> expenses = List.of(
+                new ExpenseCategorySummary(
+                        ExpenseCategory.TOLL, 3, new BigDecimal("0.00")
+                )
+        );
+
+        TripCostSummary summary = TripCostSummary.of(NO_FUEL, expenses, 100.0);
+
+        assertAll(
+                () -> assertEquals(3, summary.expenses().get(0).count()),
+                () -> assertEquals(new BigDecimal("0.00"), summary.totalCost()),
+                () -> assertEquals(new BigDecimal("0.00"), summary.costPerKm())
+        );
+    }
+
+    @Test
     void shouldHaveNoCostPerKmWhenDistanceIsZero() {
         FuelCostSummary fuel = new FuelCostSummary(
                 1, new BigDecimal("10"), new BigDecimal("60.00")

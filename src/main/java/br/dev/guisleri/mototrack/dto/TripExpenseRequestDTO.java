@@ -3,7 +3,7 @@ package br.dev.guisleri.mototrack.dto;
 import br.dev.guisleri.mototrack.model.ExpenseCategory;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -14,7 +14,7 @@ public record TripExpenseRequestDTO(
         ExpenseCategory category,
 
         @NotNull(message = "O valor do gasto é obrigatório.")
-        @Positive(message = "O valor do gasto deve ser maior que zero.")
+        @PositiveOrZero(message = "O valor do gasto não pode ser negativo.")
         @Digits(
                 integer = 8,
                 fraction = 2,

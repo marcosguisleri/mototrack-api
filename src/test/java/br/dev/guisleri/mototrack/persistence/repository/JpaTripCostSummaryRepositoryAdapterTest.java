@@ -113,6 +113,23 @@ class JpaTripCostSummaryRepositoryAdapterTest {
     }
 
     @Test
+    void shouldCountExemptTollsWithZeroTotal() {
+        persistExpense(trip, ExpenseCategory.TOLL, "0.00");
+        persistExpense(trip, ExpenseCategory.TOLL, "0.00");
+        flushAndClear();
+
+        List<ExpenseCategorySummary> summaries =
+                adapter.summarizeExpensesByCategoryForTripId(trip.getId());
+
+        assertAll(
+                () -> assertEquals(1, summaries.size()),
+                () -> assertEquals(ExpenseCategory.TOLL, summaries.get(0).category()),
+                () -> assertEquals(2, summaries.get(0).count()),
+                () -> assertEquals(0, BigDecimal.ZERO.compareTo(summaries.get(0).total()))
+        );
+    }
+
+    @Test
     void shouldReturnNoCategoriesWhenThereAreNoExpenses() {
         persistExpense(otherTrip, ExpenseCategory.TOLL, "99.00");
         flushAndClear();

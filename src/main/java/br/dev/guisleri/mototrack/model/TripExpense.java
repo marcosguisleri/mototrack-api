@@ -80,9 +80,16 @@ public class TripExpense {
             );
         }
 
-        if (amount.signum() <= 0) {
+        if (amount.signum() < 0) {
             throw new InvalidTripExpenseException(
-                    "O valor do gasto deve ser maior que zero."
+                    "O valor do gasto não pode ser negativo."
+            );
+        }
+
+        // A toll-exempt passage (e.g. motorcycles) is recorded with amount zero.
+        if (amount.signum() == 0 && category != ExpenseCategory.TOLL) {
+            throw new InvalidTripExpenseException(
+                    "Somente o pedágio pode ter valor zero (isento)."
             );
         }
     }

@@ -1,6 +1,7 @@
 package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.exception.TripExpenseNotFoundException;
+import br.dev.guisleri.mototrack.exception.InvalidTripExpenseException;
 import br.dev.guisleri.mototrack.exception.InvalidTripStatusException;
 import br.dev.guisleri.mototrack.exception.TripAccessDeniedException;
 import br.dev.guisleri.mototrack.model.TripExpense;
@@ -94,10 +95,11 @@ class TripExpenseControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "liters": 0,
-                                  "totalCost": 12345.678
+                                  "category": "FOOD",
+                                  "amount": -1,
+                                  "description": "%s"
                                 }
-                                """))
+                                """.formatted("x".repeat(256))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.length()").value(2));
 
@@ -130,6 +132,43 @@ class TripExpenseControllerTest {
                                 { "category": "TOLL", "amount": 13.90 }
                                 """))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void shouldAcceptZeroAmountForExemptToll() throws Exception {
+        when(tripExpenseService.registerExpenseForOwner(
+                5L, CURRENT_USER.getId(), ExpenseCategory.TOLL, new BigDecimal("0"), null
+        )).thenReturn(TripExpense.restore(
+                9L, 5L, ExpenseCategory.TOLL, new BigDecimal("0.00"), null,
+                Instant.parse("2026-09-14T12:00:00Z")
+        ));
+
+        mockMvc.perform(post("/trips/5/expenses")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "category": "TOLL", "amount": 0 }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.category").value("TOLL"))
+                .andExpect(jsonPath("$.amount").value(0.0));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenZeroAmountIsNotAllowedForCategory() throws Exception {
+        when(tripExpenseService.registerExpenseForOwner(
+                5L, CURRENT_USER.getId(), ExpenseCategory.FOOD, new BigDecimal("0"), null
+        )).thenThrow(new InvalidTripExpenseException("Somente o pedágio pode ter valor zero (isento)."));
+
+        mockMvc.perform(post("/trips/5/expenses")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "category": "FOOD", "amount": 0 }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Somente o pedágio pode ter valor zero (isento)."));
     }
 
     @Test

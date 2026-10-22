@@ -277,7 +277,8 @@ inclusive depois de concluída. `ExpenseCategory`: `TOLL`, `FOOD`, `PARKING`,
 ```
 
 `category` é obrigatória; `amount` deve ser maior que zero, com até 8 dígitos
-inteiros e 2 casas decimais; `description` é opcional, com no máximo 255
+inteiros e 2 casas decimais — exceto em `TOLL`, que aceita `0` para registrar uma
+passagem isenta (ex.: motos), contada em `count` no resumo com total zero; `description` é opcional, com no máximo 255
 caracteres (texto em branco vira `null`).
 
 | Método e rota | Regra | Sucesso | Outros status relevantes |

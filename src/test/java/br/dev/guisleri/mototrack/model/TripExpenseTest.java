@@ -66,21 +66,81 @@ class TripExpenseTest {
     }
 
     @Test
-    void shouldRejectNonPositiveAmount() {
+    void shouldRejectNegativeAmountForAnyCategory() {
         assertAll(
-                () -> assertThrows(
-                        InvalidTripExpenseException.class,
-                        () -> TripExpense.register(
-                                7L, ExpenseCategory.OTHER, BigDecimal.ZERO, null, fixedClock
-                        )
-                ),
                 () -> assertThrows(
                         InvalidTripExpenseException.class,
                         () -> TripExpense.register(
                                 7L, ExpenseCategory.OTHER, new BigDecimal("-1"), null, fixedClock
                         )
+                ),
+                () -> assertThrows(
+                        InvalidTripExpenseException.class,
+                        () -> TripExpense.register(
+                                7L, ExpenseCategory.TOLL, new BigDecimal("-0.01"), null, fixedClock
+                        )
                 )
         );
+    }
+
+    @Test
+    void shouldAcceptZeroAmountOnlyForExemptToll() {
+        TripExpense exemptToll = TripExpense.register(
+                7L, ExpenseCategory.TOLL, new BigDecimal("0.00"), null, fixedClock
+        );
+
+        assertAll(
+                () -> assertEquals(0, exemptToll.getAmount().signum()),
+                () -> assertEquals(ExpenseCategory.TOLL, exemptToll.getCategory()),
+                () -> assertThrows(
+                        InvalidTripExpenseException.class,
+                        () -> TripExpense.register(
+                                7L, ExpenseCategory.FOOD, BigDecimal.ZERO, null, fixedClock
+                        )
+                ),
+                () -> assertThrows(
+                        InvalidTripExpenseException.class,
+                        () -> TripExpense.register(
+                                7L, ExpenseCategory.OTHER, BigDecimal.ZERO, null, fixedClock
+                        )
+                )
+        );
+    }
+
+    @Test
+    void shouldUpdateTollToExemptButNotOtherCategoriesToZero() {
+        TripExpense toll = TripExpense.restore(
+                1L, 7L, ExpenseCategory.TOLL, new BigDecimal("13.90"), null,
+                fixedClock.instant()
+        );
+        TripExpense food = TripExpense.restore(
+                2L, 7L, ExpenseCategory.FOOD, new BigDecimal("42.50"), null,
+                fixedClock.instant()
+        );
+
+        toll.update(ExpenseCategory.TOLL, BigDecimal.ZERO, null);
+
+        assertAll(
+                () -> assertEquals(0, toll.getAmount().signum()),
+                () -> assertThrows(
+                        InvalidTripExpenseException.class,
+                        () -> food.update(ExpenseCategory.FOOD, BigDecimal.ZERO, null)
+                ),
+                () -> assertEquals(new BigDecimal("42.50"), food.getAmount())
+        );
+    }
+
+    @Test
+    void shouldRejectChangingExemptTollToZeroFood() {
+        TripExpense toll = TripExpense.restore(
+                1L, 7L, ExpenseCategory.TOLL, BigDecimal.ZERO, null, fixedClock.instant()
+        );
+
+        assertThrows(
+                InvalidTripExpenseException.class,
+                () -> toll.update(ExpenseCategory.FOOD, BigDecimal.ZERO, null)
+        );
+        assertEquals(ExpenseCategory.TOLL, toll.getCategory());
     }
 
     @Test

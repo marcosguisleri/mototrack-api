@@ -109,6 +109,20 @@ public class TripService {
     }
 
     @Transactional
+    public Trip correctTripTimestampsForOwner(
+            long tripId,
+            Long ownerId,
+            Instant startedAt,
+            Instant completedAt
+    ) {
+        Trip trip = findTripByIdForUpdateForOwner(tripId, ownerId);
+
+        trip.correctTimestamps(startedAt, completedAt, clock.instant());
+
+        return tripRepository.save(trip);
+    }
+
+    @Transactional
     public void changeTripStatusForOwner(
             long tripId,
             Long ownerId,

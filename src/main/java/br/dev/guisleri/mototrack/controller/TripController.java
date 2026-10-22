@@ -4,6 +4,7 @@ import br.dev.guisleri.mototrack.dto.ChangeTripStatusRequestDTO;
 import br.dev.guisleri.mototrack.dto.CreateTripRequestDTO;
 import br.dev.guisleri.mototrack.dto.TripResponseDTO;
 import br.dev.guisleri.mototrack.dto.UpdateTripRequestDTO;
+import br.dev.guisleri.mototrack.dto.UpdateTripTimestampsRequestDTO;
 import br.dev.guisleri.mototrack.model.Motorcycle;
 import br.dev.guisleri.mototrack.model.TerrainType;
 import br.dev.guisleri.mototrack.model.Trip;
@@ -132,6 +133,25 @@ public class TripController {
                 updateTripRequest.terrain(),
                 updateTripRequest.tripDate(),
                 motorcycle
+        );
+
+        return ResponseEntity.ok(TripResponseDTO.from(trip));
+    }
+
+    @PutMapping("/{id}/timestamps")
+    public ResponseEntity<TripResponseDTO> correctTripTimestamps(
+            @PathVariable("id") long tripId,
+            @RequestBody UpdateTripTimestampsRequestDTO timestampsRequest,
+            Authentication authentication
+    ) {
+
+        User currentUser = userService.findUserByEmail(authentication.getName());
+
+        Trip trip = tripService.correctTripTimestampsForOwner(
+                tripId,
+                currentUser.getId(),
+                timestampsRequest.startedAt(),
+                timestampsRequest.completedAt()
         );
 
         return ResponseEntity.ok(TripResponseDTO.from(trip));

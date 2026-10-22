@@ -146,6 +146,7 @@ Transições que não aparecem no diagrama são rejeitadas pelo próprio domíni
 - Viagem registrada como já concluída **não pode** ter data no futuro.
 - Uma viagem só vira `COMPLETED` se a data dela já chegou.
 - Editar uma viagem (`PUT /trips/{id}`) não muda status nem horários; a data segue a regra do status (planejada: não passada; iniciada ou concluída: não futura).
+- Os horários podem ser corrigidos depois em `PUT /trips/{id}/timestamps` (viagem `PLANNED` não aceita; `IN_PROGRESS` só tem início); as mesmas regras de futuro e de ordem se aplicam.
 - Abastecimentos só podem ser registrados em viagens `IN_PROGRESS` ou `COMPLETED`; litros e valor pago devem ser positivos. O preço por litro é calculado, não armazenado.
 - Gastos (pedágio, alimentação, estacionamento etc.) seguem a mesma regra dos abastecimentos: só em viagens `IN_PROGRESS` ou `COMPLETED`, com valor positivo e descrição opcional.
 - O resumo de custos (`/trips/{id}/cost-summary`) é derivado dos registros, nunca armazenado; sem registros os totais e o custo por km são `null`, não zero.

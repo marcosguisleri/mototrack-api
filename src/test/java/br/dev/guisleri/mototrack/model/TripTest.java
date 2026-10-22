@@ -477,6 +477,117 @@ public class TripTest {
     }
 
     // -------------------------------------------------------------------------
+    // Correção dos horários
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldCorrectBothTimestampsOfCompletedTrip() {
+        Trip trip = restoreTrip(today, TripStatus.COMPLETED);
+
+        trip.correctTimestamps(now.minusSeconds(7200), now.minusSeconds(600), now);
+
+        assertAll(
+                () -> assertEquals(now.minusSeconds(7200), trip.getStartedAt()),
+                () -> assertEquals(now.minusSeconds(600), trip.getCompletedAt()),
+                () -> assertEquals(TripStatus.COMPLETED, trip.getStatus())
+        );
+    }
+
+    @Test
+    void shouldClearTimestampsOfCompletedTripWhenNull() {
+        Trip trip = Trip.restore(
+                1L, "A", "B", 10.0, TerrainType.ASPHALT, today, motorcycle,
+                TripStatus.COMPLETED, now.minusSeconds(60), now
+        );
+
+        trip.correctTimestamps(null, null, now);
+
+        assertAll(
+                () -> assertNull(trip.getStartedAt()),
+                () -> assertNull(trip.getCompletedAt()),
+                () -> assertTrue(trip.duration().isEmpty())
+        );
+    }
+
+    @Test
+    void shouldAcceptCompletedAtWithoutStartedAt() {
+        Trip trip = restoreTrip(today, TripStatus.COMPLETED);
+
+        trip.correctTimestamps(null, now, now);
+
+        assertAll(
+                () -> assertNull(trip.getStartedAt()),
+                () -> assertEquals(now, trip.getCompletedAt())
+        );
+    }
+
+    @Test
+    void shouldCorrectOnlyStartedAtOfTripInProgress() {
+        Trip trip = restoreTrip(today, TripStatus.IN_PROGRESS);
+
+        trip.correctTimestamps(now.minusSeconds(300), null, now);
+
+        assertAll(
+                () -> assertEquals(now.minusSeconds(300), trip.getStartedAt()),
+                () -> assertNull(trip.getCompletedAt())
+        );
+    }
+
+    @Test
+    void shouldRejectCompletedAtForTripInProgress() {
+        Trip trip = restoreTrip(today, TripStatus.IN_PROGRESS);
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> trip.correctTimestamps(now.minusSeconds(300), now, now)
+        );
+        assertNull(trip.getStartedAt());
+    }
+
+    @Test
+    void shouldRejectTimestampsForPlannedTrip() {
+        Trip trip = createTrip(today.plusDays(1));
+
+        assertThrows(
+                InvalidTripStatusException.class,
+                () -> trip.correctTimestamps(now.minusSeconds(60), null, now)
+        );
+    }
+
+    @Test
+    void shouldRejectFutureTimestampsOnCorrection() {
+        Trip trip = restoreTrip(today, TripStatus.COMPLETED);
+
+        assertAll(
+                () -> assertThrows(
+                        InvalidTripDateException.class,
+                        () -> trip.correctTimestamps(now.plusSeconds(1), null, now)
+                ),
+                () -> assertThrows(
+                        InvalidTripDateException.class,
+                        () -> trip.correctTimestamps(null, now.plusSeconds(1), now)
+                )
+        );
+    }
+
+    @Test
+    void shouldRejectCompletedAtBeforeStartedAtOnCorrectionKeepingPreviousValues() {
+        Trip trip = Trip.restore(
+                1L, "A", "B", 10.0, TerrainType.ASPHALT, today, motorcycle,
+                TripStatus.COMPLETED, now.minusSeconds(60), now
+        );
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> trip.correctTimestamps(now.minusSeconds(10), now.minusSeconds(20), now)
+        );
+        assertAll(
+                () -> assertEquals(now.minusSeconds(60), trip.getStartedAt()),
+                () -> assertEquals(now, trip.getCompletedAt())
+        );
+    }
+
+    // -------------------------------------------------------------------------
     // Registros reais (abastecimentos e gastos)
     // -------------------------------------------------------------------------
 

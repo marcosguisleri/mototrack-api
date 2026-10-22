@@ -238,6 +238,46 @@ public class Trip {
         status = TripStatus.COMPLETED;
     }
 
+    public void correctTimestamps(
+            Instant startedAt,
+            Instant completedAt,
+            Instant now
+    ) {
+        if (status == TripStatus.PLANNED) {
+            throw new InvalidTripStatusException(
+                    "Não é possível informar horários de uma viagem planejada."
+            );
+        }
+
+        if (status == TripStatus.IN_PROGRESS && completedAt != null) {
+            throw new InvalidTripDateException(
+                    "Uma viagem em andamento não pode ter horário de conclusão."
+            );
+        }
+
+        if (startedAt != null && startedAt.isAfter(now)) {
+            throw new InvalidTripDateException(
+                    "O horário de início da viagem não pode estar no futuro."
+            );
+        }
+
+        if (completedAt != null && completedAt.isAfter(now)) {
+            throw new InvalidTripDateException(
+                    "O horário de conclusão da viagem não pode estar no futuro."
+            );
+        }
+
+        if (startedAt != null && completedAt != null
+                && completedAt.isBefore(startedAt)) {
+            throw new InvalidTripDateException(
+                    "O horário de conclusão não pode ser anterior ao horário de início."
+            );
+        }
+
+        this.startedAt = startedAt;
+        this.completedAt = completedAt;
+    }
+
     public void assertAcceptsRecords() {
         if (status == TripStatus.PLANNED) {
             throw new InvalidTripStatusException(

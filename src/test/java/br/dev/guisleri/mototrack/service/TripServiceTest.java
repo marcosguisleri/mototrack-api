@@ -559,6 +559,53 @@ class TripServiceTest {
         verify(tripRepository, never()).save(any());
     }
 
+    @Test
+    void shouldCorrectTimestampsUnderLockAndSave() {
+        Trip trip = trip(1L, TerrainType.ASPHALT, today, honda, TripStatus.COMPLETED);
+        Instant startedAt = fixedClock.instant().minusSeconds(7200);
+        Instant completedAt = fixedClock.instant().minusSeconds(600);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+        when(tripRepository.save(trip)).thenReturn(trip);
+
+        Trip result = service.correctTripTimestampsForOwner(
+                1L, OWNER_ID, startedAt, completedAt
+        );
+
+        assertAll(
+                () -> assertSame(trip, result),
+                () -> assertEquals(startedAt, trip.getStartedAt()),
+                () -> assertEquals(completedAt, trip.getCompletedAt())
+        );
+        verify(tripRepository).findByIdForUpdate(1L);
+        verify(tripRepository).save(trip);
+    }
+
+    @Test
+    void shouldRejectFutureTimestampOnCorrectionWithoutSaving() {
+        Trip trip = trip(1L, TerrainType.ASPHALT, today, honda, TripStatus.COMPLETED);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                InvalidTripDateException.class,
+                () -> service.correctTripTimestampsForOwner(
+                        1L, OWNER_ID, null, fixedClock.instant().plusSeconds(1)
+                )
+        );
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldNotCorrectTimestampsOfTripOfAnotherOwner() {
+        Trip trip = trip(1L, TerrainType.ASPHALT, today, foreignMotorcycle, TripStatus.COMPLETED);
+        when(tripRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(trip));
+
+        assertThrows(
+                TripAccessDeniedException.class,
+                () -> service.correctTripTimestampsForOwner(1L, OWNER_ID, null, null)
+        );
+        verify(tripRepository, never()).save(any());
+    }
+
     // -------------------------------------------------------------------------
     // Filtros, viagem em andamento, próximas viagens e histórico
     // -------------------------------------------------------------------------

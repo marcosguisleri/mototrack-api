@@ -941,6 +941,114 @@ class TripControllerTest {
     }
 
     // -------------------------------------------------------------------------
+    // PUT /trips/{id}/timestamps - correção dos horários
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldCorrectTripTimestamps() throws Exception {
+        Instant startedAt = Instant.parse("2026-09-20T11:42:00Z");
+        Instant completedAt = Instant.parse("2026-09-20T18:18:00Z");
+        Trip trip = Trip.restore(
+                5L, "Florianopolis", "Urubici", 175.5, TerrainType.MIXED,
+                LocalDate.of(2026, 9, 20), PERSISTED_MOTORCYCLE, TripStatus.COMPLETED,
+                startedAt, completedAt
+        );
+        when(tripService.correctTripTimestampsForOwner(
+                5L, CURRENT_USER.getId(), startedAt, completedAt
+        )).thenReturn(trip);
+
+        mockMvc.perform(put("/trips/5/timestamps")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "startedAt": "2026-09-20T08:42:00-03:00",
+                                  "completedAt": "2026-09-20T15:18:00-03:00"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(5))
+                .andExpect(jsonPath("$.startedAt").value("2026-09-20T11:42:00Z"))
+                .andExpect(jsonPath("$.completedAt").value("2026-09-20T18:18:00Z"));
+    }
+
+    @Test
+    void shouldPassNullsToClearTimestamps() throws Exception {
+        when(tripService.correctTripTimestampsForOwner(
+                5L, CURRENT_USER.getId(), null, null
+        )).thenReturn(completedTrip(5, LocalDate.of(2026, 9, 20)));
+
+        mockMvc.perform(put("/trips/5/timestamps")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.startedAt").isEmpty())
+                .andExpect(jsonPath("$.completedAt").isEmpty());
+    }
+
+    @Test
+    void shouldRejectInvalidTimestampFormat() throws Exception {
+        mockMvc.perform(put("/trips/5/timestamps")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "startedAt": "ontem de manhã" }
+                                """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(tripService);
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenTimestampRuleIsViolated() throws Exception {
+        when(tripService.correctTripTimestampsForOwner(
+                5L, CURRENT_USER.getId(), null, null
+        )).thenThrow(new InvalidTripDateException("Horário inválido!"));
+
+        mockMvc.perform(put("/trips/5/timestamps")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Horário inválido!"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenCorrectingTimestampsOfPlannedTrip() throws Exception {
+        when(tripService.correctTripTimestampsForOwner(
+                5L, CURRENT_USER.getId(), null, null
+        )).thenThrow(new InvalidTripStatusException("Viagem planejada."));
+
+        mockMvc.perform(put("/trips/5/timestamps")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturnForbiddenAndNotFoundOnTimestampCorrection() throws Exception {
+        when(tripService.correctTripTimestampsForOwner(
+                5L, CURRENT_USER.getId(), null, null
+        )).thenThrow(new TripAccessDeniedException("negado"));
+        when(tripService.correctTripTimestampsForOwner(
+                6L, CURRENT_USER.getId(), null, null
+        )).thenThrow(new TripNotFoundException("não encontrada"));
+
+        mockMvc.perform(put("/trips/5/timestamps")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(put("/trips/6/timestamps")
+                        .principal(AUTHENTICATION)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isNotFound());
+    }
+
+    // -------------------------------------------------------------------------
     // DELETE /trips/{id} - exclusão de viagem
     // -------------------------------------------------------------------------
 

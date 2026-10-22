@@ -287,6 +287,33 @@ caracteres (texto em branco vira `null`).
 
 Excluir uma viagem (`DELETE /trips/{id}`) também remove os gastos dela.
 
+### Resumo de custos da viagem
+
+`GET /trips/{tripId}/cost-summary` — sem corpo. Soma abastecimentos e gastos da
+viagem do usuário autenticado; os totais são calculados a cada requisição, não
+ficam gravados. Retorna `200`; `403` se a viagem for de outro owner e `404` se
+não existir. Em viagem `PLANNED` ou sem registros, o resultado é vazio (sem erro).
+
+```json
+{
+  "fuel": { "entries": 2, "liters": 16.2, "totalCost": 103.90 },
+  "expenses": [
+    { "category": "TOLL", "count": 3, "total": 37.80 },
+    { "category": "FOOD", "count": 1, "total": 42.01 }
+  ],
+  "totalCost": 183.71,
+  "costPerKm": 1.08
+}
+```
+
+- `fuel.entries` é a quantidade de abastecimentos; `fuel.liters` e `fuel.totalCost`
+  são `null` quando não há nenhum (ausência de registro não é o mesmo que zero).
+- `expenses` lista apenas as categorias que têm registros, na ordem do enum
+  `ExpenseCategory`; vazia se não houver gastos.
+- `totalCost` é abastecimentos + gastos, ou `null` se nada foi registrado.
+- `costPerKm` é `totalCost / distanceKm` com 2 casas (arredondamento `HALF_UP`),
+  ou `null` se não houver custo ou se a distância da viagem não for positiva.
+
 ## Home e estatísticas gerais
 
 ### `GET /home`

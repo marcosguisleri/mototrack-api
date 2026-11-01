@@ -1,6 +1,7 @@
 package br.dev.guisleri.mototrack.controller;
 
 import br.dev.guisleri.mototrack.dto.CreateUserRequestDTO;
+import br.dev.guisleri.mototrack.dto.UpdateUserNameRequestDTO;
 import br.dev.guisleri.mototrack.dto.UserResponseDTO;
 import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.service.UserService;
@@ -8,11 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/users")
@@ -37,6 +34,20 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(UserResponseDTO.from(user));
 
+    }
+
+    @PatchMapping("/me")
+    public ResponseEntity<UserResponseDTO> updateUserName(
+            Authentication authentication,
+            @Valid @RequestBody UpdateUserNameRequestDTO requestDTO
+    ) {
+        String email = authentication.getName();
+
+        User user = userService.findUserByEmail(email);
+
+        userService.updateUser(user.getId(), requestDTO.name());
+
+        return ResponseEntity.ok(UserResponseDTO.from(user));
     }
 
     @GetMapping("/me")

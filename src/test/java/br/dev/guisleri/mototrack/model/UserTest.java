@@ -48,4 +48,42 @@ class UserTest {
                 () -> assertEquals("password-hash", user.getPasswordHash())
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Troca de e-mail e de senha
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldChangeEmailNormalizingIt() {
+        User user = User.restore(1L, "Marcos", "marcos@example.com", "hash");
+
+        user.changeEmail("  Novo@Example.COM ");
+
+        assertEquals("novo@example.com", user.getEmail());
+    }
+
+    @Test
+    void shouldRefuseABlankEmail() {
+        User user = User.restore(1L, "Marcos", "marcos@example.com", "hash");
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> user.changeEmail("  ")
+        );
+        assertEquals("marcos@example.com", user.getEmail());
+    }
+
+    @Test
+    void shouldChangePasswordHashAndRefuseABlankOne() {
+        User user = User.restore(1L, "Marcos", "marcos@example.com", "hash");
+
+        user.changePasswordHash("new-hash");
+        assertEquals("new-hash", user.getPasswordHash());
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> user.changePasswordHash(" ")
+        );
+        assertEquals("new-hash", user.getPasswordHash());
+    }
 }

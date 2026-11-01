@@ -198,4 +198,27 @@ class JpaRefreshTokenRepositoryAdapterTest {
         springDataRefreshTokenRepository.flush();
         return savedRefreshToken;
     }
+
+    // -------------------------------------------------------------------------
+    // Encerrar todas as sessões de um usuário
+    // -------------------------------------------------------------------------
+
+    @Test
+    void shouldDeleteEveryRefreshTokenOfTheUserAndOnlyHis() {
+        UserEntity other = springDataUserRepository.saveAndFlush(
+                new UserEntity(null, "Outro", "outro@example.com", "password-hash")
+        );
+
+        refreshTokenRepositoryAdapter.save(RefreshToken.create(userEntity.getId(), "hash-a", EXPIRES_AT));
+        refreshTokenRepositoryAdapter.save(RefreshToken.create(userEntity.getId(), "hash-b", EXPIRES_AT));
+        refreshTokenRepositoryAdapter.save(RefreshToken.create(other.getId(), "hash-c", EXPIRES_AT));
+        springDataRefreshTokenRepository.flush();
+
+        refreshTokenRepositoryAdapter.deleteAllByUserId(userEntity.getId());
+        entityManager.clear();
+
+        assertTrue(refreshTokenRepositoryAdapter.findByTokenHashForUpdate("hash-a").isEmpty());
+        assertTrue(refreshTokenRepositoryAdapter.findByTokenHashForUpdate("hash-b").isEmpty());
+        assertTrue(refreshTokenRepositoryAdapter.findByTokenHashForUpdate("hash-c").isPresent());
+    }
 }

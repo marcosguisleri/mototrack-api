@@ -62,4 +62,10 @@ public class JpaRefreshTokenRepositoryAdapter
     public void deleteById(Long id) {
         refreshTokenRepository.deleteById(id);
     }
+
+    @Override
+    @Transactional
+    public void deleteAllByUserId(Long userId) {
+        refreshTokenRepository.deleteAllByUserId(userId);
+    }
 }

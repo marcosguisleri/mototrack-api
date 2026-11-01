@@ -112,6 +112,17 @@ class UserControllerTest {
     }
 
     @Test
+    void shouldRejectAPasswordLongerThanBcryptAccepts() throws Exception {
+        mockMvc.perform(post("/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(userJson("Marcos", "marcos@example.com", "é".repeat(37))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.password").exists());
+
+        verifyNoInteractions(userService);
+    }
+
+    @Test
     void shouldRejectBlankName() throws Exception {
         mockMvc.perform(post("/users")
                 .contentType(MediaType.APPLICATION_JSON)

@@ -11,8 +11,8 @@ apenas para desenvolvimento local; use HTTPS quando a API estiver acessível pel
 - `TerrainType`: `ASPHALT`, `MIXED`, `OFF_ROAD`.
 - `TripStatus`: `PLANNED`, `IN_PROGRESS`, `COMPLETED`.
 - Identificadores são números inteiros positivos nos requests que os validam.
-- `POST /users`, `POST /auth/login`, `POST /auth/refresh` e `POST /auth/logout`
-  são públicos. Os demais endpoints exigem `Authorization: Bearer <accessToken>`.
+- `POST /users`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`,
+  `POST /auth/forgot-password` e `POST /auth/reset-password` são públicos. Os demais endpoints exigem `Authorization: Bearer <accessToken>`.
   O e-mail é normalizado (espaços nas pontas removidos e letras minúsculas);
   a senha não é retornada pela API.
 - O proprietário é sempre obtido da autenticação, nunca de um `ownerId` no
@@ -68,6 +68,40 @@ curl -X POST http://localhost:8080/users \
 
 Sem parâmetros ou corpo. Retorna `200` com `User`; `401` sem credenciais válidas.
 
+### Trocar o e-mail (dois passos)
+
+O código de 6 dígitos é enviado ao **e-mail novo**, para provar que ele é do
+usuário. O código vale por 15 minutos e aceita até 5 tentativas erradas (na
+quinta ele é invalidado); pedir outro código invalida o anterior.
+
+#### `POST /users/me/email-change` — pedir a troca
+
+Exige autenticação. JSON: `newEmail` (e-mail válido, até 255 caracteres) e
+`currentPassword` (a senha atual). Retorna `202` sem corpo e envia o código.
+`400` para senha atual incorreta (`Senha atual incorreta.`), para o mesmo
+e-mail da conta ou para campos inválidos; `409` se o e-mail já pertence a outra
+conta; `429` se outro código foi pedido há menos de um minuto.
+
+```bash
+curl -X POST http://localhost:8080/users/me/email-change \
+  -H "Authorization: Bearer $ACCESS_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"newEmail":"novo@example.com","currentPassword":"secret123"}'
+```
+
+#### `POST /users/me/email-change/confirm` — confirmar com o código
+
+Exige autenticação. JSON: `code` (6 dígitos). Retorna `200` com um novo par
+`accessToken` e `refreshToken`: como o e-mail é o `subject` do token de acesso,
+**todas as sessões anteriores são encerradas** e o app deve guardar os tokens
+novos. O e-mail antigo recebe um aviso da troca. `400` com
+`Código inválido ou expirado.` para código errado, vencido ou inexistente (a
+mesma mensagem nos três casos); `409` se o e-mail foi ocupado por outra conta
+nesse meio-tempo.
+
+```json
+{"accessToken":"<novo-jwt>","refreshToken":"<novo-token-opaco>"}
+```
+
 ## Autenticação
 
 ### `POST /auth/login` — entrar
@@ -116,6 +150,38 @@ não há blacklist de access tokens.
 curl -X POST http://localhost:8080/auth/logout \
   -H 'Content-Type: application/json' \
   -d '{"refreshToken":"<token-opaco-atual>"}'
+```
+
+### Recuperar a senha (dois passos)
+
+Para quem esqueceu a senha e, portanto, não tem token. Ambos os endpoints são
+públicos. O código tem 6 dígitos, vale por 15 minutos e aceita até 5 tentativas
+erradas; só o hash dele (HMAC) é guardado.
+
+#### `POST /auth/forgot-password` — pedir o código
+
+JSON: `email`. Retorna sempre `202` sem corpo, **exista a conta ou não**, para
+não revelar quais e-mails têm cadastro. Se a conta existe, o código é enviado
+por e-mail. Pedidos repetidos em menos de um minuto são ignorados (também com
+`202`). `400` só para e-mail ausente ou malformado.
+
+```bash
+curl -X POST http://localhost:8080/auth/forgot-password \
+  -H 'Content-Type: application/json' -d '{"email":"marcos@example.com"}'
+```
+
+#### `POST /auth/reset-password` — trocar a senha com o código
+
+JSON: `email`, `code` (6 dígitos) e `newPassword` (mínimo 8 caracteres). Retorna
+`204` sem corpo, troca a senha e **encerra todas as sessões** da conta (os
+refresh tokens são removidos). `400` com `Código inválido ou expirado.` para
+código errado, vencido, inexistente ou conta desconhecida (mesma mensagem em
+todos os casos); `400` com `errors` para campos inválidos.
+
+```bash
+curl -X POST http://localhost:8080/auth/reset-password \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"marcos@example.com","code":"123456","newPassword":"nova-senha-1"}'
 ```
 
 ## Motocicletas

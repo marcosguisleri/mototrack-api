@@ -45,7 +45,10 @@ public class GlobalExceptionHandler {
             InvalidTripDateException.class,
             InvalidTripStatusException.class,
             InvalidFuelEntryException.class,
-            InvalidTripExpenseException.class
+            InvalidTripExpenseException.class,
+            InvalidVerificationCodeException.class,
+            InvalidCurrentPasswordException.class,
+            InvalidEmailChangeException.class
     })
     public ResponseEntity<ApiErrorResponseDTO> handleInvalidTrip(
             RuntimeException exception
@@ -80,6 +83,13 @@ public class GlobalExceptionHandler {
             RuntimeException exception
     ) {
         return createErrorResponse(HttpStatus.FORBIDDEN, exception);
+    }
+
+    @ExceptionHandler(VerificationCodeCooldownException.class)
+    public ResponseEntity<ApiErrorResponseDTO> handleVerificationCodeCooldown(
+            VerificationCodeCooldownException exception
+    ) {
+        return createErrorResponse(HttpStatus.TOO_MANY_REQUESTS, exception);
     }
 
     @ExceptionHandler(InvalidRefreshTokenException.class)

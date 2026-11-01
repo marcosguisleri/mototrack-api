@@ -22,5 +22,17 @@ services:
 
     restart: unless-stopped
 
+  # Servidor de e-mail falso para desenvolvimento: recebe os e-mails que a API
+  # envia e os mostra em http://localhost:8025 (nada sai de verdade).
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mototrack-mailpit
+
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+    restart: unless-stopped
+
 volumes:
   mototrack-postgres-data:

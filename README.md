@@ -167,7 +167,8 @@ status e exemplos, está em [docs/API.md](docs/API.md).
 
 ### 🔐 Autenticação
 
-O cadastro (`POST /users`), login, refresh e logout são públicos. O login
+O cadastro (`POST /users`), login, refresh, logout e a recuperação de senha
+(`POST /auth/forgot-password` e `POST /auth/reset-password`) são públicos. O login
 retorna um access token JWT válido por 15 minutos e um refresh token válido
 por 30 dias. Os endpoints protegidos exigem o access token em cada requisição:
 
@@ -191,6 +192,10 @@ em [docs/API.md](docs/API.md#autenticação).
 |:---:|---|---|:---:|
 | `POST` | `/users` | Cadastra um usuário | `201` |
 | `GET` | `/users/me` | Retorna o usuário autenticado | `200` |
+| `POST` | `/users/me/email-change` | Pede a troca de e-mail (envia um código ao e-mail novo) | `202` |
+| `POST` | `/users/me/email-change/confirm` | Confirma a troca com o código e devolve novos tokens | `200` |
+| `POST` | `/auth/forgot-password` | Envia o código de recuperação de senha por e-mail | `202` |
+| `POST` | `/auth/reset-password` | Troca a senha com o código recebido | `204` |
 
 ### 🏍️ Motos
 
@@ -481,6 +486,7 @@ O `401` por Bearer ausente ou inválido conserva `WWW-Authenticate: Bearer`. Con
 | Payload que falha na Bean Validation | `MethodArgumentNotValidException` | `400` |
 | Parâmetro inválido na URL ou JSON inválido | Conversão/parse HTTP | `400` |
 | Endpoint inexistente | Roteamento HTTP | `404` |
+| Muitas tentativas no mesmo IP (login, cadastro, recuperação de senha) | `RateLimitFilter` | `429` |
 
 ---
 
@@ -517,7 +523,7 @@ produção usa `America/Sao_Paulo`, sem depender do timezone da máquina.
 git clone https://github.com/marcosguisleri/mototrack-api.git
 cd mototrack-api
 
-docker compose up -d      # PostgreSQL 17 na porta 5432
+docker compose up -d      # PostgreSQL 17 (5432) e Mailpit (SMTP 1025, e-mails em http://localhost:8025)
 export JWT_SECRET=$(openssl rand -base64 48)
 ./mvnw spring-boot:run    # API na porta 8080
 ```
@@ -538,6 +544,11 @@ ou em um arquivo `.env` local. Os valores dos dois lados precisam coincidir.
 | `DB_USER` | Aplicação | `mototrack` |
 | `DB_PASSWORD` | Aplicação | `mototrack123` |
 | `JWT_SECRET` | Aplicação | Obrigatória, sem valor padrão |
+| `MAIL_HOST` | Aplicação | `localhost` (Mailpit do Compose) |
+| `MAIL_PORT` | Aplicação | `1025` |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | Aplicação | vazios |
+| `MAIL_SMTP_AUTH` / `MAIL_SMTP_STARTTLS` | Aplicação | `false` |
+| `MAIL_FROM` | Aplicação | `MotoTrack <nao-responda@mototrack.local>` |
 | `JPA_DDL_AUTO` | Aplicação | `update` |
 | `JPA_SHOW_SQL` | Aplicação | `false` |
 | `JPA_FORMAT_SQL` | Aplicação | `false` |
@@ -546,6 +557,35 @@ ou em um arquivo `.env` local. Os valores dos dois lados precisam coincidir.
 | `POSTGRES_PASSWORD` | Docker Compose | `mototrack123` |
 
 > O `.env` não é versionado.
+
+Os códigos de recuperação de senha e de troca de e-mail são enviados por SMTP. Em
+desenvolvimento o Mailpit do Compose recebe as mensagens e as mostra em
+http://localhost:8025, sem enviar nada de verdade. Em produção, aponte `MAIL_*`
+para um serviço de envio (Resend, Brevo, Mailgun, Amazon SES...) com um domínio
+seu configurado (SPF e DKIM), para os e-mails não caírem no spam. A tabela
+`verification_codes` é criada automaticamente (`ddl-auto=update`).
+
+### Publicando em produção
+
+A imagem é construída com o `Dockerfile` da raiz (`docker build -t mototrack-api .`). Plataformas
+como Railway e Render constroem a partir dele e definem `PORT` sozinhas. Configure como variáveis
+de ambiente:
+
+| Variável | Valor em produção |
+|---|---|
+| `DB_URL`, `DB_USER`, `DB_PASSWORD` | Banco PostgreSQL gerenciado, com senha forte e backup diário |
+| `JWT_SECRET` | Segredo novo e secreto: `openssl rand -base64 48` |
+| `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_SMTP_AUTH=true`, `MAIL_SMTP_STARTTLS=true`, `MAIL_FROM` | Serviço de envio de e-mail |
+| `TRUST_FORWARDED_FOR=true` | Atrás do proxy da plataforma, para o limite de requisições enxergar o IP real |
+
+- `GET /health` responde `{"status":"UP"}` para a verificação de saúde da plataforma.
+- O limite de requisições por IP (login 10/min, cadastro 10/h, recuperação de senha 5/10 min)
+  vive em memória: vale para **uma** instância da API. Com várias, troque por um contador
+  compartilhado (ex.: Redis).
+- Sempre use HTTPS (a plataforma oferece certificado). Nunca deixe o padrão de desenvolvimento
+  da senha do banco (`mototrack123`) valendo no servidor.
+- `JPA_DDL_AUTO=update` ajusta o esquema sozinho; é prático agora, mas passe a usar migrações
+  (Flyway) e faça backup do banco antes de cada deploy.
 
 ### Encerrando
 

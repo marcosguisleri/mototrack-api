@@ -51,12 +51,15 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.GET, "/health").permitAll()
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/users",
                                 "/auth/login",
                                 "/auth/refresh",
-                                "/auth/logout"
+                                "/auth/logout",
+                                "/auth/forgot-password",
+                                "/auth/reset-password"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

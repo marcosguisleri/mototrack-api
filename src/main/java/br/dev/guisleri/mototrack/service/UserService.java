@@ -47,6 +47,15 @@ public class UserService {
         }
     }
 
+    public void updateUser(Long userId, String name) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UserNotFoundException(
+                        "Usuário com id: %s não encontrado".formatted(userId)
+                ));
+        user.updateName(name);
+        userRepository.save(user);
+    }
+
     public User findUserByEmail(String userEmail) {
         String normalizedEmail = normalizeEmail(userEmail);
         return userRepository.findByEmail(normalizedEmail)

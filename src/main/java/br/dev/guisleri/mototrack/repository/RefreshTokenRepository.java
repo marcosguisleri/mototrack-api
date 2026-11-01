@@ -12,4 +12,6 @@ public interface RefreshTokenRepository {
 
     void deleteById(Long id);
 
+    void deleteAllByUserId(Long userId);
+
 }

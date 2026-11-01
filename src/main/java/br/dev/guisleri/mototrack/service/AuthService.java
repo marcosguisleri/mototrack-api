@@ -10,9 +10,12 @@ import br.dev.guisleri.mototrack.model.User;
 import br.dev.guisleri.mototrack.repository.RefreshTokenRepository;
 import br.dev.guisleri.mototrack.repository.UserRepository;
 import br.dev.guisleri.mototrack.security.RefreshTokenGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
@@ -25,6 +28,8 @@ import java.time.Instant;
 
 @Service
 public class AuthService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
 
     private static final Duration ACCESS_TOKEN_VALIDITY = Duration.ofMinutes(15);
     private static final Duration REFRESH_TOKEN_VALIDITY = Duration.ofDays(30);
@@ -60,8 +65,14 @@ public class AuthService {
                         loginRequestDTO.password()
                 );
 
-        Authentication authentication =
-                authenticationManager.authenticate(authenticationRequest);
+        Authentication authentication;
+
+        try {
+            authentication = authenticationManager.authenticate(authenticationRequest);
+        } catch (AuthenticationException exception) {
+            LOGGER.warn("Falha de login para {}", maskEmail(loginRequestDTO.email()));
+            throw exception;
+        }
 
         User user = userRepository
                 .findByEmail(authentication.getName())
@@ -81,6 +92,17 @@ public class AuthService {
                 rawRefreshToken
         );
 
+    }
+
+    /** Evita gravar o e-mail inteiro nos logs: "marcos@gmail.com" vira "m***@gmail.com". */
+    static String maskEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return "(vazio)";
+        }
+
+        int at = email.indexOf('@');
+
+        return at <= 0 ? "***" : email.charAt(0) + "***" + email.substring(at);
     }
 
     @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
@@ -139,6 +161,20 @@ public class AuthService {
                 .ifPresent(refreshToken ->
                         refreshTokenRepository.deleteById(refreshToken.getId())
                 );
+    }
+
+    /**
+     * Fecha todas as sessões do usuário e abre uma nova: usado quando algo que
+     * identifica a conta muda (o e-mail é o assunto do token de acesso).
+     */
+    @Transactional
+    public AuthTokenResponseDTO issueNewSession(User user) {
+        refreshTokenRepository.deleteAllByUserId(user.getId());
+
+        return new AuthTokenResponseDTO(
+                generateAccessToken(user.getEmail()),
+                issueRefreshToken(user.getId(), Instant.now(clock))
+        );
     }
 
     private String generateAccessToken(String subject) {
